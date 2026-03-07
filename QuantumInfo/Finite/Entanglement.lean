@@ -160,7 +160,9 @@ theorem mixed_convex_roof_le_convex_roof : mixed_convex_roof f ≤ convex_roof_o
   exact le_of_eq <| NNReal.coe_inj.mp <| average_of_pure_ensemble (toReal ∘ f) e
 
 /-- The convex roof extension of `g : Ket d → ℝ≥0` applied to a pure state `ψ` is `g ψ`. -/
-theorem convex_roof_of_pure (ψ : Ket d) : convex_roof g (pure ψ) = g ψ := by
+theorem convex_roof_of_pure (ψ : Ket d)
+    (hg_phase : ∀ {φ : Ket d}, MState.pure φ = MState.pure ψ → g φ = g ψ) :
+    convex_roof g (pure ψ) = g ψ := by
   rw [le_antisymm_iff]
   constructor
   · apply convex_roof_le
@@ -172,10 +174,15 @@ theorem convex_roof_of_pure (ψ : Ket d) : convex_roof g (pure ψ) = g ψ := by
       rfl
   · apply le_convex_roof
     intro n hnpos e hmix
-    replace hpure := mix_pEnsemble_pure_iff_pure.mp hmix
     apply le_of_eq
     simp only [pure_average_NNReal, ← NNReal.coe_inj, coe_mk]
-    rw [mix_pEnsemble_pure_average (toReal ∘ g) hmix, Function.comp_apply]
+    have h_avg :
+        pure_average (NNReal.toReal ∘ g) e = (NNReal.toReal ∘ g) ψ :=
+      mix_pEnsemble_pure_average (ψ := ψ) (e := e) (f := NNReal.toReal ∘ g)
+        (fun {φ} hφ => by
+          simpa [Function.comp_apply] using congrArg NNReal.toReal (hg_phase hφ))
+        hmix
+    rw [h_avg, Function.comp_apply]
 
 omit [Nonempty d] in
 /-- The mixed convex roof extension of `f : MState d → ℝ≥0` applied to a pure state `ψ` is `f (pure ψ)`. -/
@@ -261,13 +268,25 @@ theorem Sᵥₙ_ofClassical {d : Type*} [Fintype d] [DecidableEq d] (dist : Dist
 
 /-- The entanglement of formation of the maximally entangled state with on-site dimension 𝕕 is log(𝕕). -/
 theorem EoF_of_MES : EoF (pure <| Ket.MES d) = Real.log (Finset.card Finset.univ (α := d)) := by
-  simp only [EoF, convex_roof_of_pure, coe_mk, Finset.card_univ]
-  simp only [traceRight, MState.pure, Ket.MES, one_div]
-  -- The von Neumann entropy of the maximally mixed state is log(d).
+  let gE : Ket (d × d) → ℝ≥0 :=
+    fun ψ ↦ ⟨Sᵥₙ (pure ψ).traceRight, Sᵥₙ_nonneg (pure ψ).traceRight⟩
+  have h_phase :
+      ∀ {φ : Ket (d × d)}, MState.pure φ = MState.pure (Ket.MES d) →
+        gE φ = gE (Ket.MES d) := by
+    intro φ hφ
+    change
+      (⟨Sᵥₙ (pure φ).traceRight, Sᵥₙ_nonneg (pure φ).traceRight⟩ : ℝ≥0) =
+        ⟨Sᵥₙ (pure (Ket.MES d)).traceRight, Sᵥₙ_nonneg (pure (Ket.MES d)).traceRight⟩
+    congr 1
+    simpa using congrArg (fun ρ : MState (d × d) => Sᵥₙ ρ.traceRight) hφ
+  have h_eof_pure :
+      EoF (pure <| Ket.MES d) = gE (Ket.MES d) := by
+    change convex_roof gE (pure <| Ket.MES d) = gE (Ket.MES d)
+    exact convex_roof_of_pure (g := gE) (ψ := Ket.MES d) h_phase
   have h_von_neumann : Sᵥₙ (MState.uniform : MState d) = Real.log (Fintype.card d) := by
     rw [MState.uniform, Sᵥₙ_ofClassical Distribution.uniform, Hₛ_uniform, Finset.card_univ]
-  convert h_von_neumann using 2;
-  convert traceRight_pure_MES d using 1;
-  unfold Ket.MES;
-  simp_all only [one_div]
-  rfl
+  have h_mes_entropy : (gE (Ket.MES d) : ℝ) = Real.log (Finset.card Finset.univ (α := d)) := by
+    change Sᵥₙ (pure (Ket.MES d)).traceRight = Real.log (Finset.card Finset.univ (α := d))
+    rw [traceRight_pure_MES d, h_von_neumann, Finset.card_univ]
+  rw [h_eof_pure]
+  exact h_mes_entropy

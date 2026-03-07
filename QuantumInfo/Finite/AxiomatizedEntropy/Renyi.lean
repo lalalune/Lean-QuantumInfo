@@ -3,7 +3,7 @@ Copyright (c) 2025 Alex Meiburg. All rights reserved.
 Released under MIT license as described in the file LICENSE.
 Authors: Alex Meiburg
 -/
-import QuantumInfo.Finite.Entropy.Defs
+import QuantumInfo.Finite.AxiomatizedEntropy.Defs
 
 /-! # Quantum Relative Entropy and α-Renyi Entropy -/
 
@@ -32,6 +32,6 @@ instance : RelEntropy.Nontrivial qRelativeEnt where
 
 /-- Quantum relative entropy as `Tr[ρ (log ρ - log σ)]` when supports are correct. -/
 theorem qRelativeEnt_ker {ρ σ : MState d} (h : σ.M.ker ≤ ρ.M.ker) :
-    (𝐃(ρ‖σ) : EReal) = ρ.M.inner (HermitianMat.log ρ - HermitianMat.log σ) := by
+    (𝐃(ρ‖σ) : EReal) = inner ℝ ρ.M (HermitianMat.log ρ - HermitianMat.log σ) := by
   simp only [qRelativeEnt, h]
   congr

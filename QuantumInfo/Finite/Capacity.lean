@@ -119,18 +119,18 @@ end εApproximates
 section AchievesRate
 
 /-- Every quantum channel achieves a rate of zero. -/
-theorem achievesRate_0 (Λ : CPTPMap d₁ d₂) : Λ.AchievesRate 0 := by
+theorem achievesRate_0 (Λ : CPTPMap d₁ d₂) [Nonempty d₁] : Λ.AchievesRate 0 := by
   intro ε hε
-  use 1, zero_lt_one, 1, default
+  have h_nonempty_d₂ : Nonempty d₂ := PTPMap.nonemptyOut Λ.toPTPMap
+  use 1, zero_lt_one, 1, CPTPMap.id (dIn := Fin 1)
   constructor
-  · have : Nonempty d₁ := by sorry--having a CPTPMap should be enough to conclude in- and out-spaces are nonempty
-    have : Nonempty d₂ := by sorry
-    use Classical.ofNonempty, Classical.ofNonempty
-    sorry--exact Unique.eq_default _
+  · let E : CPTPMap (Fin 1) (Fin 1 → d₁) := CPTPMap.replacement default
+    let D : CPTPMap (Fin 1 → d₂) (Fin 1) := CPTPMap.destroy
+    refine ⟨E, D, ?_⟩
+    exact CPTPMap.eq_if_output_unique _ _
   constructor
   · norm_num
-  · rw [Unique.eq_default id]
-    sorry--apply εApproximates_monotone (εApproximates_self default) hε.le
+  · exact εApproximates_monotone (εApproximates_self (CPTPMap.id (dIn := Fin 1))) hε.le
 
 /-- The identity channel on D dimensional space achieves a rate of log2(D). -/
 theorem id_achievesRate_log_dim : (id (dIn := d₁)).AchievesRate (Real.logb 2 (Fintype.card d₁)) := by
@@ -196,7 +196,7 @@ end AchievesRate
 section capacity
 
 /-- Quantum channel capacity is nonnegative. -/
-theorem zero_le_quantumCapacity (Λ : CPTPMap d₁ d₂) : 0 ≤ Λ.quantumCapacity :=
+theorem zero_le_quantumCapacity (Λ : CPTPMap d₁ d₂) [Nonempty d₁] : 0 ≤ Λ.quantumCapacity :=
   le_csSup (bddAbove_achievesRate Λ) (achievesRate_0 Λ)
 
 /-- Quantum channel capacity is at most log2(D), where D is the input dimension. -/

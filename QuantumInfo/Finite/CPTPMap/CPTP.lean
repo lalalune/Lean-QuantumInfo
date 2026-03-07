@@ -5,6 +5,7 @@ Authors: Alex Meiburg
 -/
 import QuantumInfo.Finite.CPTPMap.Bundled
 import QuantumInfo.Finite.Unitary
+import Mathlib.Analysis.InnerProductSpace.PiL2
 
 /-! # Completely Positive Trace Preserving maps
 
@@ -185,14 +186,23 @@ theorem ofEquiv_apply (σ : dIn ≃ dOut) (ρ : MState dIn) :
   rfl
 
 @[simp]
-theorem equiv_inverse (σ : dIn ≃ dOut)  : (ofEquiv σ) ∘ (ofEquiv σ.symm) = id (dIn := dOut) := by
-  ext1; simp
+theorem ofEquiv_refl : ofEquiv (Equiv.refl dIn) = id (dIn := dIn) := by
+  ext1 ρ
+  simp
+
+@[simp]
+theorem ofEquiv_comp (σ : dIn ≃ dM) (τ : dM ≃ dOut) :
+    (ofEquiv τ) ∘ₘ (ofEquiv σ) = ofEquiv (σ.trans τ) := by
+  ext1 ρ
+  rfl
+
+@[simp]
+theorem equiv_inverse (σ : dIn ≃ dOut) :
+    (ofEquiv σ) ∘ₘ (ofEquiv σ.symm) = id (dIn := dOut) := by
+  simp [ofEquiv_comp]
 
 variable {d₁ d₂ d₃ : Type*} [Fintype d₁] [Fintype d₂] [Fintype d₃]
 variable [DecidableEq d₁] [DecidableEq d₂] [DecidableEq d₃]
-
---TODO: of_equiv (id) = id
---(of_equiv σ).compose (of_equiv τ) = of_equiv (σ ∘ τ)
 
 /-- The SWAP operation, as a channel. -/
 def SWAP : CPTPMap (d₁ × d₂) (d₂ × d₁) :=
@@ -219,9 +229,16 @@ theorem assoc'_eq_MState_assoc' (ρ : MState (d₁ × d₂ × d₃)) : assoc' (d
   rfl
 
 @[simp]
+theorem SWAP_SWAP : (SWAP (d₁ := d₁) (d₂ := d₂)) ∘ₘ SWAP = id := by
+  simpa [SWAP] using (equiv_inverse (σ := Equiv.prodComm d₁ d₂))
+
+@[simp]
 theorem assoc_assoc' : (assoc (d₁ := d₁) (d₂ := d₂) (d₃ := d₃)) ∘ₘ assoc' = id := by
-  ext1 ρ
-  simp
+  simp [assoc, assoc']
+
+@[simp]
+theorem assoc'_assoc : (assoc' (d₁ := d₁) (d₂ := d₂) (d₃ := d₃)) ∘ₘ assoc = id := by
+  simp [assoc, assoc', ofEquiv_comp]
 
 end equiv
 
@@ -229,21 +246,11 @@ section trace
 variable {d₁ d₂ : Type*} [Fintype d₁] [Fintype d₂] [DecidableEq d₁] [DecidableEq d₂]
 
 /-- Partial tracing out the left, as a CPTP map. -/
-@[simps]
+@[simps!]
 def traceLeft : CPTPMap (d₁ × d₂) d₂ :=
-    --TODO: make Matrix.traceLeft a linear map, a `MatrixMap`.
-  letI f (d) [Fintype d] [DecidableEq d]: Matrix (d₁ × d) (d₁ × d) ℂ →ₗ[ℂ] Matrix d d ℂ := {
-    toFun x := Matrix.traceLeft x
-    map_add' := by
-      intros; ext
-      simp [Matrix.traceLeft, Finset.sum_add_distrib]
-    map_smul' := by
-      intros; ext
-      simp [Matrix.traceLeft, Finset.mul_sum]
-  }
   {
-    toLinearMap := f d₂
-    TP := by intro; simp [f]
+    toLinearMap := MatrixMap.traceLeft (A := d₁) (B := d₂) ℂ
+    TP := by intro; simp
     cp := by
       --(traceLeft ⊗ₖₘ I) = traceLeft ∘ₘ (ofEquiv prod_assoc)
       --Both go (A × B) × C → B × C
@@ -251,11 +258,12 @@ def traceLeft : CPTPMap (d₁ × d₂) d₂ :=
       intro n
       classical
       suffices MatrixMap.IsPositive
-          (f (d₂ × Fin n) ∘ₗ (MatrixMap.submatrix ℂ (Equiv.prodAssoc d₁ d₂ (Fin n)).symm)) by
+          (MatrixMap.traceLeft (A := d₁) (B := d₂ × Fin n) ℂ ∘ₗ
+            MatrixMap.submatrix ℂ (Equiv.prodAssoc d₁ d₂ (Fin n)).symm) by
         convert this
         ext
         rw [MatrixMap.kron_def]
-        simp [f, Matrix.submatrix, Matrix.single, ite_and, Matrix.traceLeft, Fintype.sum_prod_type]
+        simp [Matrix.submatrix, Matrix.single, ite_and, Matrix.traceLeft, Fintype.sum_prod_type]
       apply MatrixMap.IsPositive.comp
       · exact (MatrixMap.IsCompletelyPositive.submatrix _).IsPositive
       · intro x h
@@ -346,7 +354,52 @@ def prod (Λ₁ : CPTPMap dI₁ dO₁) (Λ₂ : CPTPMap dI₂ dO₂) : CPTPMap (
 
 infixl:70 "⊗ᶜᵖ" => CPTPMap.prod
 
+/-- Tensor-product channels act componentwise on product states. -/
+theorem prod_apply_prod (Λ₁ : CPTPMap dI₁ dO₁) (Λ₂ : CPTPMap dI₂ dO₂)
+    (ρ₁ : MState dI₁) (ρ₂ : MState dI₂) :
+    (Λ₁ ⊗ᶜᵖ Λ₂) (ρ₁ ⊗ᴹ ρ₂) = (Λ₁ ρ₁) ⊗ᴹ (Λ₂ ρ₂) := by
+  apply MState.ext_m
+  rw [CPTPMap.mat_coe_eq_apply_mat]
+  simpa [CPTPMap.prod, MState.prod] using
+    MatrixMap.kron_map_of_kron_state Λ₁.map Λ₂.map ρ₁.m ρ₂.m
+
 end prod
+
+section ancilla
+
+variable {dAnc : Type*} [Fintype dAnc] [DecidableEq dAnc]
+
+private theorem ofEquiv_prodPUnit_eq_prod_pureUnit (ρ : MState dIn) :
+    CPTPMap.ofEquiv (dIn := dIn) (dOut := dIn × Unit) (Equiv.prodPUnit dIn).symm ρ =
+      ρ ⊗ᴹ MState.pure (Ket.basis ()) := by
+  rw [CPTPMap.ofEquiv_apply]
+  apply MState.ext_m
+  ext i j
+  rcases i with ⟨i, _⟩
+  rcases j with ⟨j, _⟩
+  change ρ.m.submatrix (Equiv.prodPUnit dIn) (Equiv.prodPUnit dIn) (i, ()) (j, ()) =
+    Matrix.kroneckerMap (fun x y : ℂ => x * y) ρ.m ((MState.pure (Ket.basis ())).m) (i, ()) (j, ())
+  have hu : (MState.pure (Ket.basis ())).m () () = (1 : ℂ) := by
+    change Ket.basis () () * (starRingEnd ℂ) (Ket.basis () ()) = (1 : ℂ)
+    have hbasis : Ket.basis () () = (1 : ℂ) := by
+      simp [Ket.basis, Ket.apply]
+    rw [hbasis]
+    simp
+  simp [Matrix.kroneckerMap, hu]
+
+/-- Append a fixed ancilla state to the input system. -/
+def appendState (ρ : MState dAnc) : CPTPMap dIn (dIn × dAnc) :=
+  let append : CPTPMap dIn (dIn × Unit) := ofEquiv (Equiv.prodPUnit dIn).symm
+  ((id (dIn := dIn)) ⊗ᶜᵖ replacement (dIn := Unit) ρ) ∘ₘ append
+
+/-- Appending an ancilla is exactly tensoring with that ancilla state. -/
+theorem appendState_eq_prod (ρAnc : MState dAnc) (ρ : MState dIn) :
+    CPTPMap.appendState (dIn := dIn) ρAnc ρ = ρ ⊗ᴹ ρAnc := by
+  rw [CPTPMap.appendState, CPTPMap.compose_eq, ofEquiv_prodPUnit_eq_prod_pureUnit]
+  rw [prod_apply_prod]
+  simp
+
+end ancilla
 
 section finprod
 
@@ -358,14 +411,40 @@ variable {dO : ι → Type w} [∀(i :ι), Fintype (dO i)] [∀(i :ι), Decidabl
 def piProd (Λi : (i:ι) → CPTPMap (dI i) (dO i)) : CPTPMap ((i:ι) → dI i) ((i:ι) → dO i) where
   toLinearMap := MatrixMap.piProd (fun i ↦ (Λi i).map)
   cp := MatrixMap.IsCompletelyPositive.piProd (fun i ↦ (Λi i).cp)
-  TP := sorry
+  TP := MatrixMap.IsTracePreserving.piProd (fun i ↦ (Λi i).TP)
 
 theorem fin_1_piProd
   {dI : Fin 1 → Type v} [Fintype (dI 0)] [DecidableEq (dI 0)]
   {dO : Fin 1 → Type w} [Fintype (dO 0)] [DecidableEq (dO 0)]
   (Λi : (i : Fin 1) → CPTPMap (dI 0) (dO 0)) :
-    piProd Λi = sorry ∘ₘ ((Λi 1) ∘ₘ sorry) :=
-  sorry --TODO: permutations
+    piProd Λi =
+      (ofEquiv (Equiv.funUnique (Fin 1) (dO 0)).symm) ∘ₘ
+        ((Λi 0) ∘ₘ ofEquiv (Equiv.funUnique (Fin 1) (dI 0)) ) := by
+  apply choi_ext
+  ext x y
+  rcases x with ⟨xO, xI⟩
+  rcases y with ⟨yO, yI⟩
+  change MatrixMap.piProd (fun i => (Λi i).map) (Matrix.single xI yI 1) xO yO = _
+  rw [MatrixMap.IsCompletelyPositive.piProd_apply_single]
+  have hright :
+      (((ofEquiv (Equiv.funUnique (Fin 1) (dO 0)).symm) ∘ₘ
+          ((Λi 0) ∘ₘ ofEquiv (Equiv.funUnique (Fin 1) (dI 0)))).map
+          (Matrix.single xI yI 1)) xO yO =
+        ((Λi 0).map (Matrix.single (xI 0) (yI 0) 1)) (xO 0) (yO 0) := by
+    change ((Λi 0).map ((Matrix.single xI yI 1).submatrix
+        (Equiv.funUnique (Fin 1) (dI 0)).symm (Equiv.funUnique (Fin 1) (dI 0)).symm))
+      (xO 0) (yO 0) = _
+    have hsub : ((Matrix.single xI yI (1 : ℂ)).submatrix
+        (Equiv.funUnique (Fin 1) (dI 0)).symm (Equiv.funUnique (Fin 1) (dI 0)).symm) =
+        Matrix.single (xI 0) (yI 0) 1 := by
+      ext i j
+      by_cases hx : xI 0 = i <;> by_cases hy : yI 0 = j
+      · simp [Matrix.submatrix, Matrix.single, funext_iff, hx, hy]
+      · simp [Matrix.submatrix, Matrix.single, funext_iff, hx, hy]
+      · simp [Matrix.submatrix, Matrix.single, funext_iff, hx, hy]
+      · simp [Matrix.submatrix, Matrix.single, funext_iff, hx, hy]
+    rw [hsub]
+  simpa using hright.symm
 
 /--
 The tensor product of composed maps is the composition of the tensor products.
@@ -377,9 +456,8 @@ theorem piProd_comp
   [∀ i, Fintype (d₃ i)] [∀ i, DecidableEq (d₃ i)]
   (Λ₁ : ∀ i, CPTPMap (d₁ i) (d₂ i)) (Λ₂ : ∀ i, CPTPMap (d₂ i) (d₃ i)) :
   piProd (fun i => (Λ₂ i) ∘ₘ (Λ₁ i)) = (piProd Λ₂) ∘ₘ (piProd Λ₁) := by
-    apply CPTPMap.ext
-    convert MatrixMap.piProd_comp _ _;
-    infer_instance
+  apply CPTPMap.ext
+  convert MatrixMap.piProd_comp _ _
 
 end finprod
 
@@ -442,17 +520,199 @@ end unitary
 section purify
 variable [DecidableEq dOut] [Inhabited dOut]
 
+private lemma isometry_orthonormal_columns
+    {m n : Type*} [Fintype m] [DecidableEq m] [Fintype n] [DecidableEq n]
+    (V : Matrix m n ℂ) (hV : V.Isometry) :
+    Orthonormal ℂ (V.toEuclideanLin ∘ EuclideanSpace.basisFun n ℂ) := by
+  let f : EuclideanSpace ℂ n →ₗᵢ[ℂ] EuclideanSpace ℂ m :=
+    V.toEuclideanLin.isometryOfInner (fun x y => by
+      rw [← LinearMap.adjoint_inner_right]
+      rw [← Matrix.toEuclideanLin_conjTranspose_eq_adjoint]
+      simp [Matrix.toEuclideanLin_apply, Matrix.mulVec_mulVec]
+      rw [hV, Matrix.one_mulVec]
+      simp)
+  exact ((EuclideanSpace.basisFun n ℂ).orthonormal).comp_linearIsometry f
+
+private theorem exists_unitary_extension_of_isometry
+    {m n : Type*} [Fintype m] [DecidableEq m] [Fintype n] [DecidableEq n]
+    (V : Matrix m n ℂ) (hV : V.Isometry) (e : n → m) (he : Function.Injective e) :
+    ∃ U : Matrix.unitaryGroup m ℂ, U.1.submatrix _root_.id e = V := by
+  let colsOrtho := isometry_orthonormal_columns V hV
+  let s : Set m := Set.range e
+  let eRange : n ≃ s := Equiv.ofInjective e he
+  let v : m → EuclideanSpace ℂ m := fun i =>
+    if hi : i ∈ s then
+      V.toEuclideanLin (EuclideanSpace.basisFun n ℂ (eRange.symm ⟨i, hi⟩))
+    else
+      EuclideanSpace.basisFun m ℂ i
+  have hv_eq :
+      s.restrict v = fun x : s =>
+        V.toEuclideanLin (EuclideanSpace.basisFun n ℂ (eRange.symm x)) := by
+    funext x
+    rcases x with ⟨i, hi⟩
+    obtain ⟨j, rfl⟩ := hi
+    simp [Set.restrict, v, s]
+  have hv : Orthonormal ℂ (s.restrict v) := by
+    rw [hv_eq]
+    simpa [Function.comp_def] using colsOrtho.comp eRange.symm eRange.symm.injective
+  obtain ⟨b, hb⟩ := Orthonormal.exists_orthonormalBasis_extension_of_card_eq
+    (ι := m) (E := EuclideanSpace ℂ m) (s := s) (v := v) (by simp) hv
+  refine ⟨⟨(EuclideanSpace.basisFun m ℂ).toBasis.toMatrix b.toBasis,
+    (EuclideanSpace.basisFun m ℂ).toMatrix_orthonormalBasis_mem_unitary b⟩, ?_⟩
+  ext i a
+  have ha : e a ∈ s := ⟨a, rfl⟩
+  have hpre : eRange.symm ⟨e a, ha⟩ = a := by
+    apply he
+    change ((eRange) (eRange.symm ⟨e a, ha⟩) : m) = e a
+    simp
+  simp [Matrix.submatrix_apply, Module.Basis.toMatrix_apply, EuclideanSpace.basisFun_repr,
+    hb (e a) ha, v, s, hpre, Matrix.toEuclideanLin_apply]
+
+private lemma of_kraus_tp_sum_eq_one
+    {A B : Type*} [Fintype A] [DecidableEq A] [Fintype B] [DecidableEq B]
+    (K : (B × A) → Matrix B A ℂ)
+    (hTP : (MatrixMap.of_kraus K K).IsTracePreserving) :
+    (∑ k, (K k).conjTranspose * K k) = (1 : Matrix A A ℂ) := by
+  ext a a'
+  have h := hTP (Matrix.single a' a (1 : ℂ))
+  simp only [MatrixMap.of_kraus, LinearMap.coeFn_sum, LinearMap.coe_mk, AddHom.coe_mk,
+    Finset.sum_apply, Matrix.trace_sum] at h
+  have hsum :
+      ∑ i, (K i * Matrix.single a' a (1 : ℂ) * (K i)ᴴ).trace =
+        ∑ i, (((K i)ᴴ * K i) * Matrix.single a' a (1 : ℂ)).trace := by
+    refine Finset.sum_congr rfl ?_
+    intro i hi
+    simpa [Matrix.mul_assoc] using
+      (Matrix.trace_mul_cycle (K i) (Matrix.single a' a (1 : ℂ)) (K i).conjTranspose)
+  rw [hsum] at h
+  simp [Matrix.trace_mul_single, Matrix.mul_apply] at h
+  have h' : (∑ k, (K k)ᴴ * K k) a a' = (Matrix.single a' a (1 : ℂ)).trace := by
+    calc
+      (∑ k, (K k)ᴴ * K k) a a' = ∑ k, (((K k)ᴴ * K k) a a') := by
+        simp [Matrix.sum_apply]
+      _ = ∑ x, ∑ x_1, (starRingEnd ℂ) (K x x_1 a) * K x x_1 a' := by
+        simp [Matrix.mul_apply]
+      _ = (Matrix.single a' a (1 : ℂ)).trace := h
+  by_cases haa' : a = a'
+  · subst haa'
+    simpa using h'
+  · simp [Matrix.trace_single_eq_of_ne, haa', eq_comm] at h'
+    simpa [Matrix.one_apply, haa'] using h'.symm
+
+private theorem embed_mul_mul_embed_conjTranspose_eq_kron_pure
+    (X : Matrix dIn dIn ℂ) :
+    let e : dIn → (dIn × dOut × dOut) := fun a => (a, default)
+    let J : Matrix (dIn × dOut × dOut) dIn ℂ :=
+      Matrix.submatrix (α := ℂ)
+        (1 : Matrix (dIn × dOut × dOut) (dIn × dOut × dOut) ℂ) _root_.id e
+    J * X * Jᴴ =
+      Matrix.kroneckerMap (fun x y : ℂ => x * y) X
+        (MState.pure (Ket.basis (default : dOut × dOut))).m := by
+  ext i j
+  rcases i with ⟨i, ⟨i₁, i₂⟩⟩
+  rcases j with ⟨j, ⟨j₁, j₂⟩⟩
+  have hpure : ∀ a b : dOut × dOut,
+      (MState.pure (Ket.basis (default : dOut × dOut))).m a b =
+        if a = default ∧ b = default then 1 else 0 := by
+    intro a b
+    change Ket.basis (default : dOut × dOut) a *
+        (starRingEnd ℂ) (Ket.basis (default : dOut × dOut) b) =
+      if a = default ∧ b = default then 1 else 0
+    by_cases ha : a = default
+    · by_cases hb : b = default
+      · subst ha
+        subst hb
+        have hbasis : Ket.basis (default : dOut × dOut) default = (1 : ℂ) := by
+          simp [Ket.basis, Ket.apply]
+        rw [hbasis]
+        simp
+      · have hb' : ¬ default = b := by simpa [eq_comm] using hb
+        simp [Ket.basis, Ket.apply, ha, hb, hb']
+    · simp [Ket.basis, Ket.apply, ha, eq_comm]
+  by_cases hi : (i₁, i₂) = (default : dOut × dOut)
+  · by_cases hj : (j₁, j₂) = (default : dOut × dOut)
+    · cases hi
+      cases hj
+      have hdef : ((default, default) : dOut × dOut) = default := rfl
+      simp [Matrix.mul_apply, Matrix.submatrix, Matrix.one_apply, Matrix.kroneckerMap,
+        hpure, hdef]
+    · simp [Matrix.mul_apply, Matrix.submatrix, Matrix.one_apply, Matrix.kroneckerMap,
+        hpure, hi, hj]
+  · simp [Matrix.mul_apply, Matrix.submatrix, Matrix.one_apply, Matrix.kroneckerMap,
+      hpure, hi]
+
+private theorem traceLeft_traceLeft_stinespring_eq_of_kraus
+    (K : (dOut × dIn) → Matrix dOut dIn ℂ) (X : Matrix dIn dIn ℂ) :
+    let V : Matrix (dIn × dOut × dOut) dIn ℂ :=
+      fun (aEnv, bEnv, bOut) aIn => K (bEnv, aEnv) bOut aIn
+    (Matrix.traceLeft (d := dOut)) ((Matrix.traceLeft (d := dIn)) (V * X * Vᴴ)) =
+      MatrixMap.of_kraus K K X := by
+  ext b₁ b₂
+  change
+    ∑ x, ∑ x_1, ∑ x_2,
+      (∑ x_3, K (x, x_1) b₁ x_3 * X x_3 x_2) * (starRingEnd ℂ) (K (x, x_1) b₂ x_2) =
+      (MatrixMap.of_kraus K K X) b₁ b₂
+  simp [MatrixMap.of_kraus, Matrix.sum_apply, Matrix.mul_apply, Fintype.sum_prod_type]
+
 theorem exists_purify (Λ : CPTPMap dIn dOut) :
     ∃ (Λ' : CPTPMap (dIn × dOut × dOut) (dIn × dOut × dOut)),
       Λ'.IsUnitary ∧
-      Λ = (
-      let zero_prep : CPTPMap Unit (dOut × dOut) := replacement (MState.pure (Ket.basis default))
-      let prep := (id ⊗ᶜᵖ zero_prep)
-      let append : CPTPMap dIn (dIn × Unit) := CPTPMap.ofEquiv (Equiv.prodPUnit dIn).symm
-      CPTPMap.traceLeft ∘ₘ CPTPMap.traceLeft ∘ₘ Λ' ∘ₘ prep ∘ₘ append
-    ) := by
-  obtain ⟨M, hM⟩ := MatrixMap.IsCompletelyPositive.exists_kraus Λ.map Λ.cp
-  sorry
+      Λ = CPTPMap.traceLeft ∘ₘ CPTPMap.traceLeft ∘ₘ Λ' ∘ₘ
+        CPTPMap.appendState (MState.pure (Ket.basis default)) := by
+  obtain ⟨K, hK⟩ := MatrixMap.IsCompletelyPositive.exists_kraus Λ.map Λ.cp
+  let V : Matrix (dIn × dOut × dOut) dIn ℂ :=
+    fun (aEnv, bEnv, bOut) aIn => K (bEnv, aEnv) bOut aIn
+  have hTPK : (MatrixMap.of_kraus K K).IsTracePreserving := by
+    simpa [hK] using Λ.TP
+  have hNorm : (∑ k, (K k).conjTranspose * K k) = (1 : Matrix dIn dIn ℂ) :=
+    of_kraus_tp_sum_eq_one K hTPK
+  have hV : V.Isometry := by
+    ext a a'
+    simpa [V, Matrix.Isometry, Matrix.mul_apply, Fintype.sum_prod_type] using congrFun₂ hNorm a a'
+  let e : dIn → (dIn × dOut × dOut) := fun a => (a, default)
+  have he : Function.Injective e := by
+    intro a a' h
+    exact Prod.fst_injective h
+  obtain ⟨U, hU⟩ := exists_unitary_extension_of_isometry V hV e he
+  refine ⟨ofUnitary U, ⟨⟨U, rfl⟩, ?_⟩⟩
+  apply CPTPMap.funext
+  intro ρ
+  let ρ0 : MState (dOut × dOut) := MState.pure (Ket.basis (default : dOut × dOut))
+  have hAppend : CPTPMap.appendState (dIn := dIn) ρ0 ρ = ρ ⊗ᴹ ρ0 := appendState_eq_prod ρ0 ρ
+  let J : Matrix (dIn × dOut × dOut) dIn ℂ :=
+    Matrix.submatrix (α := ℂ)
+      (1 : Matrix (dIn × dOut × dOut) (dIn × dOut × dOut) ℂ) _root_.id e
+  have hEmbed : J * ρ.m * Jᴴ = (ρ ⊗ᴹ ρ0).m := by
+    simpa [J, e, ρ0, MState.prod] using
+      (embed_mul_mul_embed_conjTranspose_eq_kron_pure (dIn := dIn) (dOut := dOut) ρ.m)
+  have hUJ : U.1 * J = V := by
+    calc
+      U.1 * J = U.1.submatrix _root_.id e := by
+        ext i a
+        simp [J, e, Matrix.mul_apply, Matrix.submatrix, Matrix.one_apply]
+      _ = V := hU
+  apply MState.ext_m
+  rw [CPTPMap.compose_eq, CPTPMap.compose_eq, CPTPMap.compose_eq, hAppend]
+  rw [CPTPMap.mat_coe_eq_apply_mat]
+  rw [CPTPMap.traceLeft_eq_MState_traceLeft, CPTPMap.traceLeft_eq_MState_traceLeft]
+  change Λ.map ρ.m =
+    (Matrix.traceLeft (d := dOut))
+      ((Matrix.traceLeft (d := dIn)) (((ofUnitary U) (ρ ⊗ᴹ ρ0)).m))
+  rw [CPTPMap.mat_coe_eq_apply_mat (Λ := ofUnitary U) (ρ := ρ ⊗ᴹ ρ0)]
+  rw [← hEmbed]
+  calc
+    Λ.map ρ.m = MatrixMap.of_kraus K K ρ.m := by rw [hK]
+    _ = (Matrix.traceLeft (d := dOut)) ((Matrix.traceLeft (d := dIn)) (V * ρ.m * Vᴴ)) := by
+      symm
+      simpa [V] using traceLeft_traceLeft_stinespring_eq_of_kraus (dIn := dIn) (dOut := dOut) K ρ.m
+    _ = (Matrix.traceLeft (d := dOut))
+          ((Matrix.traceLeft (d := dIn)) (U.1 * (J * ρ.m * Jᴴ) * U.1ᴴ)) := by
+        congr 1
+        congr 1
+        calc
+          V * ρ.m * Vᴴ = (U.1 * J) * ρ.m * (U.1 * J)ᴴ := by rw [hUJ]
+          _ = U.1 * (J * ρ.m * Jᴴ) * U.1ᴴ := by
+            simp [Matrix.mul_assoc, Matrix.conjTranspose_mul]
 
 /-- Every channel can be written as a unitary channel on a larger system. In general, if
  the original channel was A→B, we may need to go as big as dilating the output system (the
@@ -468,9 +728,9 @@ def purify (Λ : CPTPMap dIn dOut) : CPTPMap (dIn × dOut × dOut) (dIn × dOut 
   exists_purify Λ |>.choose
 -- where
   -- toLinearMap := by
-  --   sorry
-  -- cp := sorry
-  -- TP := sorry
+  --   proof omitted
+  -- cp := proof omitted
+  -- TP := proof omitted
 
 --TODO: Constructing this will probably need Kraus operators first.
 
@@ -485,24 +745,17 @@ theorem purify_IsUnitary (Λ : CPTPMap dIn dOut) : Λ.purify.IsUnitary :=
 is equivalent to the original channel. This theorem states that the channel output by `purify`
 has this property. -/
 theorem purify_trace (Λ : CPTPMap dIn dOut) : Λ = (
-    let zero_prep : CPTPMap Unit (dOut × dOut) := replacement (MState.pure (Ket.basis default))
-    let prep := (id ⊗ᶜᵖ zero_prep)
-    let append : CPTPMap dIn (dIn × Unit) := CPTPMap.ofEquiv (Equiv.prodPUnit dIn).symm
-    CPTPMap.traceLeft ∘ₘ CPTPMap.traceLeft ∘ₘ Λ.purify ∘ₘ prep ∘ₘ append
+    CPTPMap.traceLeft ∘ₘ CPTPMap.traceLeft ∘ₘ Λ.purify ∘ₘ
+      CPTPMap.appendState (MState.pure (Ket.basis default))
   ) :=
   exists_purify Λ |>.choose_spec.2
 
 --TODO Theorem: `purify` is unique up to unitary equivalence.
 
---TODO: Best to rewrite the "zero_prep / prep / append" as one CPTPMap.append channel when we
--- define that.
-
 /-- The complementary channel comes from tracing out the other half (the right half) of the purified channel `purify`. -/
 def complementary (Λ : CPTPMap dIn dOut) : CPTPMap dIn (dIn × dOut) :=
-  let zero_prep : CPTPMap Unit (dOut × dOut) := replacement (MState.pure (Ket.basis default))
-  let prep := (id ⊗ᶜᵖ zero_prep)
-  let append : CPTPMap dIn (dIn × Unit) := CPTPMap.ofEquiv (Equiv.prodPUnit dIn).symm
-  CPTPMap.traceRight ∘ₘ CPTPMap.assoc' ∘ₘ Λ.purify ∘ₘ prep ∘ₘ append
+  CPTPMap.traceRight ∘ₘ CPTPMap.assoc' ∘ₘ Λ.purify ∘ₘ
+    CPTPMap.appendState (MState.pure (Ket.basis default))
 
 end purify
 

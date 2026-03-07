@@ -602,3 +602,7 @@ theorem spectrum_prod [Fintype m] [DecidableEq m] [Fintype n] [DecidableEq n]
 --Shortcut instance
 noncomputable instance : AddCommMonoid (HermitianMat d ℂ) :=
   inferInstance
+
+/-- The transition matrix element between eigenvectors of A and B. -/
+noncomputable def transition_matrix {d : Type*} [Fintype d] [DecidableEq d] (A B : HermitianMat d ℂ) (i j : d) : ℝ :=
+  Complex.normSq (∑ k, star (A.H.eigenvectorBasis i k) * B.H.eigenvectorBasis j k)

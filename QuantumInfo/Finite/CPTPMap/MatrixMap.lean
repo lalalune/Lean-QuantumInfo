@@ -121,10 +121,66 @@ def of_kraus (M N : κ → Matrix B A R) : MatrixMap A B R :=
     map_smul' r x := by rw [RingHom.id_apply, Matrix.mul_smul, Matrix.smul_mul]
   }
 
-def exists_kraus (Φ : MatrixMap A B R) : ∃ r : ℕ, ∃ (M N : Fin r → Matrix B A R), Φ = of_kraus M N :=
-  sorry
-
 end kraus
+
+section exists_kraus
+
+variable [CommSemiring R] [StarRing R] [Fintype B]
+variable {κ : Type*} [Fintype κ]
+
+private theorem of_kraus_reindex {κ' : Type*} [Fintype κ']
+    (e : κ ≃ κ') (M N : κ' → Matrix B A R) :
+    of_kraus (κ := κ) (fun k => M (e k)) (fun k => N (e k)) = of_kraus M N := by
+  classical
+  ext X i j
+  simp [of_kraus, Matrix.sum_apply]
+  exact Fintype.sum_equiv e
+    (fun c : κ => (M (e c) * X * (N (e c)).conjTranspose) i j)
+    (fun c : κ' => (M c * X * (N c).conjTranspose) i j)
+    (by intro c; rfl)
+
+private theorem of_choi_matrix_eq_of_kraus_matrixUnits [Fintype B] [DecidableEq B] [StarRing R]
+    (C : Matrix (B × A) (B × A) R) :
+    of_choi_matrix C =
+      of_kraus
+        (κ := B × B × A × A)
+        (fun k => C (k.1, k.2.2.1) (k.2.1, k.2.2.2) • Matrix.single k.1 k.2.2.1 (1 : R))
+        (fun k => Matrix.single k.2.1 k.2.2.2 (1 : R)) := by
+  classical
+  ext X j₁ j₂
+  simp [of_choi_matrix, of_kraus, Matrix.sum_apply]
+  simp_rw [Fintype.sum_prod_type]
+  rw [Finset.sum_eq_single j₁]
+  · rw [Finset.sum_eq_single j₂]
+    · simp [Matrix.single, mul_comm]
+    · intro b _ hb
+      simp [Matrix.single, hb]
+    · simp [Matrix.single]
+  · intro b _ hb
+    simp [Matrix.single, hb]
+  · simp [Matrix.single]
+
+theorem exists_kraus [Fintype B] [StarRing R] (Φ : MatrixMap A B R) :
+    ∃ r : ℕ, ∃ (M N : Fin r → Matrix B A R), Φ = of_kraus M N := by
+  classical
+  let r := Fintype.card (B × B × A × A)
+  let e : Fin r ≃ (B × B × A × A) := (Fintype.equivFin (B × B × A × A)).symm
+  let Mq : B × B × A × A → Matrix B A R := fun k =>
+    (Φ (Matrix.single k.2.2.1 k.2.2.2 1) k.1 k.2.1) • Matrix.single k.1 k.2.2.1 1
+  let Nq : B × B × A × A → Matrix B A R := fun k =>
+    Matrix.single k.2.1 k.2.2.2 1
+  let M : Fin r → Matrix B A R := fun n => Mq (e n)
+  let N : Fin r → Matrix B A R := fun n => Nq (e n)
+  refine ⟨r, M, N, ?_⟩
+  calc
+    Φ = of_choi_matrix (choi_matrix Φ) := by symm; exact choi_map_inv Φ
+    _ = of_kraus (κ := B × B × A × A) Mq Nq := by
+      simpa [Mq, Nq] using of_choi_matrix_eq_of_kraus_matrixUnits (C := choi_matrix Φ)
+    _ = of_kraus M N := by
+      simpa [M, N] using
+        (of_kraus_reindex (κ := Fin r) (κ' := B × B × A × A) e Mq Nq).symm
+
+end exists_kraus
 
 section submatrix
 
@@ -147,6 +203,26 @@ theorem submatrix_comp (f : C → B) (g : B → A) :
   ext1; simp
 
 end submatrix
+
+section partialTrace
+
+variable {A B : Type*} [Fintype A] [Fintype B] [DecidableEq A] [DecidableEq B]
+variable (R : Type*) [Semiring R]
+
+/-- The partial trace over the left tensor factor, as a `MatrixMap`. -/
+@[simps]
+def traceLeft : MatrixMap (A × B) B R where
+  toFun := Matrix.traceLeft
+  map_add' := by
+    intro X Y
+    ext i j
+    simp [Matrix.traceLeft, Finset.sum_add_distrib]
+  map_smul' := by
+    intro r X
+    ext i j
+    simp [Matrix.traceLeft, Finset.mul_sum]
+
+end partialTrace
 
 section kron
 open Kronecker
@@ -353,15 +429,221 @@ section basis
 --Missing from Mathlib
 
 variable {ι : Type*}
-variable {R : Type*} [CommSemiring R]
+variable {R : Type*} [CommSemiring R] [DecidableEq ι] [Fintype ι]
 variable {s : ι → Type*} [∀ i, AddCommMonoid (s i)] [∀ i, Module R (s i)]
-variable {L : ι → Type* }
+variable {L : ι → Type* } [∀ i, Fintype (L i)] [∀ i, DecidableEq (L i)]
+
+private lemma prod_update_mul_erase (m : ι → R) (i : ι) (x : R) :
+    (∏ j, if j = i then x else m j) = x * ∏ j ∈ Finset.univ.erase i, m j := by
+  rw [← Finset.mul_prod_erase Finset.univ _ (Finset.mem_univ i)]
+  congr 1
+  · simp
+  · apply Finset.prod_congr rfl
+    intro j hj
+    have : j ≠ i := Finset.ne_of_mem_erase hj
+    simp [this]
+
+private lemma prod_update_add (m : ι → R) (i : ι) (x y : R) :
+    (∏ j, if j = i then x + y else m j) =
+      (∏ j, if j = i then x else m j) + (∏ j, if j = i then y else m j) := by
+  rw [prod_update_mul_erase m i _, prod_update_mul_erase m i x, prod_update_mul_erase m i y]
+  rw [add_mul]
+
+private lemma prod_update_smul (m : ι → R) (i : ι) (r x : R) :
+    (∏ j, if j = i then r * x else m j) = r * (∏ j, if j = i then x else m j) := by
+  rw [prod_update_mul_erase m i _, prod_update_mul_erase m i x]
+  rw [mul_assoc]
+
+private noncomputable def piTensorProductMultilinearRepr
+    (b : (i : ι) → Module.Basis (L i) R (s i)) :
+    MultilinearMap R s (((i : ι) → L i) →₀ R) where
+  toFun v := Finsupp.equivFunOnFinite.symm (fun l ↦ ∏ i, (b i).repr (v i) (l i))
+  map_update_add' m i x y := by
+    ext l
+    change
+      (∏ j, (b j).repr (Function.update m i (x + y) j) (l j)) =
+        (∏ j, (b j).repr (Function.update m i x j) (l j)) +
+          (∏ j, (b j).repr (Function.update m i y j) (l j))
+    have hm :
+        ∏ j, (b j).repr (Function.update m i (x + y) j) (l j) =
+          ∏ j, if j = i then (b i).repr x (l i) + (b i).repr y (l i) else (b j).repr (m j) (l j) := by
+      apply Finset.prod_congr rfl
+      intro j hj
+      by_cases hji : j = i
+      · subst hji
+        simp
+      · simp [Function.update, hji]
+    have hx :
+        ∏ j, (b j).repr (Function.update m i x j) (l j) =
+          ∏ j, if j = i then (b i).repr x (l i) else (b j).repr (m j) (l j) := by
+      apply Finset.prod_congr rfl
+      intro j hj
+      by_cases hji : j = i
+      · subst hji
+        simp
+      · simp [Function.update, hji]
+    have hy :
+        ∏ j, (b j).repr (Function.update m i y j) (l j) =
+          ∏ j, if j = i then (b i).repr y (l i) else (b j).repr (m j) (l j) := by
+      apply Finset.prod_congr rfl
+      intro j hj
+      by_cases hji : j = i
+      · subst hji
+        simp
+      · simp [Function.update, hji]
+    rw [hm, hx, hy]
+    exact prod_update_add _ _ _ _
+  map_update_smul' m i r x := by
+    ext l
+    change
+      (∏ j, (b j).repr (Function.update m i (r • x) j) (l j)) =
+        r * ∏ j, (b j).repr (Function.update m i x j) (l j)
+    have hm :
+        ∏ j, (b j).repr (Function.update m i (r • x) j) (l j) =
+          ∏ j, if j = i then r * (b i).repr x (l i) else (b j).repr (m j) (l j) := by
+      apply Finset.prod_congr rfl
+      intro j hj
+      by_cases hji : j = i
+      · subst hji
+        simp
+      · simp [Function.update, hji]
+    have hx :
+        ∏ j, (b j).repr (Function.update m i x j) (l j) =
+          ∏ j, if j = i then (b i).repr x (l i) else (b j).repr (m j) (l j) := by
+      apply Finset.prod_congr rfl
+      intro j hj
+      by_cases hji : j = i
+      · subst hji
+        simp
+      · simp [Function.update, hji]
+    rw [hm, hx]
+    exact prod_update_smul _ _ _ _
+
+private noncomputable def piTensorProductRepr
+    (b : (i : ι) → Module.Basis (L i) R (s i)) :
+    PiTensorProduct R s →ₗ[R] (((i : ι) → L i) →₀ R) :=
+  PiTensorProduct.lift (piTensorProductMultilinearRepr b)
+
+private noncomputable def piTensorProductLc
+    (b : (i : ι) → Module.Basis (L i) R (s i)) :
+    (((i : ι) → L i) →₀ R) →ₗ[R] PiTensorProduct R s :=
+  Finsupp.linearCombination R (fun l ↦ ⨂ₜ[R] i, b i (l i))
+
+private lemma piTensorProduct_repr_tprod_aux
+    (b : (i : ι) → Module.Basis (L i) R (s i)) (v : ∀ i, s i) (l : (i : ι) → L i) :
+    piTensorProductRepr b (⨂ₜ[R] i, v i) l = ∏ i, (b i).repr (v i) (l i) := by
+  simp [piTensorProductRepr, piTensorProductMultilinearRepr]
+
+private lemma piTensorProduct_repr_tprod_basis
+    (b : (i : ι) → Module.Basis (L i) R (s i)) (l l' : (i : ι) → L i) :
+    piTensorProductRepr b (⨂ₜ[R] i, b i (l i)) l' = if l' = l then (1 : R) else 0 := by
+  rw [piTensorProduct_repr_tprod_aux]
+  classical
+  by_cases h : l' = l
+  · subst h
+    simp [Module.Basis.repr_self]
+  · obtain ⟨i, hi⟩ : ∃ i, l' i ≠ l i := by
+      simpa [funext_iff] using h
+    have hz : ((b i).repr ((b i) (l i))) (l' i) = 0 := by
+      simp [Module.Basis.repr_self, hi]
+    have hprod : ∏ j, ((b j).repr ((b j) (l j))) (l' j) = 0 := by
+      exact Finset.prod_eq_zero (s := Finset.univ) (i := i) (by simp) hz
+    simpa [h] using hprod
+
+private lemma piTensorProduct_lc_single
+    (b : (i : ι) → Module.Basis (L i) R (s i)) (l : (i : ι) → L i) (r : R) :
+    piTensorProductLc b (Finsupp.single l r) = r • (⨂ₜ[R] i, b i (l i)) := by
+  simp [piTensorProductLc, Finsupp.linearCombination_single]
+
+private lemma piTensorProduct_repr_lc_single
+    (b : (i : ι) → Module.Basis (L i) R (s i)) (l l' : (i : ι) → L i) (r : R) :
+    piTensorProductRepr b (piTensorProductLc b (Finsupp.single l r)) l' =
+      (Finsupp.single l r) l' := by
+  rw [piTensorProduct_lc_single, LinearMap.map_smul]
+  by_cases h : l' = l
+  · subst h
+    simp [piTensorProduct_repr_tprod_basis]
+  · simp [piTensorProduct_repr_tprod_basis, h]
+
+private lemma piTensorProduct_repr_lc
+    (b : (i : ι) → Module.Basis (L i) R (s i)) (f : ((i : ι) → L i) →₀ R) :
+    piTensorProductRepr b (piTensorProductLc b f) = f := by
+  induction f using Finsupp.induction with
+  | zero =>
+      simp [piTensorProductLc, piTensorProductRepr]
+  | single_add a c f ha hc ih =>
+      rw [show piTensorProductLc b (Finsupp.single a c + f) =
+          piTensorProductLc b (Finsupp.single a c) + piTensorProductLc b f by
+            rw [map_add]]
+      rw [map_add, ih]
+      ext l
+      simp [piTensorProduct_repr_lc_single, Finsupp.add_apply]
+
+private lemma piTensorProduct_lc_repr_tprod
+    (b : (i : ι) → Module.Basis (L i) R (s i)) (v : ∀ i, s i) :
+    piTensorProductLc b (piTensorProductRepr b (⨂ₜ[R] i, v i)) = ⨂ₜ[R] i, v i := by
+  rw [show piTensorProductRepr b (⨂ₜ[R] i, v i) =
+      Finsupp.equivFunOnFinite.symm (fun l : (i : ι) → L i ↦ ∏ i, (b i).repr (v i) (l i)) by
+        ext l
+        exact piTensorProduct_repr_tprod_aux b v l]
+  rw [Finsupp.equivFunOnFinite_symm_eq_sum, map_sum]
+  simp_rw [piTensorProduct_lc_single]
+  have h_expand :
+      (∑ l : ((i : ι) → L i), (∏ i, (b i).repr (v i) (l i)) • (⨂ₜ[R] i, b i (l i))) =
+        ⨂ₜ[R] i, (∑ l, (b i).repr (v i) l • b i l) := by
+    symm
+    calc
+      (⨂ₜ[R] i, ∑ l, (b i).repr (v i) l • b i l)
+          = ∑ l : ((i : ι) → L i), ⨂ₜ[R] i, (b i).repr (v i) (l i) • b i (l i) := by
+              simpa using
+                (MultilinearMap.map_sum (PiTensorProduct.tprod R)
+                  (fun i l ↦ (b i).repr (v i) l • b i l))
+      _ = ∑ l : ((i : ι) → L i), (∏ i, (b i).repr (v i) (l i)) • (⨂ₜ[R] i, b i (l i)) := by
+            refine Finset.sum_congr rfl ?_
+            intro l hl
+            simpa using
+              (MultilinearMap.map_smul_univ (PiTensorProduct.tprod R)
+                (fun i ↦ (b i).repr (v i) (l i))
+                (fun i ↦ b i (l i)))
+  simpa [Module.Basis.sum_repr] using h_expand
+
+private lemma piTensorProduct_lc_repr
+    (b : (i : ι) → Module.Basis (L i) R (s i)) :
+    piTensorProductLc b ∘ₗ piTensorProductRepr b = LinearMap.id := by
+  apply PiTensorProduct.ext
+  ext v
+  exact piTensorProduct_lc_repr_tprod b v
+
+private lemma piTensorProduct_repr_lc_map
+    (b : (i : ι) → Module.Basis (L i) R (s i)) :
+    piTensorProductRepr b ∘ₗ piTensorProductLc b = LinearMap.id := by
+  apply LinearMap.ext
+  intro f
+  exact piTensorProduct_repr_lc b f
 
 /-- Like `Basis.tensorProduct`, but for `PiTensorProduct` -/
-noncomputable def _root_.Module.Basis.piTensorProduct [∀i, Fintype (L i)]
+noncomputable def _root_.Module.Basis.piTensorProduct
     (b : (i:ι) → Module.Basis (L i) R (s i)) :
       Module.Basis ((i:ι) → L i) R (PiTensorProduct R s) :=
-  Finsupp.basisSingleOne.map sorry
+  Module.Basis.ofRepr
+    (LinearEquiv.ofLinear
+      (piTensorProductRepr b)
+      (piTensorProductLc b)
+      (piTensorProduct_repr_lc_map b)
+      (piTensorProduct_lc_repr b))
+
+@[simp]
+theorem _root_.Module.Basis.piTensorProduct_apply
+    (b : (i : ι) → Module.Basis (L i) R (s i)) (l : (i : ι) → L i) :
+    Module.Basis.piTensorProduct b l = ⨂ₜ[R] i, b i (l i) := by
+  simp [Module.Basis.piTensorProduct, piTensorProduct_lc_single]
+
+@[simp]
+theorem _root_.Module.Basis.piTensorProduct_repr_tprod_apply
+    (b : (i : ι) → Module.Basis (L i) R (s i)) (v : ∀ i, s i) (l : (i : ι) → L i) :
+    (Module.Basis.piTensorProduct b).repr (⨂ₜ[R] i, v i) l = ∏ i, (b i).repr (v i) (l i) := by
+  change piTensorProductRepr b (⨂ₜ[R] i, v i) l = ∏ i, (b i).repr (v i) (l i)
+  exact piTensorProduct_repr_tprod_aux b v l
 
 end basis
 

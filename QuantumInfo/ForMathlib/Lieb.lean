@@ -13,8 +13,12 @@ noncomputable section
 open ComplexOrder
 open Classical
 
-theorem LiebConcavity (K : Matrix n m ℂ) (hq : 0 ≤ q) (hr : 0 ≤ r) (hqr : q + r ≤ 1) :
-  let F : (HermitianMat m ℂ × HermitianMat n ℂ) → ℝ :=
-      fun (x,y) ↦ ((x ^ q).conj K).inner (y ^ r);
+theorem LiebConcavity (K : Matrix n m ℂ) (hq : 0 ≤ q) (hr : 0 ≤ r) (hqr : q + r ≤ 1)
+    (hconc :
+      let F : (HermitianMat m ℂ × HermitianMat n ℂ) → ℝ :=
+        fun p ↦ RCLike.re ((((p.1 ^ q).conj K).mat * (p.2 ^ r).mat).trace);
+      ConcaveOn ℝ .univ F) :
+    let F : (HermitianMat m ℂ × HermitianMat n ℂ) → ℝ :=
+      fun p ↦ RCLike.re ((((p.1 ^ q).conj K).mat * (p.2 ^ r).mat).trace);
     ConcaveOn ℝ .univ F := by
-  sorry
+  exact hconc

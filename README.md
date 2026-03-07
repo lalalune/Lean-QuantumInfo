@@ -1,47 +1,72 @@
-# Quantum Information in Lean
+# Lean-QuantumInfo
 
-This repository aims to contain definitions and proofs of basic ideas in quantum information theory. Some major goals, in rough order of difficulty, would be:
- * Defining most notions of "distance", "entropy", "information", "capacity" that occur in the literature.
- * Showing that these reflect the classical notions where applicable
-   * For instance, that if you embed a clasical probability distribution as a quantum mixed state, then the _classical_ conditional entropy and the _quantum_ conditional entropy are the same number.
- * Strong sub-additivity of von Neumann entropy
- * Holevo's theorem
- * The [LSD theorem](https://en.wikipedia.org/wiki/Quantum_capacity#Hashing_bound_for_Pauli_channels) on quantum capacity
- * Non-additivity of quantum capacity
+`Lean-QuantumInfo` is a Lean 4 formalization project centered on finite-dimensional quantum
+information theory, with supporting classical information theory and statistical mechanics modules.
+The repository also contains mathlib-adjacent infrastructure under `QuantumInfo/ForMathlib` for
+matrix, Hermitian, and channel arguments that do not fit cleanly in upstream mathlib yet.
 
-All of this will be done only in the theory finite-dimensional Hilbert spaces. Reasons:
-* Most quantum information theory is done in this setting anyway. Not to say that the infinite-dimensional work isn't important, just that this is what more researchers spend their time thinking about.
-* Infinite-dimensional quantum theory can be [weirdly behaved](https://en.wikipedia.org/wiki/Connes_embedding_problem).
-* Dealing with infinite-dimensional quantum theory is just hard. You need e.g. trace-class operators, CTC functions, and people often can't even agree on the definitions. (For instance, does a mixed state necessarily have a finite spectrum? I've seen it both ways.)
+## Current build surface
 
-Most stuff is in the `QuantumInfo/Finite` folder. There was a _tiny_ bit of infinite-dimensional theory in the `QuantumInfo/InfiniteDim` folder, but it's mostly been cleared out.
+The current `lakefile.lean` defines three libraries:
 
-The docgen is available on [my website](https://ohaithe.re/Lean-QuantumInfo/QuantumInfo.html), hopefully I remember to keep it well synced.
+- `QuantumInfo`
+- `ClassicalInfo`
+- `StatMech`
 
-[comment]: # (Note to self, instructions for building docs: `rm -rf .lake/build/doc/QuantumInfo* .lake/build/doc/ClassicalInfo*; lake -R -Kenv=dev build ClassicalInfo:docs QuantumInfo:doc`. In order to view them, `cd .lake/build/doc; python3 -m http.server`.)
+Those are the supported entry points for `lake build`. The repository may contain additional draft
+modules or exploratory trees, but only modules wired into `lakefile.lean` are part of the default
+package build.
 
-Docmentation of the main definitions can be found at [DOC.md](./DOC.md). A majority of the work will be outlining the major definitions and theorems from Mark Wilde's _Quantum Information Theory_. A correspondence to the definitions and theorems (in the form of a todo-list) are in [TODO](./TODO.md)
+## What is in scope
 
-# Major Goal: Generalized Quantum Stein's Lemma
+The main body of the project currently covers:
 
-At the moment, the major goal of this repository is completing a proof of the [Generalized Quantum Stein's Lemma](https://arxiv.org/abs/2408.02722v1), following the proof in that link. The first milestone will be to formalize all the arguments _in that paper_ (while relying on standard or "obvious" results), and then the second milestone will be filling in all those other results so that the whole theorem is sorry-free. The first milestone is, at the moment (October 2025), quite close.
+- finite-dimensional quantum states, channels, entropy, capacity, entanglement, and resource theory
+- classical probability, distributions, and entropy
+- supporting matrix/Hermitian/operator lemmas needed by the quantum library
+- early statistical mechanics infrastructure
 
-See our report on the project at [this link](https://arxiv.org/abs/2510.08672).
+The finite-dimensional quantum information library remains the core of the repository.
 
-# Stats
+## Build
 
-As of Sept 29 2025:
- * 1059 Theorems <!-- git grep -E "(^| )(theorem|instance|lemma) " | grep ".lean:" | wc -l -->
- * 248 Definitions <!-- git grep -E "(^| )(def|abbrev|irreducible_def) " | grep ".lean:" | wc -l -->
- * 13992 Lines of Code <!-- git ls-files | grep '\.lean' | xargs wc -l -->
-
-This doesn't include various code snippets that have been upstreamed to Mathlib.
-
-# Attribution
-
-This repository is released under the MIT License, as found in the [LICENSE](./LICENSE) file. Please cite as:
-
+```bash
+lake update
+lake build
 ```
+
+Useful targeted builds:
+
+```bash
+lake build QuantumInfo
+lake build ClassicalInfo
+lake build StatMech
+```
+
+## Repository layout
+
+- `QuantumInfo/`: quantum information theory and supporting mathlib extensions
+- `ClassicalInfo/`: finite classical information theory
+- `StatMech/`: statistical mechanics modules
+- `DOC.md`: high-level documentation of major definitions and conventions
+- `TODO.md`: project task and theorem tracking
+
+## Project direction
+
+The long-term goal is a reusable Lean library for quantum information theory with a clean API
+surface and progressively fewer proof gaps. Recent work has focused on:
+
+- strengthening the low-level matrix/channel layer
+- isolating reusable finite-dimensional infrastructure
+- replacing local one-off arguments with portable lemmas and reusable APIs
+
+## License and citation
+
+This repository is released under the MIT License; see [LICENSE](./LICENSE).
+
+If you cite the repository, use:
+
+```bibtex
 @misc{meiburg2024quantuminfo,
   author = {Meiburg, Alex},
   title = {Quantum Information in Lean},
@@ -51,4 +76,3 @@ This repository is released under the MIT License, as found in the [LICENSE](./L
   howpublished = {\url{https://github.com/Timeroot/Lean-QuantumInfo}},
 }
 ```
-or cite [the report](https://arxiv.org/abs/2510.08672) for the Stein's Lemma work in particular. Thanks to all contributors, especially Leonardo Lessa and Rodolfo Soldati.

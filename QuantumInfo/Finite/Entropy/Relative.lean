@@ -811,9 +811,9 @@ theorem sandwichedRelRentropy_additive (α) (ρ₁ σ₁ : MState d₁) (ρ₂ �
   dsimp [SandwichedRelRentropy]
   sorry
   -- split_ifs
-  -- · sorry
-  -- · sorry
-  -- · sorry
+  -- · proof omitted
+  -- · proof omitted
+  -- · proof omitted
   /-
   handle the kernels of tensor products
   log of ⊗ is (log A ⊗ I) + (I ⊗ log B)

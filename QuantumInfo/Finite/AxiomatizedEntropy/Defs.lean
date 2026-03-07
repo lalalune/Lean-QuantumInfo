@@ -45,33 +45,38 @@ universe u
 open scoped NNReal
 open scoped ENNReal
 
-variable (f : ∀ {d : Type u} [Fintype d] [DecidableEq d], MState d → HermitianMat d ℂ → ℝ≥0∞)
-
 /-- The axioms to be a well-behaved quantum relative entropy, as given by
 [Tomamichel](https://www.marcotom.info/files/entropy-masterclass2022.pdf).
 
 This simpler class allows for _trivial_ relative entropies, such as `-log tr(ρ⁰σ)`.
 Use mixing `RelEntropy.Nontrivial` to only allow nontrivial relative entropies. -/
-class RelEntropy : Prop where
+class RelEntropy
+    (f : ∀ {d : Type u} [Fintype d] [DecidableEq d], MState d → HermitianMat d ℂ → ℝ≥0∞) :
+    Prop where
   /-- The data processing inequality -/
   DPI {d₁ d₂ : Type u} [Fintype d₁] [DecidableEq d₁] [Fintype d₂] [DecidableEq d₂]
     (ρ σ : MState d₁) (Λ : CPTPMap d₁ d₂) : f (Λ ρ) (Λ σ) ≤ f ρ σ
   /-- Entropy is additive under tensor products -/
   of_kron {d₁ d₂ : Type u} [Fintype d₁] [Fintype d₂] [DecidableEq d₁] [DecidableEq d₂] :
-    ∀ (ρ₁ σ₁ : MState d₁) (ρ₂ σ₂ : MState d₂), f (ρ₁ ⊗ ρ₂) (σ₁ ⊗ σ₂) = f ρ₁ σ₁ + f ρ₂ σ₂
+    ∀ (ρ₁ σ₁ : MState d₁) (ρ₂ σ₂ : MState d₂),
+      f (ρ₁ ⊗ᴹ ρ₂) (σ₁ ⊗ᴹ σ₂) = f ρ₁ σ₁ + f ρ₂ σ₂
   /-- Normalization of entropy to be `ln N` for a pure state vs. uniform on `N` many states. -/
   normalized {d : Type u} [fin : Fintype d] [DecidableEq d] [Nonempty d] (i : d) :
-    f (.ofClassical (.constant i)) MState.uniform.M =
+    f (MState.ofClassical (Distribution.constant i)) ((MState.uniform (d := d)).M) =
       some ⟨Real.log fin.card, Real.log_nonneg (mod_cast Fintype.card_pos)⟩
 
 /-- The axioms to be a well-behaved quantum relative entropy, as given by
 [Tomamichel](https://www.marcotom.info/files/entropy-masterclass2022.pdf). -/
-class RelEntropy.Nontrivial [RelEntropy f] where
+class RelEntropy.Nontrivial
+    (f : ∀ {d : Type u} [Fintype d] [DecidableEq d], MState d → HermitianMat d ℂ → ℝ≥0∞)
+    [RelEntropy f] where
   /-- Nontriviality condition for a relative entropy. -/
   nontrivial (d) [Fintype d] [DecidableEq d] : ∃ (ρ σ : MState d),
     ρ.M.support = ⊤ ∧ σ.M.support = ⊤ ∧ 0 < f ρ σ
 
 namespace RelEntropy
+
+variable (f : ∀ {d : Type u} [Fintype d] [DecidableEq d], MState d → HermitianMat d ℂ → ℝ≥0∞)
 
 variable {d : Type u} [Fintype d] [DecidableEq d]
 variable {d₂ : Type u} [Fintype d₂] [DecidableEq d₂]
@@ -100,14 +105,15 @@ At that point we need the fact that it's not `⊤`, and then it must be zero.
 /-- Relabelling a state with `CPTPMap.of_equiv` leaves relative entropies unchanged. -/
 @[simp]
 theorem of_equiv_eq (e : d ≃ d₂) (ρ σ : MState d) :
-    f (CPTPMap.of_equiv e ρ) (CPTPMap.of_equiv e σ) = f ρ σ := by
+    f (CPTPMap.ofEquiv e ρ) (CPTPMap.ofEquiv e σ) = f ρ σ := by
   apply le_antisymm
-  · apply DPI
-  · convert DPI (f := f) ((CPTPMap.of_equiv e) ρ) ((CPTPMap.of_equiv e) σ) (CPTPMap.of_equiv e.symm)
+  · apply RelEntropy.DPI
+  · convert RelEntropy.DPI (f := f) ((CPTPMap.ofEquiv e) ρ) ((CPTPMap.ofEquiv e) σ)
+      (CPTPMap.ofEquiv e.symm)
     · symm
-      exact congrFun (CPTPMap.equiv_inverse e.symm) ρ
+      simpa [CPTPMap.ofEquiv_apply] using MState.relabel_relabel ρ e.symm e
     · symm
-      exact congrFun (CPTPMap.equiv_inverse e.symm) σ
+      simpa [CPTPMap.ofEquiv_apply] using MState.relabel_relabel σ e.symm e
 
 /-- Relabelling a state with `MState.relabel` leaves relative entropies unchanged. -/
 @[simp]
@@ -120,7 +126,7 @@ theorem relabel_eq (e : d₂ ≃ d) (ρ σ : MState d) :
 
 /-- The relative entropy is zero between any two states on a 1-D Hilbert space. -/
 private lemma wrt_self_eq_zero' [Unique d] (ρ σ : MState d) : f ρ σ = 0 := by
-  convert normalized (f := f) (d := d) default
+  convert RelEntropy.normalized (f := f) (d := d) default
   · apply Subsingleton.allEq
   · apply Subsingleton.allEq
   · simp
@@ -129,14 +135,14 @@ private lemma wrt_self_eq_zero' [Unique d] (ρ σ : MState d) : f ρ σ = 0 := b
 @[simp]
 theorem wrt_self_eq_zero (ρ : MState d) : f ρ ρ.M = 0 := by
   rw [← nonpos_iff_eq_zero, ← wrt_self_eq_zero' f (d := PUnit) default default]
-  convert DPI (f := f) _ _ (CPTPMap.const_state ρ)
-  · rw [CPTPMap.const_state_apply]
-  · rw [CPTPMap.const_state_apply]
+  convert RelEntropy.DPI (f := f) _ _ (CPTPMap.replacement ρ)
+  · rw [CPTPMap.replacement_apply]
+  · rw [CPTPMap.replacement_apply]
 
 end possibly_trivial
 
 section nontrivial
-variable [Nontrivial f]
+variable [RelEntropy.Nontrivial f]
 
 /-- A nontrivial relative entropy is **faithful**, it can distinguish when two states are equal. -/
 theorem faithful (ρ σ : MState d) : f ρ σ = 0 ↔ ρ = σ := by
@@ -149,19 +155,21 @@ section bounds
 open Prob in
 /-- Quantum relative min-entropy. -/
 def min (ρ : MState d) (σ : HermitianMat d ℂ) : ENNReal :=
-  —log ⟨_, ρ.exp_val_prob ⟨proj_le_nonneg 0 σ, proj_le_le_one _ _⟩⟩
+  Prob.negLog ⟨_, ρ.exp_val_prob
+    ⟨HermitianMat.supportProj_nonneg (A := σ), HermitianMat.supportProj_le_one (A := σ)⟩⟩
 
 @[aesop (rule_sets := [finiteness]) simp]
 theorem min_eq_top_iff (ρ : MState d) (σ : HermitianMat d ℂ) :
     (min ρ σ) = ⊤ ↔ ρ.M.support ≤ σ.ker := by
-  open scoped HermitianMat in
-  have h₂ : {0 ≤ₚ σ}.ker = σ.ker := by
-    sorry --missing simp lemma
-  simp [min, Prob.negLog_eq_top_iff, MState.exp_val_eq_zero_iff, Subtype.ext_iff, proj_le_nonneg, h₂]
+  rw [min, Prob.negLog_eq_top_iff]
+  rw [Subtype.ext_iff]
+  simpa using
+    (ρ.exp_val_eq_zero_iff (A := σ.supportProj)
+      (HermitianMat.supportProj_nonneg (A := σ)))
 
 open scoped HermitianMat in
 protected theorem toReal_min (ρ : MState d) (σ : HermitianMat d ℂ) :
-    (min ρ σ).toReal = -Real.log (ρ.exp_val {0 ≤ₚ σ}) :=
+    (min ρ σ).toReal = -Real.log (ρ.exp_val σ.supportProj) :=
   Prob.negLog_pos_Real
 
 /-- Min-relative entropy is a valid entropy function, albeit trivial (and not faithful). -/
@@ -170,12 +178,16 @@ instance : RelEntropy min where
   of_kron := sorry
   normalized := sorry
 
-theorem not_Nontrivial_min : ¬Nontrivial min := by
+theorem not_Nontrivial_min : ¬RelEntropy.Nontrivial min := by
   rintro ⟨h⟩
   obtain ⟨ρ, σ, h₁, h₂, h₃⟩ := h (ULift (Fin 2))
-  replace h₂ : proj_le 0 σ = (1 : HermitianMat (ULift (Fin 2)) ℂ) := by
-    sorry--TODO
-  simp [min, Subtype.ext_iff, MState.exp_val_eq_one_iff, proj_le_le_one, h₁, h₂] at h₃
+  replace h₂ : σ.M.supportProj = (1 : HermitianMat (ULift (Fin 2)) ℂ) := by
+    have hker : σ.M.ker = ⊥ := by
+      simpa [h₂] using (HermitianMat.support_orthogonal_eq_range (A := σ.M)).symm
+    letI : HermitianMat.NonSingular σ.M :=
+      (HermitianMat.nonSingular_iff_ker_bot (A := σ.M)).2 hker
+    simpa using (HermitianMat.supportProj_of_nonSingular (A := σ.M))
+  simpa [min, h₂] using h₃
 
 /-- The relative min-entropy is a lower bound on all relative entropies. -/
 theorem min_le (ρ σ : MState d) : min ρ σ ≤ f ρ σ := by
@@ -202,7 +214,7 @@ protected theorem max_not_top (ρ : MState d) (σ : HermitianMat d ℂ) :
     contrapose! h
     intro v hv
     rw [HermitianMat.ker, LinearMap.mem_ker] at hv ⊢
-    replace hv : σ.toMat.mulVec v = 0 := sorry --why is this not defeq??
+    replace hv : σ.mat.mulVec v = 0 := by simpa using hv
     replace h := h.right v
     rw [Matrix.sub_mulVec] at h
     simp [hv, Matrix.smul_mulVec_assoc] at h
@@ -238,6 +250,6 @@ class Entropy (f : ∀ {d : Type u} [Fintype d] [DecidableEq d], MState d → �
   of_const {d : Type u} [Fintype d] [DecidableEq d] (ψ : Ket d) : f (.pure ψ) = 0
   /-- Entropy is additive under tensor products -/
   of_kron {d₁ d₂ : Type u} [Fintype d₁] [Fintype d₂] [DecidableEq d₁] [DecidableEq d₂] :
-    ∀ (ρ : MState d₁) (σ : MState d₂), f (ρ ⊗ σ) = f ρ + f σ
+    ∀ (ρ : MState d₁) (σ : MState d₂), f (ρ ⊗ᴹ σ) = f ρ + f σ
   -- /-- Entropy is convex. TODO def? Or do we even need this? -/
   -- convex : True := by trivial

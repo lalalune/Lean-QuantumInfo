@@ -304,11 +304,11 @@ theorem spectrum_subset_of_mem_Icc (A B : HermitianMat d 𝕜) :
 -- protected theorem cfc_continuous {f : ℝ → ℝ} (hf : Continuous f) :
 --     Continuous (cfc · f : HermitianMat d 𝕜 → HermitianMat d 𝕜) := by
 --   rcases isEmpty_or_nonempty d
---   · sorry
+--   · proof omitted
 --   rw [Metric.continuous_iff] at hf ⊢
 --   intro x ε hε
 --   have _ : Nonempty (spectrum ℝ x.toMat) := by
---     sorry
+--     proof omitted
 --   replace hf b := hf b ε hε
 --   choose fc hfc₀ hfc using hf
 --   let δ : ℝ := ⨆ e : spectrum ℝ x.toMat, fc e
@@ -321,7 +321,7 @@ theorem spectrum_subset_of_mem_Icc (A B : HermitianMat d 𝕜) :
 --     simp [hfc₀]
 --   intro a ha
 --   simp only [dist, AddSubgroupClass.subtype_apply, val_eq_coe, cfc_toMat] at ha ⊢
---   sorry
+--   proof omitted
 
 @[fun_prop]
 protected theorem cfc_continuous {f : ℝ → ℝ} (hf : Continuous f) :

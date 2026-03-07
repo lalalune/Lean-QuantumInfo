@@ -1,3 +1,13 @@
 /build
 /lake-packages/*
 /.lake/*
+/.cursor/
+/scratch/
+/Temp*.lean
+/scratch*.lean
+/test*.lean
+/check*.lean
+/build_all.txt
+/compile_error.txt
+/search_*.py
+/Main.lean

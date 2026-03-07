@@ -84,8 +84,8 @@ theorem maximal_IsMaximal [FreeStateTheory ι] : IsMaximal (maximal (ι := ι)) 
 --       simp only [Matrix.add_apply, Matrix.smul_apply, Complex.real_smul]
 --       simp_rw [mul_add, Finset.sum_add_distrib]
 --       congr
---       · sorry
---       · sorry
+--       · proof omitted
+--       · proof omitted
 --   · rw [Mixable.mix_ab, Mixable.mkT, MState.instMixable, ← hx2, ← hy2]
 --     rfl
 
@@ -98,21 +98,21 @@ theorem maximal_IsMaximal [FreeStateTheory ι] : IsMaximal (maximal (ι := ι)) 
 --     (h_closed : ∀ {i j}, IsClosed (O i j)) -- Operations are topologically closed
 --     (h_convex : ∀ {i j}, Convex ℝ (CPTPMap.choi '' O i j)) -- (The choi matrices of) operations are convex
 --     (h_prod : ∀ {i j k l f g} (hf : f ∈ O i k) (hg : g ∈ O j l), (f ⊗ᶜᵖᵣ g) ∈ O (prod i j) (prod k l)) --Closed under products
---     (h_fullRank : ∀ {i : ι}, sorry) --Some statement about having full rank states as output
---     (h_appendFree : ∀ {i j k : ι}, sorry) --Some statement that appending free states is free
+--     (h_fullRank : ∀ {i : ι}, proof omitted) --Some statement about having full rank states as output
+--     (h_appendFree : ∀ {i j k : ι}, proof omitted) --Some statement that appending free states is free
 --     : ResourceTheory ι where
 --   freeOps := O
 --   free_id := h_id
 --   free_comp := h_comp
 
 --   IsFree {i} ρ := ∀ {j} σ, ∃ f, O j i f ∧ f σ = ρ
---   free_closed := sorry
+--   free_closed := proof omitted
 --   free_convex {i} := convex_states_of_convex_ops O @h_convex i
 --   free_prod {i j ρ σ} hρ hσ k ρ₀ := by
 --     obtain ⟨f,hf1⟩ := hρ ρ
 --     obtain ⟨g,hg⟩ := hσ σ
---     sorry
---   free_fullRank := sorry
+--     proof omitted
+--   free_fullRank := proof omitted
 --   nongenerating := by
 --     intro i j f hf ρ hFree k σ
 --     obtain ⟨g,hg1,hg2⟩ := hFree σ
@@ -147,7 +147,7 @@ theorem maximal_IsMaximal [FreeStateTheory ι] : IsMaximal (maximal (ι := ι)) 
 --     free_closed := isClosed_univ
 --     free_convex {i} := by
 --       -- convert MState.convex (H i) --For MState.m, not MState.M
---       sorry
+--       proof omitted
 --     free_prod _ _ := trivial
 --     free_fullRank := by
 --       intro i

@@ -741,13 +741,131 @@ variable {ι : Type u} [DecidableEq ι] [fι : Fintype ι]
 variable {dI : ι → Type v} [∀i, Fintype (dI i)] [∀i, DecidableEq (dI i)]
 variable {dO : ι → Type w} [∀i, Fintype (dO i)] [∀i, DecidableEq (dO i)]
 
+theorem piProd_apply_single
+    {Λi : ∀ i, MatrixMap (dI i) (dO i) R}
+    (xI yI : ∀ i, dI i) (xO yO : ∀ i, dO i) :
+    (MatrixMap.piProd Λi) (Matrix.single xI yI 1) xO yO =
+      ∏ i, (Λi i) (Matrix.single (xI i) (yI i) 1) (xO i) (yO i) := by
+  simp [MatrixMap.piProd, Matrix.toLin_apply, Matrix.reindex_apply, Matrix.mulVec, dotProduct,
+    LinearMap.toMatrix_apply, Module.Basis.piTensorProduct_apply,
+    PiTensorProduct.map_tprod, Module.Basis.piTensorProduct_repr_tprod_apply,
+    Equiv.arrowProdEquivProdArrow_symm_apply, Matrix.stdBasis,
+    Matrix.single_eq_of_single_single, Matrix.sum_apply]
+  rw [Finset.sum_eq_single (xO, yO)]
+  · rw [Finset.sum_eq_single (xI, yI)]
+    · simp
+    · intro b hb hne
+      rcases b with ⟨b1, b2⟩
+      by_cases hb1 : xI = b1
+      · have hb2 : yI ≠ b2 := by
+          intro hb2
+          apply hne
+          cases hb1
+          cases hb2
+          rfl
+        simp [hb1, hb2]
+      · simp [hb1]
+    · simp
+  · intro b hb hne
+    rcases b with ⟨b1, b2⟩
+    by_cases hb1 : xO = b1
+    · have hb2 : b2 ≠ yO := by
+        intro hb2
+        apply hne
+        cases hb1
+        cases hb2
+        rfl
+      simp [hb1, hb2]
+    · simp [hb1]
+  · simp
+
+private theorem piProd_choi
+    {Λi : ∀ i, MatrixMap (dI i) (dO i) R} :
+    (MatrixMap.piProd Λi).choi_matrix =
+      Matrix.reindex (Equiv.arrowProdEquivProdArrow ι dO dI) (Equiv.arrowProdEquivProdArrow ι dO dI)
+        (Matrix.piProd (fun i => (Λi i).choi_matrix)) := by
+  ext x y
+  rcases x with ⟨xO, xI⟩
+  rcases y with ⟨yO, yI⟩
+  simp [MatrixMap.choi_matrix, Matrix.reindex_apply, Matrix.piProd, piProd_apply_single]
+
 /-- The `MatrixMap.piProd` product of IsCompletelyPositive maps is also completely positive. -/
 theorem piProd {Λi : ∀ i, MatrixMap (dI i) (dO i) R} (h₁ : ∀ i, (Λi i).IsCompletelyPositive) :
     IsCompletelyPositive (MatrixMap.piProd Λi) := by
-  sorry
+  rw [choi_PSD_iff_CP_map, piProd_choi]
+  let e := Equiv.arrowProdEquivProdArrow ι dO dI
+  have hpi : (Matrix.piProd (fun i => (Λi i).choi_matrix)).PosSemidef := by
+    exact Matrix.PosSemidef.piProd (fun i => (choi_PSD_iff_CP_map (Λi i)).mp (h₁ i))
+  simpa [e, Matrix.reindex_apply] using Matrix.PosSemidef.submatrix hpi e.symm
 
 end piProd
 
 end IsCompletelyPositive
+
+namespace IsTracePreserving
+
+section piProd
+
+variable {ι : Type u} [DecidableEq ι] [fι : Fintype ι]
+variable {dI : ι → Type v} [∀i, Fintype (dI i)] [∀i, DecidableEq (dI i)]
+variable {dO : ι → Type w} [∀i, Fintype (dO i)] [∀i, DecidableEq (dO i)]
+
+/-- The `MatrixMap.piProd` product of trace-preserving maps is also trace-preserving. -/
+theorem piProd {Λi : ∀ i, MatrixMap (dI i) (dO i) R}
+    (hTP : ∀ i, (Λi i).IsTracePreserving) :
+    (MatrixMap.piProd Λi).IsTracePreserving := by
+  intro x
+  have h_expand : (∑ a, ∑ b, x a b • Matrix.single a b (1 : R)) = x := by
+    ext a b
+    simp only [Matrix.sum_apply, Matrix.smul_apply, Matrix.single]
+    rw [Finset.sum_eq_single a]
+    · rw [Finset.sum_eq_single b]
+      · simp
+      · intro b' _ hb'
+        simp [hb']
+      · simp
+    · intro a' _ ha'
+      simp [ha']
+    · simp
+  have hsingle_trace : ∀ a₁ a₂ : (∀ i, dI i),
+      (MatrixMap.piProd Λi (Matrix.single a₁ a₂ 1)).trace = (Matrix.single a₁ a₂ (1 : R)).trace := by
+    intro a₁ a₂
+    simp only [Matrix.trace, Matrix.diag, IsCompletelyPositive.piProd_apply_single]
+    calc
+      ∑ y : ((i : ι) → dO i), ∏ i, (Λi i) (Matrix.single (a₁ i) (a₂ i) 1) (y i) (y i)
+        = ∏ i, ∑ o, Λi i (Matrix.single (a₁ i) (a₂ i) 1) o o := by
+            simpa [Fintype.piFinset_univ] using
+              (Finset.prod_univ_sum (t := fun i => (Finset.univ : Finset (dO i)))
+                (f := fun i o => Λi i (Matrix.single (a₁ i) (a₂ i) 1) o o)).symm
+      _ = ∏ i, (Matrix.single (a₁ i) (a₂ i) (1 : R)).trace := by
+            refine Finset.prod_congr rfl ?_
+            intro i hi
+            simpa [Matrix.trace, Matrix.diag] using hTP i (Matrix.single (a₁ i) (a₂ i) 1)
+      _ = (Matrix.single a₁ a₂ (1 : R)).trace := by
+            by_cases h : a₁ = a₂
+            · subst h
+              simp [Matrix.trace_single_eq_same]
+            · obtain ⟨i, hi⟩ : ∃ i, a₁ i ≠ a₂ i := by
+                by_contra hcontra
+                apply h
+                funext j
+                exact by_contra fun hj => hcontra ⟨j, hj⟩
+              have hz : ∏ i, (Matrix.single (a₁ i) (a₂ i) (1 : R)).trace = 0 := by
+                refine Finset.prod_eq_zero (i := i) ?_ ?_
+                · simp
+                · rw [Matrix.trace_single_eq_of_ne _ _ _ hi]
+              rw [hz, Matrix.trace_single_eq_of_ne _ _ _ h]
+  calc
+    (MatrixMap.piProd Λi x).trace =
+        (MatrixMap.piProd Λi (∑ a, ∑ b, x a b • Matrix.single a b (1 : R))).trace := by
+          rw [h_expand]
+    _ = (∑ a, ∑ b, x a b • Matrix.single a b (1 : R)).trace := by
+          simp_rw [map_sum, LinearMap.map_smulₛₗ, RingHom.id_apply, Matrix.trace_sum,
+            Matrix.trace_smul, hsingle_trace]
+    _ = x.trace := by rw [h_expand]
+
+end piProd
+
+end IsTracePreserving
 
 end MatrixMap

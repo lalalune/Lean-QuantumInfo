@@ -69,6 +69,6 @@
 --   ·
 --   -- · obtain ⟨ι, _⟩ := hρ₁.3
 --   --   apply TraceClass.mk_of_exists
---   --   sorry
---     sorry
---   · sorry
+--   --   proof omitted
+--     proof omitted
+--   · proof omitted

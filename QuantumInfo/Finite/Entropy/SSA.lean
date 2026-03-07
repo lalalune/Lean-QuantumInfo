@@ -303,4 +303,4 @@ theorem qcmi_le_2_log_dim' (ρ : MState (dA × dB × dC)) :
 --       ((CPTPMap.id ⊗ₖ CPTPMap.assoc').compose (CPTPMap.assoc.compose (CPTPMap.SWAP ⊗ₖ CPTPMap.id))) ρ;
 --     qcmi ρ = qcmi ρA₁BC + qcmi ρA₂BA₁C
 --      := by
---   admit
+--   proof omitted

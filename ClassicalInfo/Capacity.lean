@@ -6,6 +6,7 @@ Authors: Alex Meiburg
 import ClassicalInfo.Entropy
 import Mathlib.Data.Finset.Fin
 import Mathlib.Data.Fintype.Fin
+import Mathlib.Data.Vector.Basic
 
 --Classical capacity
 -- * Define "code"
@@ -13,6 +14,53 @@ import Mathlib.Data.Fintype.Fin
 -- * Prove Shannon's capacity theorems
 
 variable (A I O : Type*)
+
+private def blocksOfLength {α β : Type*} (blockIn blockOut : ℕ)
+    (f : (Fin blockIn → α) → (Fin blockOut → β)) :
+    ∀ n, List.Vector α (n * blockIn) → List.Vector β (n * blockOut)
+  | 0, _ => ⟨[], by simp⟩
+  | n + 1, v =>
+      let headList := v.toList.take blockIn
+      let tailList := v.toList.drop blockIn
+      have hhead : headList.length = blockIn := by
+        dsimp [headList]
+        rw [List.length_take, v.toList_length]
+        refine Nat.min_eq_left ?_
+        rw [Nat.mul_comm]
+        exact Nat.le_mul_of_pos_right blockIn (Nat.succ_pos _)
+      have htail : tailList.length = n * blockIn := by
+        dsimp [tailList]
+        rw [List.length_drop, v.toList_length]
+        rw [Nat.succ_mul, Nat.add_sub_cancel_right]
+      let headVec : List.Vector α blockIn := ⟨headList, hhead⟩
+      let tailVec : List.Vector α (n * blockIn) := ⟨tailList, htail⟩
+      let outHead : List.Vector β blockOut :=
+        List.Vector.ofFn (f ((Equiv.vectorEquivFin α blockIn) headVec))
+      let outTail := blocksOfLength blockIn blockOut f n tailVec
+      ⟨outHead.toList ++ outTail.toList, by
+        rw [List.length_append, outHead.toList_length, outTail.toList_length]
+        rw [Nat.succ_mul, Nat.add_comm]⟩
+
+private def mapBlocks {α β : Type*} (blockIn blockOut : ℕ)
+    (f : (Fin blockIn → α) → (Fin blockOut → β)) (xs : List α) : List β :=
+  if h : xs.length % blockIn != 0 then []
+  else
+    let n := xs.length / blockIn
+    have hlen : xs.length = n * blockIn := by
+      have hmod : xs.length % blockIn = 0 := by simpa using h
+      have hdiv := Nat.mod_add_div xs.length blockIn
+      rw [hmod, zero_add, Nat.mul_comm] at hdiv
+      exact hdiv.symm
+    (blocksOfLength blockIn blockOut f n ⟨xs, hlen⟩).toList
+
+private theorem mapBlocks_length {α β : Type*} (blockIn blockOut : ℕ)
+    (f : (Fin blockIn → α) → (Fin blockOut → β)) (xs : List α) :
+    (mapBlocks blockIn blockOut f xs).length =
+      if xs.length % blockIn != 0 then 0 else (xs.length / blockIn) * blockOut := by
+  unfold mapBlocks
+  split
+  · simp
+  · simp
 
 /-- Here we define a *Code* by an encdoder and a decoder. The encoder is a function that takes
  strings (`List`s) of any length over an alphabet `A`, and returns strings over `I`;
@@ -47,9 +95,11 @@ structure BlockCode (io : I → O) extends FixedLengthCode A I O where
   block_enc_dec_inv : ∀ as, block_dec (io ∘ (block_enc as)) = as
   enc_length na := if na % block_in != 0 then 0 else (na / block_in) * block_out
   dec_length no := if no % block_out != 0 then 0 else (no / block_out) * block_in
-  encoder as := if as.length % block_in != 0 then [] else
-    sorry
-  decoder os := if os.length % block_out != 0 then [] else
-    sorry
-  enc_maps_length := sorry
-  dec_maps_length := sorry
+  encoder as := mapBlocks block_in block_out block_enc as
+  decoder os := mapBlocks block_out block_in block_dec os
+  enc_maps_length := by
+    intro as
+    simpa using mapBlocks_length block_in block_out block_enc as
+  dec_maps_length := by
+    intro os
+    simpa using mapBlocks_length block_out block_in block_dec os

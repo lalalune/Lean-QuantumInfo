@@ -33,7 +33,7 @@ theorem le_one : TrDistance ρ σ ≤ 1 :=
   calc TrDistance ρ σ
     _ = (1/2:ℝ) * (ρ.m - σ.m).traceNorm := by rfl
     _ ≤ (1/2:ℝ) * (ρ.m.traceNorm + σ.m.traceNorm) := by
-      linarith [Matrix.traceNorm_triangleIneq' ρ.m σ.m]
+      linarith [Matrix.traceNorm_triangleIneq' (A := ρ.m) (B := σ.m) ρ.Hermitian σ.Hermitian]
     _ = (1/2:ℝ) * (1 + 1) := by
       rw [ρ.traceNorm_eq_1, σ.traceNorm_eq_1]
     _ = 1 := by norm_num

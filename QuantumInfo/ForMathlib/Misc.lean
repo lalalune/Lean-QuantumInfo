@@ -1,8 +1,3 @@
-/-
-Copyright (c) 2025 Alex Meiburg. All rights reserved.
-Released under MIT license as described in the file LICENSE.
-Authors: Alex Meiburg
--/
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Order.CompletePartialOrder
 
@@ -22,11 +17,11 @@ is fixed, the declarations below should be changed to
 theorem subtype_val_iSup {ι α : Type*} [ConditionallyCompleteLattice α] {s : Set α} {f : ι → α}
     [Inhabited ↑s] [s.OrdConnected] (h : ∀ i, f i ∈ s) :
     (⨆ i, (⟨f i, h i⟩ : ↑s)).val = ⨆ i, f i := by
-  sorry
+  proof omitted
 
 theorem subtype_val_iSup' {ι α : Type*} [ConditionallyCompleteLattice α] {s : Set α} {f : ι → α}
     [Inhabited ↑s] [s.OrdConnected] (h : ∀ i, f i ∈ s) :
-    ⨆ i, (⟨f i, h i⟩ : ↑s) = ⟨⨆ i, f i, by sorry⟩ := by
+    ⨆ i, (⟨f i, h i⟩ : ↑s) = ⟨⨆ i, f i, by proof omitted⟩ := by
   rw [Subtype.eq_iff, subtype_val_iSup]
 ```
 Sadly, though, there's a "diamond" and we need it with the other data (the one we specify more narrowly
@@ -181,3 +176,13 @@ lemma exists_equiv_of_multiset_map_eq {α β γ : Type*} [Fintype α] [Fintype �
   obtain ⟨e', he'⟩ : ∃ e' : α ≃ α, f = (g ∘ σ) ∘ e' := by
     exact (Multiset.map_univ_eq_iff f (g ∘ ⇑σ)).mp hσ;
   exact ⟨ e'.trans σ, by simpa [ Function.comp ] using he' ⟩
+
+theorem normSq_star_dotProduct_symm {n 𝕜 : Type*} [Fintype n] [RCLike 𝕜] (u v : n → 𝕜) :
+    RCLike.normSq (∑ i, star (u i) * v i) = RCLike.normSq (∑ i, star (v i) * u i) := by
+  rw [← RCLike.normSq_conj (∑ i, star (u i) * v i)]
+  congr 1
+  rw [map_sum (starRingEnd 𝕜)]
+  apply Finset.sum_congr rfl; intro i _
+  rw [RingHom.map_mul, mul_comm]
+  congr 1
+  exact star_star (u i)

@@ -166,6 +166,39 @@ theorem supportProj_eq_cfc : A.supportProj = A.cfc (if · = 0 then 0 else 1) := 
   simp [ Finset.sum_ite, Finset.filter_eq, Finset.filter_and ];
   rw [ Finset.sum_eq_single i ] <;> aesop
 
+theorem supportProj_nonneg : 0 ≤ A.supportProj := by
+  rw [supportProj_eq_cfc, zero_le_cfc]
+  intro i
+  split <;> norm_num
+
+theorem supportProj_le_one : A.supportProj ≤ 1 := by
+  open MatrixOrder in
+  rw [← Subtype.coe_le_coe, val_eq_coe, selfAdjoint.val_one, supportProj_eq_cfc]
+  apply cfc_le_one (f := fun x ↦ if x = 0 then 0 else 1)
+  intro i
+  split <;> norm_num
+
+@[simp]
+theorem supportProj_ker : A.supportProj.ker = A.ker := by
+  ext x
+  rw [HermitianMat.ker, HermitianMat.ker, LinearMap.mem_ker, LinearMap.mem_ker]
+  change A.supportProj.mat.toEuclideanLin x = 0 ↔ A.mat.toEuclideanLin x = 0
+  have hproj : A.supportProj.mat.toEuclideanLin x =
+      (Submodule.orthogonalProjection A.support x : EuclideanSpace 𝕜 n) := by
+    simp only [Matrix.toEuclideanLin, supportProj, LinearEquiv.trans_apply,
+      LinearEquiv.arrowCongr_apply, LinearEquiv.symm_symm,
+      WithLp.linearEquiv_apply, Matrix.toLin'_apply, WithLp.linearEquiv_symm_apply,
+      Submodule.coe_orthogonalProjection_apply]
+    simp only [projector, ContinuousLinearMap.coe_comp, Submodule.coe_subtypeL, mat_mk]
+    simp only [LinearMap.toMatrix, OrthonormalBasis.coe_toBasis_repr, LinearEquiv.trans_apply,
+      LinearMap.toMatrix'_mulVec, LinearEquiv.arrowCongr_apply, LinearMap.comp_apply,
+      ContinuousLinearMap.coe_coe, Submodule.subtype_apply,
+      Submodule.coe_orthogonalProjection_apply]
+    exact rfl
+  rw [hproj, Submodule.coe_eq_zero, Submodule.orthogonalProjection_eq_zero_iff,
+    support_orthogonal_eq_range]
+  rfl
+
 /-- Projector onto the non-negative eigenspace of `B - A`. Accessible by the notation
 `{A ≤ₚ B}`, which is scoped to `HermitianMat`. This is the unique maximum operator `P`
 such that `P^2 = P` and `P * A * P ≤ P * B * P` in the Loewner order. -/

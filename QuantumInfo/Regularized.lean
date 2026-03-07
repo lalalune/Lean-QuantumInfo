@@ -5,6 +5,7 @@ Authors: Alex Meiburg
 -/
 import QuantumInfo.ForMathlib.Superadditive
 import Mathlib.Order.LiminfLimsup
+import Mathlib.Topology.Order.LiminfLimsup
 import Mathlib.Topology.Order.MonotoneConvergence
 
 /-! Definition of "Regularized quantities" as are common in information theory,
@@ -171,6 +172,10 @@ theorem InfRegularized.of_Subadditive (hf : Subadditive (fun n ↦ fn n * n))
       convert Or.inr (hl (n+1))
       field_simp
   )
-  apply tendsto_nhds_unique h₁
-  have := InfRegularized.anti_tendsto (fn := fn) (hl := hl) (hu := hu) (sorry)
-  sorry
+  have heq : (fun n ↦ fn n) =ᶠ[Filter.atTop] (fun n ↦ (fn n * n) / n) := by
+    filter_upwards [Filter.eventually_atTop.2 ⟨1, fun n hn ↦ hn⟩] with n hn
+    have hn0 : (n : ℝ) ≠ 0 := by positivity
+    field_simp [hn0]
+  have hfn : Filter.Tendsto fn Filter.atTop (nhds hf.lim) := by
+    exact h₁.congr' heq.symm
+  exact (Filter.Tendsto.liminf_eq hfn).symm

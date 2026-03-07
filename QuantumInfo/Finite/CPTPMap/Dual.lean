@@ -4,6 +4,8 @@ Released under MIT license as described in the file LICENSE.
 Authors: Alex Meiburg
 -/
 import QuantumInfo.Finite.CPTPMap.Bundled
+import QuantumInfo.ForMathlib.Matrix
+import Mathlib.LinearAlgebra.Dual.Basis
 import Mathlib.LinearAlgebra.Matrix.FiniteDimensional
 
 /-! # Duals of matrix map
@@ -30,23 +32,130 @@ variable [DecidableEq dIn] [DecidableEq dOut] {M : MatrixMap dIn dOut 𝕜}
 def dual (M : MatrixMap dIn dOut R) : MatrixMap dOut dIn R :=
   let iso1 := (Module.Basis.toDualEquiv <| Matrix.stdBasis R dIn dIn).symm
   let iso2 := (Module.Basis.toDualEquiv <| Matrix.stdBasis R dOut dOut)
-  iso1 ∘ₗ LinearMap.dualMap M ∘ₗ iso2
+  let raw : MatrixMap dOut dIn R := iso1.toLinearMap ∘ₗ LinearMap.dualMap M ∘ₗ iso2.toLinearMap
+  (Matrix.transposeLinearEquiv dIn dIn R R).toLinearMap ∘ₗ raw ∘ₗ
+    (Matrix.transposeLinearEquiv dOut dOut R R).toLinearMap
+
+lemma dual_single_apply (M : MatrixMap dIn dOut R) (i₁ : dIn) (j₁ : dOut) (i₂ : dIn) (j₂ : dOut) :
+    (M.dual (Matrix.single j₁ j₂ 1)) i₁ i₂ = (M (Matrix.single i₂ i₁ 1)) j₂ j₁ := by
+  unfold dual
+  dsimp
+  change (Matrix.stdBasis R dIn dIn).coord (i₂, i₁)
+      ((Matrix.stdBasis R dIn dIn).toDualEquiv.symm
+        ((LinearMap.dualMap M) ((Matrix.stdBasis R dOut dOut).toDual (Matrix.single j₁ j₂ 1).transpose))) = _
+  rw [(Matrix.stdBasis R dIn dIn).coord_toDualEquiv_symm_apply (i := (i₂, i₁))]
+  rw [Module.Basis.coord_apply, Module.Basis.dualBasis_repr]
+  rw [LinearMap.dualMap_apply', LinearMap.comp_apply]
+  rw [show (Matrix.single j₁ j₂ (1 : R)).transpose = (Matrix.stdBasis R dOut dOut) (j₂, j₁) by
+    simp [Matrix.stdBasis_eq_single]]
+  rw [(Matrix.stdBasis R dOut dOut).toDual_apply_right (i := (j₂, j₁))]
+  have hrepr : ((Matrix.stdBasis R dOut dOut).repr (M ((Matrix.stdBasis R dIn dIn) (i₂, i₁)))) (j₂, j₁) =
+      M ((Matrix.stdBasis R dIn dIn) (i₂, i₁)) j₂ j₁ := by
+    simp [Matrix.stdBasis]
+  rw [hrepr]
+  simp [Matrix.stdBasis_eq_single]
+
+lemma dual_apply_eq_trace_mul (M : MatrixMap dIn dOut R) (B : Matrix dOut dOut R) (i j : dIn) :
+    M.dual B j i = (M (Matrix.single i j 1) * B).trace := by
+  let f : Matrix dOut dOut R →ₗ[R] R :=
+    { toFun := fun X => M.dual X j i
+      map_add' := by simp
+      map_smul' := by simp }
+  let g : Matrix dOut dOut R →ₗ[R] R :=
+    { toFun := fun X => (M (Matrix.single i j 1) * X).trace
+      map_add' := by intro X Y; simp [Matrix.mul_add, Matrix.trace_add]
+      map_smul' := by intro c X; simp [Matrix.trace_smul] }
+  have hfg : f = g := by
+    apply (Matrix.stdBasis R dOut dOut).ext
+    intro ij
+    rcases ij with ⟨j₁, j₂⟩
+    simp [f, g, dual_single_apply, Matrix.trace_mul_single, Matrix.stdBasis_eq_single]
+  have h := congrArg (fun h : Matrix dOut dOut R →ₗ[R] R => h B) hfg
+  simpa [f, g] using h
 
 /-- The defining property of a dual map: inner products are preserved on the opposite argument. -/
 theorem Dual.trace_eq (M : MatrixMap dIn dOut R) (A : Matrix dIn dIn R) (B : Matrix dOut dOut R) :
     (M A * B).trace = (A * M.dual B).trace := by
-  unfold dual
-  dsimp [Matrix.trace]
-  rw [LinearMap.dualMap_apply']
-  simp_rw [Matrix.mul_apply]
-  sorry
+  let f : Matrix dIn dIn R →ₗ[R] R :=
+    { toFun := fun X => (M X * B).trace
+      map_add' := by intro X Y; simp [map_add, Matrix.add_mul, Matrix.trace_add]
+      map_smul' := by intro c X; simp [map_smul, Matrix.trace_smul] }
+  let g : Matrix dIn dIn R →ₗ[R] R :=
+    { toFun := fun X => (X * M.dual B).trace
+      map_add' := by intro X Y; simp [Matrix.add_mul, Matrix.trace_add]
+      map_smul' := by intro c X; simp [Matrix.trace_smul] }
+  have hfg : f = g := by
+    apply (Matrix.stdBasis R dIn dIn).ext
+    intro ij
+    rcases ij with ⟨i, j⟩
+    simp [f, g, Matrix.stdBasis_eq_single, Matrix.trace_single_mul, dual_apply_eq_trace_mul]
+  have h := congrArg (fun h : Matrix dIn dIn R →ₗ[R] R => h A) hfg
+  simpa [f, g] using h
 
 --all properties below should provable just from `inner_eq`, since the definition of `dual` itself
 -- is pretty hairy (and maybe could be improved...)
 
 /-- The dual of a `IsHermitianPreserving` map also `IsHermitianPreserving`. -/
-theorem IsHermitianPreserving.dual (h : M.IsHermitianPreserving) : M.dual.IsHermitianPreserving := by
-  sorry
+theorem IsHermitianPreserving.dual {M : MatrixMap dIn dOut ℂ}
+    (h : M.IsHermitianPreserving) : M.dual.IsHermitianPreserving := by
+  intro x hx
+  rw [Matrix.IsHermitian]
+  ext i j
+  rw [Matrix.conjTranspose_apply, dual_apply_eq_trace_mul, dual_apply_eq_trace_mul]
+  let a : ℂ := (M (Matrix.single i j 1) * x).trace
+  let b : ℂ := (M (Matrix.single j i 1) * x).trace
+  change star a = b
+  let H1 : Matrix dIn dIn ℂ := Matrix.single i j 1 + Matrix.single j i 1
+  let H2 : Matrix dIn dIn ℂ := Complex.I • (Matrix.single i j 1 - Matrix.single j i 1)
+  have hH1 : H1.IsHermitian := by
+    dsimp [H1]
+    rw [Matrix.IsHermitian]
+    simp [add_comm]
+  have hH2 : H2.IsHermitian := by
+    dsimp [H2]
+    have hH2' : (Matrix.single i j Complex.I + Matrix.single j i (-Complex.I)).IsHermitian := by
+      rw [Matrix.IsHermitian]
+      simp [add_comm]
+    convert hH2' using 1
+    ext a' b'
+    simp [sub_eq_add_neg, Matrix.single]
+    split_ifs <;> simp
+  have htrace1 : star ((M H1 * x).trace) = (M H1 * x).trace := by
+    rw [← Matrix.trace_conjTranspose, Matrix.conjTranspose_mul, h hH1 |>.eq, hx.eq,
+      Matrix.trace_mul_comm]
+  have htrace2 : star ((M H2 * x).trace) = (M H2 * x).trace := by
+    rw [← Matrix.trace_conjTranspose, Matrix.conjTranspose_mul, h hH2 |>.eq, hx.eq,
+      Matrix.trace_mul_comm]
+  have hsum : star (a + b) = a + b := by
+    simpa [a, b, H1, map_add, Matrix.add_mul, Matrix.trace_add] using htrace1
+  have haI : (M (Matrix.single i j Complex.I) * x).trace = Complex.I * a := by
+    have hsingle : Matrix.single i j Complex.I = Complex.I • Matrix.single i j 1 := by
+      simp
+    rw [hsingle, map_smul, Matrix.smul_mul, Matrix.trace_smul]
+    simp [a, smul_eq_mul]
+  have hbI : (M (Matrix.single j i Complex.I) * x).trace = Complex.I * b := by
+    have hsingle : Matrix.single j i Complex.I = Complex.I • Matrix.single j i 1 := by
+      simp
+    rw [hsingle, map_smul, Matrix.smul_mul, Matrix.trace_smul]
+    simp [b, smul_eq_mul]
+  have hdiffI : star (Complex.I * (a - b)) = Complex.I * (a - b) := by
+    have htmp : star (Complex.I * a - Complex.I * b) = Complex.I * a - Complex.I * b := by
+      simpa [H2, map_smul, map_sub, Matrix.smul_mul, Matrix.sub_mul, Matrix.trace_smul,
+        Matrix.trace_sub, haI, hbI, sub_eq_add_neg, mul_add, add_mul, mul_assoc] using htrace2
+    simpa [sub_eq_add_neg, mul_add, add_mul, mul_assoc] using htmp
+  have hdiff : star a - star b = b - a := by
+    have htmp := congrArg (fun z => z * Complex.I) hdiffI
+    simp [star_mul, sub_eq_add_neg, mul_add, add_mul, mul_assoc] at htmp
+    ring_nf at htmp
+    simpa [sub_eq_add_neg, add_comm] using htmp
+  have hsum' : star a + star b = a + b := by
+    simpa [sub_eq_add_neg, star_add] using hsum
+  have hdouble : (2 : ℂ) * star a = (2 : ℂ) * b := by
+    calc
+      (2 : ℂ) * star a = (star a + star b) + (star a - star b) := by ring
+      _ = (a + b) + (b - a) := by rw [hsum', hdiff]
+      _ = (2 : ℂ) * b := by ring
+  exact mul_left_cancel₀ (two_ne_zero : (2 : ℂ) ≠ 0) hdouble
 
 --TODO Cleanup, find home, abstract out to HermitianMats...?
 theorem _root_.Matrix.PosSemidef.trace_mul_nonneg {n : Type*} [Fintype n] [DecidableEq n]
@@ -63,7 +172,7 @@ theorem _root_.Matrix.PosSemidef.trace_mul_nonneg {n : Type*} [Fintype n] [Decid
     Finset.sum_nonneg fun i _ ↦ h.2 (Pi.single i 1)
 
 /-- The dual of a `IsPositive` map also `IsPositive`. -/
-theorem IsPositive.dual (h : M.IsPositive) : M.dual.IsPositive := by
+theorem IsPositive.dual {M : MatrixMap dIn dOut ℂ} (h : M.IsPositive) : M.dual.IsPositive := by
   intro x hx
   use IsHermitianPreserving.dual h.IsHermitianPreserving hx.1
   intro v
@@ -204,13 +313,15 @@ lemma dual_kron {A B C D : Type*} [Fintype A] [Fintype B] [Fintype C] [Fintype D
 
 --The dual of a CompletelyPositive map is always CP, more generally it's k-positive
 -- see Lemma 3.1 of https://www.math.uwaterloo.ca/~krdavids/Preprints/CDPRpositivereal.pdf
-theorem IsCompletelyPositive.dual (h : M.IsCompletelyPositive) : M.dual.IsCompletelyPositive := by
+theorem IsCompletelyPositive.dual {M : MatrixMap dIn dOut ℂ}
+    (h : M.IsCompletelyPositive) : M.dual.IsCompletelyPositive := by
   intro n
-  have h_dual_pos : (MatrixMap.dual (M ⊗ₖₘ MatrixMap.id (Fin n) 𝕜)).IsPositive := by
+  have h_dual_pos : (MatrixMap.dual (M ⊗ₖₘ MatrixMap.id (Fin n) ℂ)).IsPositive := by
     exact IsPositive.dual (h n);
   -- By definition of complete positivity, we know that $(M ⊗ₖₘ id) dually map = M.dual ⊗ₖₘ id.dual$.
-  have h_dual_kron : (MatrixMap.dual (M ⊗ₖₘ MatrixMap.id (Fin n) 𝕜)) = (MatrixMap.dual M) ⊗ₖₘ (MatrixMap.dual (MatrixMap.id (Fin n) 𝕜)) := by
-    convert dual_kron M ( MatrixMap.id ( Fin n ) 𝕜 ) using 1;
+  have h_dual_kron : (MatrixMap.dual (M ⊗ₖₘ MatrixMap.id (Fin n) ℂ)) =
+      (MatrixMap.dual M) ⊗ₖₘ (MatrixMap.dual (MatrixMap.id (Fin n) ℂ)) := by
+    convert dual_kron M (MatrixMap.id (Fin n) ℂ) using 1
   convert h_dual_pos using 1;
   rw [ h_dual_kron, dual_id ]
 
@@ -245,43 +356,12 @@ lemma Module.Basis.toDualEquiv_symm_comp_dualMap_toDualEquiv {ι R M : Type*} [F
 
 @[simp]
 theorem dual_dual : M.dual.dual = M := by
-  rw [dual, dual]
-  simp only [← LinearMap.dualMap_comp_dualMap]
-  have h₁ : (Matrix.stdBasis 𝕜 dOut dOut).toDualEquiv.symm.toLinearMap ∘ₗ
-      ((Matrix.stdBasis 𝕜 dOut dOut).toDualEquiv).toLinearMap.dualMap =
-      (Module.evalEquiv 𝕜 (Matrix dOut dOut 𝕜)).symm.toLinearMap := by
-    apply Module.Basis.toDualEquiv_symm_comp_dualMap_toDualEquiv
-  have h₂ : (Matrix.stdBasis 𝕜 dIn dIn).toDualEquiv.symm.toLinearMap.dualMap ∘ₗ
-      (Matrix.stdBasis 𝕜 dIn dIn).toDualEquiv.toLinearMap =
-      (Module.evalEquiv 𝕜 (Matrix dIn dIn 𝕜)).toLinearMap := by
-    ext x y
-    simp
-    generalize Matrix.stdBasis 𝕜 dIn dIn = L
-    -- Since $L$ is a basis, we can write $y$ as a linear combination of the basis elements.
-    obtain ⟨c, hc⟩ : ∃ c : dIn × dIn → 𝕜, y = ∑ i, c i • L.toDual (L i) := by
-      have h_dual_basis : ∀ y : Module.Dual 𝕜 (Matrix dIn dIn 𝕜), ∃ c : dIn × dIn → 𝕜, y = ∑ i, c i • L.toDual (L i) := by
-        intro y
-        have h_dual_basis : y ∈ Submodule.span 𝕜 (Set.range (fun i => L.toDual (L i))) := by
-          have h_dual_basis : Submodule.span 𝕜 (Set.range (fun i => L.toDual (L i))) = ⊤ := by
-            refine' Submodule.eq_top_of_finrank_eq _;
-            rw [ finrank_span_eq_card ];
-            · simp [ Module.finrank_eq_card_basis L ];
-            · convert L.dualBasis.linearIndependent;
-          exact h_dual_basis.symm ▸ Submodule.mem_top
-        rw [ Finsupp.mem_span_range_iff_exists_finsupp ] at h_dual_basis;
-        exact ⟨ h_dual_basis.choose, by simpa [ Finsupp.sum_fintype ] using h_dual_basis.choose_spec.symm ⟩;
-      exact h_dual_basis y;
-    subst hc
-    simp [ map_sum, map_smul ];
-    congr! 2;
-    simp [ Module.Basis.toDualEquiv ];
-    simp [ Module.Basis.toDual ]
-  rw [← Module.Dual.eval_comp_comp_evalEquiv_eq]
-  rw [← Module.evalEquiv_toLinearMap]
-  simp only [← LinearMap.comp_assoc, LinearEquiv.comp_coe, LinearEquiv.self_trans_symm, LinearEquiv.refl_toLinearMap,
-    LinearMap.id_comp, h₁]
-  simp only [LinearMap.comp_assoc, LinearEquiv.comp_coe, LinearEquiv.self_trans_symm, LinearEquiv.refl_toLinearMap,
-    LinearMap.comp_id, h₂]
+  apply dual_unique (M := M.dual) (M' := M)
+  intro A B
+  calc
+    (M.dual A * B).trace = (B * M.dual A).trace := by rw [Matrix.trace_mul_comm]
+    _ = (M B * A).trace := by rw [Dual.trace_eq M B A]
+    _ = (A * M B).trace := by rw [Matrix.trace_mul_comm]
 
 end MatrixMap
 
