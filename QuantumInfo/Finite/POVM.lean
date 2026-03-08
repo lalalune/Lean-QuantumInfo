@@ -162,10 +162,57 @@ keeping the disturbed state. -/
 noncomputable def measureForget (Λ : POVM X d) : CPTPMap d d :=
   CPTPMap.traceRight ∘ₘ Λ.measurementMap
 
-proof_wanted measureForget_eq_kraus (Λ : POVM X d) :
-    Λ.measureForget = CPTPMap.of_kraus_CPTPMap (fun i ↦ (Λ.mats i) ^ (1/2 : ℝ)) (by
-      simpa [-one_div, fun x ↦ HermitianMat.pow_half_mul (Λ.zero_le x), HermitianMat.ext_iff]
-        using Λ.normalized
-    )
+open scoped Kronecker in
+private theorem traceRight_sum_kronecker_single {R : Type*} [Semiring R]
+    (A : X → Matrix d d R) :
+    Matrix.traceRight (∑ x, A x ⊗ₖ Matrix.single x x (1 : R)) = ∑ x, A x := by
+  ext i j
+  simp_rw [Matrix.traceRight, Matrix.of_apply, Matrix.sum_apply, Matrix.kroneckerMap, Matrix.single]
+  rw [Finset.sum_comm]
+  simp
+
+theorem measureForget_eq_kraus (Λ : POVM X d) :
+    Λ.measureForget = CPTPMap.of_kraus_CPTPMap (fun i ↦ ((Λ.mats i) ^ (1/2 : ℝ)).mat) (by
+      let K : X → Matrix d d ℂ := fun i => ((Λ.mats i) ^ (1 / 2 : ℝ)).mat
+      calc
+        ∑ k, (K k).conjTranspose * K k = ∑ k, K k * K k := by
+          congr with k
+          simp [K]
+        _ = ∑ k, (Λ.mats k).mat := by
+          ext i j
+          simp_rw [Matrix.sum_apply]
+          refine Finset.sum_congr rfl ?_
+          intro k _
+          simpa [K] using congrFun₂ (HermitianMat.pow_half_mul (Λ.zero_le k)) i j
+        _ = (1 : Matrix d d ℂ) := by
+          simpa [HermitianMat.mat_finset_sum] using congrArg HermitianMat.mat Λ.normalized
+    ) := by
+  let K : X → Matrix d d ℂ := fun i => ((Λ.mats i) ^ (1 / 2 : ℝ)).mat
+  have hTP : (∑ k, (K k).conjTranspose * K k) = 1 := by
+    calc
+      ∑ k, (K k).conjTranspose * K k = ∑ k, K k * K k := by
+        congr with k
+        simp [K]
+      _ = ∑ k, (Λ.mats k).mat := by
+        ext i j
+        simp_rw [Matrix.sum_apply]
+        refine Finset.sum_congr rfl ?_
+        intro k _
+        simpa [K] using congrFun₂ (HermitianMat.pow_half_mul (Λ.zero_le k)) i j
+      _ = (1 : Matrix d d ℂ) := by
+        simpa [HermitianMat.mat_finset_sum] using congrArg HermitianMat.mat Λ.normalized
+  change Λ.measureForget = CPTPMap.of_kraus_CPTPMap K hTP
+  apply CPTPMap.funext
+  intro ρ
+  apply MState.ext_m
+  change Matrix.traceRight (Λ.measurementMap.map ρ.m) = MatrixMap.of_kraus K K ρ.m
+  rw [measurementMap_apply_matrix, traceRight_sum_kronecker_single, MatrixMap.of_kraus,
+    LinearMap.sum_apply]
+  ext i j : 2
+  simp_rw [Matrix.sum_apply]
+  refine Finset.sum_congr rfl ?_
+  intro x _
+  change (K x * ρ.m * K x) i j = (K x * ρ.m * (K x).conjTranspose) i j
+  rw [show (K x).conjTranspose = K x by simp [K]]
 
 end POVM

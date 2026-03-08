@@ -236,7 +236,28 @@ def pure (ψ : Ket d) : MState d where
     simp [HermitianMat.trace_eq_re_trace, Matrix.trace, Matrix.vecMulVec_apply, Bra.eq_conj, h₁]
     exact ψ.normalized
 
-proof_wanted pure_inner : ⟪pure ψ, pure φ⟫_Prob = ‖Braket.dot ψ φ‖^2
+theorem pure_inner : ⟪pure ψ, pure φ⟫_Prob = ‖Braket.dot ψ φ‖^2 := by
+  rw [MState.val_inner, HermitianMat.inner_def]
+  change Complex.re
+      (Matrix.trace
+        (Matrix.rankOne (fun i : d => ψ i) (fun i : d => ψ i) *
+          Matrix.rankOne (fun i : d => φ i) (fun i : d => φ i))) =
+    ‖Braket.dot ψ φ‖ ^ 2
+  have hmul :
+      Matrix.rankOne (fun i : d => ψ i) (fun i : d => ψ i) *
+          Matrix.rankOne (fun i : d => φ i) (fun i : d => φ i) =
+        (((fun i : d => star (ψ i)) ⬝ᵥ fun i : d => φ i) : ℂ) •
+          Matrix.vecMulVec (fun i : d => ψ i) (fun i : d => star (φ i)) := by
+    simpa [Matrix.rankOne] using
+      (Matrix.vecMulVec_mul_vecMulVec
+        (fun i : d => ψ i) (fun i : d => star (ψ i))
+        (fun i : d => φ i) (fun i : d => star (φ i)))
+  have hdot : ((fun i : d => ψ i) ⬝ᵥ fun i : d => star (φ i)) = star (Braket.dot ψ φ) := by
+    simp [Braket.dot, dotProduct]
+  rw [hmul, Matrix.trace_smul, Matrix.trace_vecMulVec, smul_eq_mul, hdot]
+  change Complex.re (Braket.dot ψ φ * star (Braket.dot ψ φ)) = ‖Braket.dot ψ φ‖ ^ 2
+  rw [Complex.mul_re]
+  simpa [Complex.sq_norm] using (Complex.normSq_apply (Braket.dot ψ φ))
 
 @[simp]
 theorem pure_apply {i j : d} : (pure ψ).m i j = (ψ i) * conj (ψ j) := by

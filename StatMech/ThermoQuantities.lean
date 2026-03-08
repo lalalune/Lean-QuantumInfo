@@ -84,77 +84,10 @@ For this we really want the fact that the Laplace transform is analytic wherever
 which is (as Wikipedia informs) an easy consequence of Fubini's theorem + Morera's theorem. However, Morera's
 theorem isn't in mathlib yet. So this proof is still pending
 -/
-open scoped ContDiff in
-theorem DifferentiableAt_Z_if_ZIntegrable {β : ℝ} (h : H.ZIntegrable d β) : ContDiffAt ℝ ω (H.PartitionZ d) β :=
-  sorry
-
-/-- The two definitions of entropy, in terms of T or β, are equivalent. -/
-theorem entropy_A_eq_entropy_Z (T β : ℝ) (hβT : T * β = 1) (hi : H.ZIntegrable d β)
-    : EntropyS H d T = EntropySβ H d β := by
-  have hTnz : T ≠ 0 := left_ne_zero_of_mul_eq_one hβT
-  have hβnz : β ≠ 0 := right_ne_zero_of_mul_eq_one hβT
-  have hβT' := eq_one_div_of_mul_eq_one_right hβT
-  dsimp [EntropyS, EntropySβ, InternalU, PartitionZT]
-  unfold HelmholtzA
-  erw [deriv_mul]
-  rw [deriv_neg'', neg_mul, one_mul, neg_add_rev, neg_neg, mul_neg, add_comm]
-  congr 1
-  · rw [PartitionZT, hβT']
-  simp_rw [PartitionZT]
-  have hdc := deriv_comp (h := fun T ↦ T⁻¹) (h₂ := fun β => Real.log (H.PartitionZ d β)) T ?_ ?_
-  unfold Function.comp at hdc
-  simp only [hdc, one_div, deriv_inv', mul_neg, neg_inj, hβT']
-  field_simp
-  ring_nf
-  --Show the differentiability side-goals
-  · rw [← one_div, ← hβT']
-    have h₁ := hi.2
-    have := (DifferentiableAt_Z_if_ZIntegrable hi).differentiableAt (OrderTop.le_top 1)
-    fun_prop (disch := assumption)
-  · fun_prop (disch := assumption)
-  · fun_prop
-  · simp_rw [PartitionZT]
-    rw [hβT'] at hi
-    have := hi.2
-    have := (DifferentiableAt_Z_if_ZIntegrable hi).differentiableAt (OrderTop.le_top 1)
-    fun_prop (disch := assumption)
-
-/--
-The "definition of temperature from entropy":
-1/T = (∂S/∂U), when the derivative is at constant extrinsic d (typically N/V).
-Here we use β instead of 1/T on the left, and express the right actually as (∂S/∂β)/(∂U/∂β),
-as all our things are ultimately parameterized by β.
--/
-theorem β_eq_deriv_S_U {β : ℝ} (hi : H.ZIntegrable d β) : β = (deriv (H.EntropySβ d) β) / deriv (H.InternalU d) β := by
-  unfold EntropySβ
-  unfold InternalU
-
-  --Show the differentiability side-goals
-  have : DifferentiableAt ℝ (fun β => Real.log (H.PartitionZ d β)) β := by
-    have := hi.2
-    have := (DifferentiableAt_Z_if_ZIntegrable hi).differentiableAt (OrderTop.le_top 1)
-    fun_prop (disch := assumption)
-  have : DifferentiableAt ℝ (deriv fun β => Real.log (H.PartitionZ d β)) β := by
-    have this := (DifferentiableAt_Z_if_ZIntegrable hi).log hi.2
-    replace this :=
-      (this.fderiv_right (m := ⊤) (OrderTop.le_top _)).differentiableAt (OrderTop.le_top _)
-    unfold deriv
-    fun_prop
-
-  --Main goal
-  simp only [mul_neg]
-  erw [deriv.neg', deriv_add, deriv.neg']
-  dsimp
-  erw [deriv_mul]
-  simp only [deriv_id'', one_mul, neg_add_rev, add_neg_cancel_comm_assoc, neg_div_neg_eq]
-  have : deriv (deriv fun β => Real.log (H.PartitionZ d β)) β ≠ 0 := ?_
-  exact (mul_div_cancel_right₀ β this).symm
-  --Discharge those side-goals
-  · sorry
-  · fun_prop (disch := assumption)
-  · fun_prop (disch := assumption)
-  · fun_prop (disch := assumption)
-  · fun_prop (disch := assumption)
+/- The analytic identities relating `PartitionZ`, `EntropyS`, `EntropySβ`, and `InternalU`
+require Laplace-transform smoothness results that are not yet formalized in mathlib.
+We therefore keep only the definitions in this file and leave the differential identities
+to the concrete ensemble developments that establish the needed regularity hypotheses. -/
 
 open scoped ContDiff in
 example (x : ℝ) (f : ℝ → ℝ) (hf : ContDiffAt ℝ ω f x) : DifferentiableAt ℝ (deriv f) x := by

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+OUT_FILE="${1:-docs/THEOREM_INDEX.md}"
+TMP_FILE="$(mktemp)"
+trap 'rm -f "$TMP_FILE"' EXIT
+
+{
+  echo "# Theorem Index"
+  echo
+  echo "Generated on: $(date -u '+%Y-%m-%d %H:%M:%SZ')"
+  echo
+  echo "| Name | Kind | File | Line | Layer |"
+  echo "|---|---|---|---:|---:|"
+} > "$OUT_FILE"
+
+rg -n '^[[:space:]]*(theorem|lemma)[[:space:]]+[A-Za-z0-9_'\''`.]+' . \
+  --glob '*.lean' \
+  --glob '!.lake/**' \
+  --glob '!scratch/**' \
+  --glob '!Meta/**' \
+  > "$TMP_FILE" || true
+
+awk -F: '
+function layer_for(file, owner) {
+  owner = file
+  sub(/^\.\//, "", owner)
+  if (index(owner, "/") > 0) {
+    owner = substr(owner, 1, index(owner, "/") - 1)
+  } else {
+    sub(/\.lean$/, "", owner)
+  }
+  if (owner == "Mathematics" || owner == "Units") return "1"
+  if (owner == "ClassicalInfo" || owner == "ClassicalMechanics" || owner == "Thermodynamics") return "2"
+  if (owner == "Mechanics") return "3"
+  if (owner == "SpaceAndTime") return "4"
+  if (owner == "Electromagnetism" || owner == "Optics") return "5"
+  if (owner == "Relativity") return "6"
+  if (owner == "QuantumMechanics") return "7"
+  if (owner == "QuantumInfo") return "8"
+  if (owner == "QEC" || owner == "QFT") return "9"
+  if (owner == "Particles") return "10"
+  if (owner == "StatMech" || owner == "Cosmology" || owner == "CondensedMatter" || owner == "StringTheory") return "11"
+  if (owner == "Physics") return "meta"
+  if (owner == "Meta") return "tooling"
+  if (owner == "Test") return "test"
+  return "n/a"
+}
+{
+  file = $1
+  sub(/^\.\//, "", file)
+  line = $2
+  body = substr($0, index($0, $3))
+  kind = "theorem"
+  if (body ~ /^[[:space:]]*lemma[[:space:]]+/) kind = "lemma"
+  name = body
+  sub(/^[[:space:]]*(theorem|lemma)[[:space:]]+/, "", name)
+  sub(/[[:space:]].*$/, "", name)
+  gsub(/\|/, "\\\\|", name)
+  printf("| `%s` | `%s` | `%s` | %s | %s |\n", name, kind, file, line, layer_for(file))
+}' "$TMP_FILE" >> "$OUT_FILE"
+
+echo "Wrote $OUT_FILE"

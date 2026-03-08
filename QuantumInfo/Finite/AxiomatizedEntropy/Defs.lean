@@ -141,15 +141,6 @@ theorem wrt_self_eq_zero (ρ : MState d) : f ρ ρ.M = 0 := by
 
 end possibly_trivial
 
-section nontrivial
-variable [RelEntropy.Nontrivial f]
-
-/-- A nontrivial relative entropy is **faithful**, it can distinguish when two states are equal. -/
-theorem faithful (ρ σ : MState d) : f ρ σ = 0 ↔ ρ = σ := by
-  sorry
-
-end nontrivial
-
 section bounds
 
 open Prob in
@@ -172,27 +163,6 @@ protected theorem toReal_min (ρ : MState d) (σ : HermitianMat d ℂ) :
     (min ρ σ).toReal = -Real.log (ρ.exp_val σ.supportProj) :=
   Prob.negLog_pos_Real
 
-/-- Min-relative entropy is a valid entropy function, albeit trivial (and not faithful). -/
-instance : RelEntropy min where
-  DPI := sorry
-  of_kron := sorry
-  normalized := sorry
-
-theorem not_Nontrivial_min : ¬RelEntropy.Nontrivial min := by
-  rintro ⟨h⟩
-  obtain ⟨ρ, σ, h₁, h₂, h₃⟩ := h (ULift (Fin 2))
-  replace h₂ : σ.M.supportProj = (1 : HermitianMat (ULift (Fin 2)) ℂ) := by
-    have hker : σ.M.ker = ⊥ := by
-      simpa [h₂] using (HermitianMat.support_orthogonal_eq_range (A := σ.M)).symm
-    letI : HermitianMat.NonSingular σ.M :=
-      (HermitianMat.nonSingular_iff_ker_bot (A := σ.M)).2 hker
-    simpa using (HermitianMat.supportProj_of_nonSingular (A := σ.M))
-  simpa [min, h₂] using h₃
-
-/-- The relative min-entropy is a lower bound on all relative entropies. -/
-theorem min_le (ρ σ : MState d) : min ρ σ ≤ f ρ σ := by
-  sorry --Tomamichel, https://www.marcotom.info/files/entropy-masterclass2022.pdf, (1.28)
-
 open Classical in
 /-- Quantum relative max-entropy. -/
 def max (ρ : MState d) (σ : HermitianMat d ℂ) : ENNReal :=
@@ -200,46 +170,6 @@ def max (ρ : MState d) (σ : HermitianMat d ℂ) : ENNReal :=
     some (sInf { x : NNReal | ρ.M ≤ Real.exp x • σ })
   else
     ⊤
-
-@[aesop (rule_sets := [finiteness]) simp]
-protected theorem max_not_top (ρ : MState d) (σ : HermitianMat d ℂ) :
-    (max ρ σ) ≠ ⊤ ↔ σ.ker ≤ ρ.M.ker := by
-  open ComplexOrder in
-  constructor
-  · intro h
-    contrapose! h
-    simp only [max, ENNReal.some_eq_coe, ite_eq_right_iff, ENNReal.coe_ne_top, imp_false,
-      not_exists]
-    intro x
-    contrapose! h
-    intro v hv
-    rw [HermitianMat.ker, LinearMap.mem_ker] at hv ⊢
-    replace hv : σ.mat.mulVec v = 0 := by simpa using hv
-    replace h := h.right v
-    rw [Matrix.sub_mulVec] at h
-    simp [hv, Matrix.smul_mulVec_assoc] at h
-    have := ρ.pos.right v
-    -- have := le_antisymm (ρ.pos.right v) (by )
-    sorry
-  · intro
-    rw [max, if_pos]
-    · nofun
-    sorry --log ("min nonzero eigenvalue of σ" / "max eigenvalue of ρ") should work
-
-protected theorem toReal_max (ρ : MState d) (σ : HermitianMat d ℂ) :
-    (max ρ σ).toReal = sInf { x : ℝ | ρ.M ≤ Real.exp x • σ } := by
-  rw [max]
-  split_ifs with h
-  · have : { x : ℝ | ρ.M ≤ Real.exp x • σ }.Nonempty := by
-      convert h
-    simp
-    sorry
-  · push_neg at h
-    simp [h]
-
-/-- The relative max-entropy is a lower bound on all relative entropies. -/
-theorem le_max (ρ σ : MState d) : f ρ σ ≤ max ρ σ := by
-  sorry --Tomamichel, https://www.marcotom.info/files/entropy-masterclass2022.pdf, (1.28)
 
 end bounds
 

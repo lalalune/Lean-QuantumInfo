@@ -1,0 +1,8 @@
+# One glob-style path per line, relative to repository root.
+# Lines beginning with # are comments.
+#
+# Use this only for files actively being edited by another agent, then remove
+# entries immediately after handoff.
+#
+# Example:
+# QuantumInfo/Finite/Pinching.lean

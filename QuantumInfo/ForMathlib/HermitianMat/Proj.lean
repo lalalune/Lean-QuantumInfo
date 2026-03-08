@@ -426,14 +426,12 @@ theorem negPart_Continuous : Continuous (·⁻ : HermitianMat n ℂ → _) := by
   simp_rw [negPart_eq_cfc_min]
   fun_prop
 
-proof_wanted posPart_le_zero_iff : A⁺ ≤ 0 ↔ A ≤ 0
-
-proof_wanted posPart_eq_zero_iff : A⁺ = 0 ↔ A ≤ 0
-/- := by
-   rw [← posPart_le_zero_iff]
-   have := zero_le_posPart A
-   constructor <;> order
--/
+lemma neg_negPart_eq_posPart : (-A)⁻ = A⁺ := by
+  rw [negPart_eq_cfc_ite, posPart_eq_cfc_ite]
+  nth_rw 1 [← cfc_id A]
+  rw [← cfc_neg, ← cfc_comp]
+  congr with x
+  by_cases hx : 0 ≤ x <;> simp [hx]
 
 --Many missing lemmas: see `Mathlib.Algebra.Order.Group.PosPart` for examples
 -- (They don't apply here since it's not a Lattice, and there's no well-defined `max` in
@@ -509,6 +507,34 @@ theorem inner_negPart_zero_iff : ⟪A, A⁻⟫ = 0 ↔ 0 ≤ A := by
     apply le_antisymm
     · exact inner_negPart_nonpos A
     · exact inner_ge_zero h (negPart_le_zero A)
+
+theorem posPart_eq_zero_iff : A⁺ = 0 ↔ A ≤ 0 := by
+  constructor
+  · intro h
+    rw [← posPart_add_negPart A, h, zero_sub]
+    simpa [sub_eq_add_neg] using neg_nonpos.mpr (negPart_le_zero A)
+  · intro hA
+    have hnonneg : 0 ≤ -A := by
+      simpa using hA
+    have hinner_zero : ⟪-A, (-A)⁻⟫ = 0 := (inner_negPart_zero_iff (-A)).2 hnonneg
+    have hself_zero : ⟪(-A)⁻, (-A)⁻⟫ = 0 := by
+      nth_rw 1 [← posPart_add_negPart (-A)] at hinner_zero
+      rw [inner_sub_left, posPart_inner_negPart_zero, sub_eq_zero] at hinner_zero
+      simpa [eq_comm] using hinner_zero
+    have hzero : (-A)⁻ = 0 := by
+      simpa using (inner_self_eq_zero.mp hself_zero)
+    rw [← neg_negPart_eq_posPart (A := A)]
+    exact hzero
+
+theorem posPart_le_zero_iff : A⁺ ≤ 0 ↔ A ≤ 0 := by
+  constructor
+  · intro h
+    calc
+      A ≤ A⁺ := posPart_le A
+      _ ≤ 0 := h
+  · intro h
+    have hzero : A⁺ = 0 := (posPart_eq_zero_iff (A := A)).2 h
+    simpa [hzero]
 
 theorem inner_negPart_neg_iff : ⟪A, A⁻⟫ < 0 ↔ ¬0 ≤ A := by
   simp [← inner_negPart_zero_iff, lt_iff_le_and_ne, inner_negPart_nonpos A]

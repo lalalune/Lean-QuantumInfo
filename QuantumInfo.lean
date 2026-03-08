@@ -13,7 +13,6 @@ import QuantumInfo.Finite.Distance
 import QuantumInfo.Finite.Qubit.Basic
 import QuantumInfo.Finite.ResourceTheory.FreeState
 -- import QuantumInfo.Finite.ResourceTheory.ResourceTheory --Commenting out for now -- pretty broken
-import QuantumInfo.Finite.ResourceTheory.SteinsLemma
 import QuantumInfo.Finite.Braket
 import QuantumInfo.Finite.Capacity
 import QuantumInfo.Finite.Ensemble

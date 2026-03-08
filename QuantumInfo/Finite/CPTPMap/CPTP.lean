@@ -668,11 +668,20 @@ theorem exists_purify (Λ : CPTPMap dIn dOut) :
     of_kraus_tp_sum_eq_one K hTPK
   have hV : V.Isometry := by
     ext a a'
-    simpa [V, Matrix.Isometry, Matrix.mul_apply, Fintype.sum_prod_type] using congrFun₂ hNorm a a'
+    change ∑ i : dIn × dOut × dOut, (starRingEnd ℂ) (V i a) * V i a' =
+      (1 : Matrix dIn dIn ℂ) a a'
+    simp only [V, Fintype.sum_prod_type]
+    calc
+      ∑ x, ∑ x_1, ∑ x_2, (starRingEnd ℂ) (K (x_1, x) x_2 a) * K (x_1, x) x_2 a'
+        = ∑ x_1, ∑ x, ∑ x_2, (starRingEnd ℂ) (K (x_1, x) x_2 a) * K (x_1, x) x_2 a' := by
+            rw [Finset.sum_comm]
+      _ = (1 : Matrix dIn dIn ℂ) a a' := by
+        simpa [Matrix.sum_apply, Matrix.mul_apply, Matrix.conjTranspose_apply, Fintype.sum_prod_type]
+          using congrFun₂ hNorm a a'
   let e : dIn → (dIn × dOut × dOut) := fun a => (a, default)
   have he : Function.Injective e := by
     intro a a' h
-    exact Prod.fst_injective h
+    exact congrArg Prod.fst h
   obtain ⟨U, hU⟩ := exists_unitary_extension_of_isometry V hV e he
   refine ⟨ofUnitary U, ⟨⟨U, rfl⟩, ?_⟩⟩
   apply CPTPMap.funext

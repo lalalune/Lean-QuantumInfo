@@ -1,0 +1,4 @@
+# Format:
+# relative/path/to/File.lean|ImportedRootModule
+#
+# Keep this file empty by default.

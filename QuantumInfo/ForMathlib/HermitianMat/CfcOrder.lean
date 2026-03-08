@@ -76,11 +76,10 @@ theorem cfc_le_cfc_of_commute (hf : Monotone f) (hAB₁ : Commute A.mat B.mat) (
   apply hf
   simpa using hAB₂ i
 
---This is the more general version that requires operator concave functions but doesn't require the inputs
--- to commute. Requires the correct statement of operator convexity though, which we don't have right now.
-proof_wanted cfc_monoOn_pos_of_monoOn_posDef {d : Type*} [Fintype d] [DecidableEq d]
-  {f : ℝ → ℝ} (hf_is_operator_convex : False) :
-    MonotoneOn (HermitianMat.cfc · f) { A : HermitianMat d ℂ | A.mat.PosDef }
+-- The noncommutative monotonicity statement belongs here, but the right hypothesis is
+-- operator monotonicity/operator concavity on positive operators, not the placeholder `False`
+-- assumption that used to stand here. Until that theory is formalized, we keep only the
+-- commuting and pointwise-PosDef lemmas above.
 
 /-- Monotonicity of log on commuting operators. -/
 theorem log_le_log_of_commute (hAB₁ : Commute A.mat B.mat) (hAB₂ : A ≤ B) (hA : A.mat.PosDef) :

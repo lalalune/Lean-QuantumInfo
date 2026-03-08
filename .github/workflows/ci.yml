@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-and-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Show toolchain
+        run: |
+          lean --version
+          lake --version
+
+      - name: Resolve dependencies
+        run: lake update
+
+      - name: Build
+        run: lake build
+
+      - name: Foundation audit (static gates)
+        run: bash tools/foundation_audit.sh --skip-build
+
+      - name: Import layer checks
+        run: bash tools/check_import_layers.sh
+
+      - name: Regenerate theorem index
+        run: bash tools/generate_theorem_index.sh docs/THEOREM_INDEX.md
+
+      - name: Verify theorem index committed
+        run: git diff --exit-code docs/THEOREM_INDEX.md
+
+      - name: Consumer tests
+        run: |
+          lake build Test.Consumer.Level1
+          lake build Test.Consumer.Level2
+          lake build Test.Consumer.Level3
