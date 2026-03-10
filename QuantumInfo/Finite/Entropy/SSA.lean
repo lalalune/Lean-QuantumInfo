@@ -290,7 +290,7 @@ theorem isometry_mul_conjTranspose_le_one {m n : Type*} [Fintype m] [Fintype n]
     (V : Matrix m n ℂ) (hV : V.conjTranspose * V = 1) :
     V * V.conjTranspose ≤ 1 := by
   have h_pos : (1 - V * Vᴴ) * (1 - V * Vᴴ) = 1 - V * Vᴴ := by
-    simp [ sub_mul, mul_sub, ← Matrix.mul_assoc, hV ];
+    simp [ sub_mul, mul_sub, ← Matrix.mul_assoc ];
     simp [ Matrix.mul_assoc, hV ];
   have h_pos : (1 - V * Vᴴ) = (1 - V * Vᴴ)ᴴ * (1 - V * Vᴴ) := by
     simp_all [ Matrix.conjTranspose_sub, Matrix.conjTranspose_one, Matrix.conjTranspose_mul ];
@@ -342,13 +342,10 @@ theorem HermitianMat.inv_kronecker {m n : Type*} [Fintype m] [DecidableEq m]
 
 /- Inverse of a reindexed HermitianMat. -/
 theorem HermitianMat.inv_reindex {d d₂ : Type*} [Fintype d] [DecidableEq d]
-    [Fintype d₂] [DecidableEq d₂] (A : HermitianMat d ℂ) (e : d ≃ d₂)
-    [HermitianMat.NonSingular A] :
+    [Fintype d₂] [DecidableEq d₂] (A : HermitianMat d ℂ) (e : d ≃ d₂) :
     (A.reindex e)⁻¹ = A⁻¹.reindex e := by
-  -- Let's unfold the definition of `reindex` and `inv`.
-  have h_reindex_inv : ∀ (A : Matrix d d ℂ), (A.reindex e e)⁻¹ = (A⁻¹).reindex e e := by
-    aesop;
-  exact?
+  ext1
+  simp
 
 /- Kronecker of PosDef matrices is PosDef. -/
 theorem HermitianMat.PosDef_kronecker {m n : Type*} [Fintype m] [DecidableEq m]
@@ -356,10 +353,7 @@ theorem HermitianMat.PosDef_kronecker {m n : Type*} [Fintype m] [DecidableEq m]
     (A : HermitianMat m ℂ) (B : HermitianMat n ℂ)
     (hA : A.mat.PosDef) (hB : B.mat.PosDef) :
     (A ⊗ₖ B).mat.PosDef := by
-  have h_kronecker_pos_def : Matrix.PosDef (A : Matrix m m ℂ) ∧ Matrix.PosDef (B : Matrix n n ℂ) → Matrix.PosDef (Matrix.kroneckerMap (fun x1 x2 => x1 * x2) (A : Matrix m m ℂ) (B : Matrix n n ℂ)) := by
-    field_simp;
-    exact?;
-  exact h_kronecker_pos_def ⟨ hA, hB ⟩
+  exact Matrix.PosDef.kron hA hB
 
 /- Reindex of PosDef is PosDef. -/
 theorem HermitianMat.PosDef_reindex {d d₂ : Type*} [Fintype d] [DecidableEq d]
@@ -391,27 +385,22 @@ theorem operator_ineq_SSA [Nonempty dA] [Nonempty dB] [Nonempty dC]
   have h_inv_symm : ((ρAB.traceRight ⊗ₖ σBC⁻¹).reindex (Equiv.prodAssoc dA dB dC).symm)⁻¹ ≤ (ρAB ⊗ₖ σBC.traceLeft⁻¹)⁻¹ := by
     apply HermitianMat.inv_antitone;
     · apply HermitianMat.PosDef_kronecker ρAB (σBC.traceLeft)⁻¹ hρ (PosDef_traceLeft σBC hσ).inv;
-    · exact?;
+    · exact intermediate_ineq ρAB σBC hρ hσ;
   have h_inv_symm : ((ρAB.traceRight ⊗ₖ σBC⁻¹).reindex (Equiv.prodAssoc dA dB dC).symm)⁻¹ = (ρAB.traceRight⁻¹ ⊗ₖ σBC).reindex (Equiv.prodAssoc dA dB dC).symm := by
     have h_inv_symm : (ρAB.traceRight ⊗ₖ σBC⁻¹)⁻¹ = ρAB.traceRight⁻¹ ⊗ₖ (σBC⁻¹)⁻¹ := by
       convert HermitianMat.inv_kronecker _ _ using 1;
       · infer_instance;
       · exact ⟨ ⟨ Classical.arbitrary dB, Classical.arbitrary dC ⟩ ⟩;
       · have h_trace_right_pos_def : (ρAB.traceRight).mat.PosDef := by
-          exact?
+          exact PosDef_traceRight ρAB hρ
         exact ⟨by exact PosDef_traceRight ρAB hρ |>.isUnit⟩
       · have h_inv_symm : σBC⁻¹.NonSingular := by
           have h_inv_symm : σBC.NonSingular := by
-            exact?
-          exact?;
+            exact nonSingular_of_posDef hσ
+          exact nonSingular_iff_inv.mpr h_inv_symm;
         exact h_inv_symm;
     convert congr_arg ( fun x : HermitianMat _ _ => x.reindex ( Equiv.prodAssoc dA dB dC ).symm ) h_inv_symm using 1;
-    · convert HermitianMat.inv_reindex _ _;
-      have h_inv_symm : (ρAB.traceRight ⊗ₖ σBC⁻¹).mat.PosDef := by
-        apply HermitianMat.PosDef_kronecker;
-        · exact?;
-        · convert hσ.inv;
-      exact?;
+    · apply HermitianMat.inv_reindex
     · convert rfl;
       apply HermitianMat.ext;
       convert Matrix.nonsing_inv_nonsing_inv _ _;
@@ -419,25 +408,25 @@ theorem operator_ineq_SSA [Nonempty dA] [Nonempty dB] [Nonempty dC]
   have h_inv_symm : (ρAB ⊗ₖ σBC.traceLeft⁻¹)⁻¹ = ρAB⁻¹ ⊗ₖ σBC.traceLeft := by
     have h_inv_symm : (ρAB ⊗ₖ σBC.traceLeft⁻¹)⁻¹ = ρAB⁻¹ ⊗ₖ (σBC.traceLeft⁻¹)⁻¹ := by
       convert HermitianMat.inv_kronecker ρAB ( σBC.traceLeft⁻¹ ) using 1;
-      · exact?;
+      · exact nonSingular_of_posDef hρ;
       · have h_inv_symm : σBC.traceLeft.mat.PosDef := by
-          exact?;
+          exact PosDef_traceLeft σBC hσ;
         -- Since σBC.traceLeft is positive definite, its inverse is also positive definite, and hence non-singular.
         have h_inv_pos_def : (σBC.traceLeft⁻¹).mat.PosDef := by
           convert h_inv_symm.inv using 1;
-        exact?;
+        exact nonSingular_of_posDef h_inv_pos_def;
     convert h_inv_symm using 1;
     have h_inv_symm : (σBC.traceLeft⁻¹)⁻¹ = σBC.traceLeft := by
       have h_inv_symm : (σBC.traceLeft⁻¹).mat * σBC.traceLeft.mat = 1 := by
         have h_inv_symm : (σBC.traceLeft⁻¹).mat * σBC.traceLeft.mat = 1 := by
           have h_inv_symm : σBC.traceLeft.mat.PosDef := by
-            exact?
+            exact PosDef_traceLeft σBC hσ
           convert Matrix.nonsing_inv_mul _ _;
           exact isUnit_iff_ne_zero.mpr h_inv_symm.det_pos.ne';
         exact h_inv_symm
       have h_inv_symm : (σBC.traceLeft⁻¹ : HermitianMat dC ℂ).mat⁻¹ = σBC.traceLeft.mat := by
         rw [ Matrix.inv_eq_right_inv h_inv_symm ];
-      exact?;
+      exact Eq.symm (HermitianMat.ext (id (Eq.symm h_inv_symm)));
     rw [h_inv_symm];
   have h_inv_symm : (ρAB.traceRight⁻¹ ⊗ₖ σBC).reindex (Equiv.prodAssoc dA dB dC).symm ≤ ρAB⁻¹ ⊗ₖ σBC.traceLeft := by
     aesop;

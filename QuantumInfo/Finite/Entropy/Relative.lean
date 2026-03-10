@@ -1194,48 +1194,10 @@ private lemma cross_term_at_one (ρ σ : MState d) :
   simp [B_of_one, HermitianMat.rpow_one, ρ.tr]
 
 /-
-PROBLEM
 Scalar rpow cross term with just continuity: for a continuous function b with
-    b(1) = c > 0, b(α) > 0 near 1, the function α ↦ b(α)^α - b(α) has derivative
-    c * log c at α = 1. The key insight is that ∂/∂x(x^α - x)|_{α=1} = 0,
-    so the derivative of b doesn't matter.
-PROVIDED SOLUTION
-Key idea: Use the existing `scalar_rpow_cross_term` applied to the constant function b₀(α) = c, which is differentiable and satisfies b₀(1) = c. Then show that (b(α)^α - b(α)) - (c^α - c) has derivative 0 at α = 1 (hence by adding, we get derivative c * log c).
-Step 1: By `scalar_rpow_cross_term` applied to b₀(α) = c (constant):
-  HasDerivAt (fun α => c ^ α - c) (c * log c) 1
-  (since deriv (fun α => c) 1 = 0 and b₀(1) = c, and hasDerivAt_const gives HasDerivAt for b₀)
-Step 2: Show HasDerivAt (fun α => (b α ^ α - b α) - (c ^ α - c)) 0 1.
-  This is equivalent to showing (b(α)^α - c^α) - (b(α) - c) has derivative 0 at α = 1.
-  HasDerivAt f 0 1 iff f(1+h) - f(1) = o(h). f(1) = (c-c) - (c-c) = 0.
-  f(1+h) = (b(1+h)^{1+h} - c^{1+h}) - (b(1+h) - c)
-  By the mean value theorem for x^{1+h}:
-  b(1+h)^{1+h} - c^{1+h} = (1+h) * ξ^h * (b(1+h) - c) for some ξ between b(1+h) and c.
-  So f(1+h) = ((1+h)ξ^h - 1)(b(1+h) - c).
-  Since b(1+h) → c and ξ is between b(1+h) and c, ξ → c.
-  So (1+h)ξ^h → 1·c^0 = 1. Hence (1+h)ξ^h - 1 → 0.
-  And b(1+h) - c → 0.
-  So f(1+h) → 0, but we need f(1+h) = o(h).
-  |(1+h)ξ^h - 1| is bounded by C|h| for h small (since derivative of (1+h)ξ^h at h=0 is 1+log c).
-  |b(1+h) - c| → 0 by continuity.
-  So |f(1+h)| ≤ C|h| · |b(1+h) - c| = |h| · o(1) = o(h). ✓
-Step 3: From steps 1 and 2, HasDerivAt (fun α => b(α)^α - b(α)) (c * log c + 0) 1 by HasDerivAt.add.
-For the formalization: use `hasDerivAt_iff_isLittleO_nhds_zero` for step 2. The key estimate is:
-|(b(1+h)^{1+h} - c^{1+h}) - (b(1+h) - c)| ≤ C|h| · |b(1+h) - c|.
-To avoid the MVT (which may be hard to apply to rpow), use the direct computation:
-b^{1+h} - c^{1+h} = b·b^h - c·c^h = b·(b^h - c^h) + c^h·(b - c)
-So: (b^{1+h} - c^{1+h}) - (b - c) = b·(b^h - c^h) + (c^h - 1)·(b - c)
-For b, c > 0 near each other and h near 0:
-- b^h - c^h = h·log(ξ)·ξ^h·(something) ... this is complicated.
-Better: use Real.rpow_le_rpow or bounds on |x^s - y^s|.
-Actually, simplest approach: just use the limit argument directly.
-HasDerivAt f 0 1 iff (f(1+h) - f(1))/h → 0.
-f(1+h)/h = [b(1+h)·(b(1+h)^h - 1) - c·(c^h - 1)]/h
-= b(1+h)·(b(1+h)^h - 1)/h - c·(c^h - 1)/h
-Now (c^h - 1)/h → log c (standard limit).
-And (b(1+h)^h - 1)/h: since b(1+h) → c > 0, b(1+h)^h = exp(h·log(b(1+h))), so
-(exp(h·log(b(1+h))) - 1)/h → log(c) (since h·log(b(1+h)) → 0 and exp'(0)=1, composed with log(b(1+h)) → log(c)).
-So f(1+h)/h → c·log(c) - c·log(c) = 0.
-Use `Asymptotics.isLittleO_iff` or `hasDerivAt_iff_tendsto_slope` and show the appropriate limit is 0.
+  b(1) = c > 0, b(α) > 0 near 1, the function α ↦ b(α)^α - b(α) has derivative
+  c * log c at α = 1. The key insight is that ∂/∂x(x^α - x)|_{α=1} = 0,
+  so the derivative of b doesn't matter.
 -/
 private lemma scalar_rpow_cross_term_of_continuous {b : ℝ → ℝ} {c : ℝ}
     (hb_cont : ContinuousAt b 1) (hc : b 1 = c) (hc_pos : 0 < c)
@@ -1271,31 +1233,9 @@ private lemma scalar_rpow_cross_term_of_continuous {b : ℝ → ℝ} {c : ℝ}
   convert h_b.mul h_exp using 2 ; ring
 
 /-
-PROBLEM
 Scalar rpow cross term for the zero case: for continuous b with b(1) = 0,
-    0 ≤ b(α) near 1, the function α ↦ b(α)^α - b(α) has derivative 0 at α = 1.
-    Uses the convention 0 * log 0 = 0.
-PROVIDED SOLUTION
-Need HasDerivAt (fun α => b(α)^α - b(α)) 0 1, where b(1) = 0, b continuous at 1, b(α) ≥ 0 near 1.
-HasDerivAt f 0 1 means f(1+h) - f(1) = o(h), i.e., f(1+h) = o(h) since f(1) = 0^1 - 0 = 0.
-f(1+h) = b(1+h)^{1+h} - b(1+h).
-Since b is continuous at 1 with b(1) = 0: for any ε > 0, |b(1+h)| ≤ ε for small h.
-For b(1+h) ≥ 0 and small:
-- If b(1+h) = 0: f(1+h) = 0.
-- If 0 < b(1+h) ≤ 1 and h > 0: b^{1+h} = b · b^h ≤ b (since b ≤ 1 and h > 0). So |f| = b - b^{1+h} ≤ b.
-- If 0 < b(1+h) ≤ 1 and h < 0 (with 1+h > 0): b^{1+h} = b · b^h = b/b^{|h|}. If b ≤ 1, b^{|h|} ≥ 1 when b < 1... wait no, b^{|h|} for 0 < b < 1 and |h| > 0 gives b^{|h|} < 1 so b^{1+h} > b. But b^{1+h} = b^{1-|h|} and for 1-|h| < 1, b^{1-|h|} > b (when 0 < b < 1).
-Key bound: for 0 ≤ x ≤ ε and |s-1| ≤ δ with s > 0, |x^s - x| ≤ C·ε for some C depending on δ. Specifically x^s ≤ max(x, ε^{s_min}) for s bounded away from 0.
-Actually simpler: |b(1+h)^{1+h} - b(1+h)| ≤ |b(1+h)^{1+h}| + |b(1+h)|. For b near 0 and 1+h near 1 (positive), b^{1+h} is also near 0. So |f(1+h)| ≤ 2ε for h small enough. Since ε is arbitrary, f(1+h) → 0, but we need f(1+h)/h → 0, not just f(1+h) → 0.
-More careful: b(1+h)^{1+h} - b(1+h) = b(1+h)(b(1+h)^h - 1). For 0 < b(1+h) ≤ ε:
-- b(1+h)^h = exp(h log b(1+h)). Since b → 0, log b → -∞, so h log b → 0 · (-∞) which is indeterminate.
-- But |h log b| = |h| · |log b|. For b = O(|h|^k) this is O(|h| · k|log h|) → 0.
-- Since b is merely continuous at 0, we don't know the rate. But we know b(1+h) → 0.
-Use: for any M > 0 and 0 < x ≤ 1, |x^h - 1| ≤ |h| · |log x| · max(1, x^{-|h|}).
-For 0 < x ≤ 1/2 and |h| ≤ 1/2: x^h = exp(h log x), and x^{-|h|} ≤ x^{-1/2} = 1/sqrt(x).
-So |x^h - 1| ≤ |h| |log x| / sqrt(x).
-And |b · (b^h - 1)| ≤ |h| · b · |log b| / sqrt(b) = |h| · sqrt(b) · |log b|.
-Since sqrt(b) · |log b| → 0 as b → 0⁺, we get |f(1+h)| = |h| · o(1) = o(h).
-Use hasDerivAt_iff_isLittleO or the Asymptotics API.
+  0 ≤ b(α) near 1, the function α ↦ b(α)^α - b(α) has derivative 0 at α = 1.
+  Uses the convention 0 * log 0 = 0.
 -/
 private lemma scalar_rpow_cross_term_of_continuous_zero {b : ℝ → ℝ}
     (hb_cont : ContinuousAt b 1) (hc : b 1 = 0)
@@ -1309,7 +1249,7 @@ private lemma scalar_rpow_cross_term_of_continuous_zero {b : ℝ → ℝ}
         filter_upwards [ hb_nonneg ] with α hα₁ hα₂ ; rcases eq_or_lt_of_le hα₂.1 with hα₃ | hα₃ <;> simp_all [ Real.rpow_def_of_nonneg ] ; ring_nf ;
         · norm_num [ ← hα₃ ] at *;
           linarith [ abs_le.mp hα₂ ];
-        · split_ifs <;> simp_all [ ne_of_gt, Real.exp_log ];
+        · split_ifs <;> simp_all [ne_of_gt]
           -- Use the fact that $|e^{x} - 1| \leq |x| e^{|x|}$ for any $x$.
           have h_exp_bound : ∀ x : ℝ, |Real.exp x - 1| ≤ |x| * Real.exp |x| := by
             intro x; rw [ abs_le ] ; constructor <;> cases abs_cases x <;> simp [ * ] <;> nlinarith [ Real.exp_pos x, Real.exp_neg x, mul_inv_cancel₀ ( ne_of_gt ( Real.exp_pos x ) ), Real.add_one_le_exp x, Real.add_one_le_exp ( -x ), Real.exp_le_exp.2 ( by linarith : x ≤ |x| ), Real.exp_le_exp.2 ( by linarith : -x ≤ |x| ) ] ;
@@ -1367,19 +1307,10 @@ private lemma conj_rpow_continuousAt_zero
   sorry
 
 /-
-PROBLEM
 ContinuousAt for B_of: the function α ↦ B(α) is continuous at α = 1.
-    This requires the kernel condition because σ.M ^ r is discontinuous at r = 0
-    on the kernel of σ. The kernel condition ensures the discontinuity is
-    "killed" by ρ vanishing on σ's kernel.
-PROVIDED SOLUTION
-Use conj_rpow_continuousAt_zero composed with the exponent function.
-B_of ρ σ α = ρ.M.conj (σ.M ^ ((1-α)/(2α))).mat.
-This equals (fun r => ρ.M.conj (σ.M ^ r).mat) ∘ (fun α => (1-α)/(2α)).
-Step 1: The inner function g(r) = ρ.M.conj (σ.M ^ r).mat is ContinuousAt at r = 0 by conj_rpow_continuousAt_zero σ.M ρ.M σ.nonneg ρ.nonneg h.
-Step 2: The exponent e(α) = (1-α)/(2α) is ContinuousAt at α = 1, with e(1) = 0. Use ContinuousAt.div with numerator 1-α and denominator 2α (nonzero at α = 1).
-Step 3: ContinuousAt of the composition g ∘ e at α = 1 follows from ContinuousAt.comp.
-Use `ContinuousAt.comp` to combine. Need to show the types match: B_of ρ σ α = g(e(α)) definitionally or by ext/congr.
+  This requires the kernel condition because σ.M ^ r is discontinuous at r = 0
+  on the kernel of σ. The kernel condition ensures the discontinuity is
+  "killed" by ρ vanishing on σ's kernel.
 -/
 private lemma B_of_continuousAt (ρ σ : MState d) (h : σ.M.ker ≤ ρ.M.ker) :
     ContinuousAt (B_of ρ σ) 1 := by
