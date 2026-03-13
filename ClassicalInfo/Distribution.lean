@@ -143,8 +143,7 @@ def extend_left (d : Distribution α) : Distribution (β ⊕ α) :=
 /-- Make a convex mixture of two distributions on the same set. -/
 instance instMixable : Mixable (α → ℝ) (Distribution α) :=
   Mixable.instSubtype (inferInstance) (fun _ _ hab hx hy ↦ by
-    admit -- admitting out because Aristotle fails to load it otherwise
-    -- simp [Mixable.mix_ab, Finset.sum_add_distrib, ← Finset.mul_sum, hab, hx, hy]
+    simp [Mixable.mix_ab, Finset.sum_add_distrib, ← Finset.mul_sum, hab, hx, hy]
   )
 
 /-- Given a distribution on type α and an equivalence to type β, get the corresponding
@@ -198,7 +197,7 @@ theorem fin_two_eq_coin (d : Distribution (Fin 2)) : d = coin (d 0) := by
   fin_cases i
   · simp [coin]
   · simpa only [coin, Fin.mk_one, funlike_apply, one_ne_zero, ↓reduceIte,
-    Prob.coe_one_minus, Subtype.eq_iff, Prob.coe_one_minus, eq_sub_iff_add_eq, add_comm,
+    Prob.coe_one_minus, Subtype.ext_iff, Prob.coe_one_minus, eq_sub_iff_add_eq, add_comm,
         fun_eq_val, Fin.sum_univ_two] using d.property
 
 theorem coin_eq_iff (p : Prob) (f : Distribution (Fin 2)) :
@@ -252,7 +251,7 @@ theorem expect_val_eq_mixable_mix (d : Distribution (Fin 2)) (x₁ x₂ : T) : e
       simp
     _ = (d 0 : ℝ) • Mixable.to_U x₁ + (1 - d 0).val • Mixable.to_U x₂ := by
       congr
-      simpa only [Subtype.eq_iff, Prob.coe_one_minus, eq_sub_iff_add_eq, add_comm,
+      simpa only [Subtype.ext_iff, Prob.coe_one_minus, eq_sub_iff_add_eq, add_comm,
         fun_eq_val, Fin.sum_univ_two] using d.property
 
 /-- The expectation value of a random variable with constant probability distribution `constant x` is its value at `x` -/
