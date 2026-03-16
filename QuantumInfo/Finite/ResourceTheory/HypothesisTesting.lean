@@ -294,7 +294,7 @@ theorem Lemma3 {ρ : MState d} (ε : Prob) {S : Set (MState d)} (hS₁ : IsCompa
 
 --Maybe should be phrased in terms of `0 < ...` instead? Maybe belongs in another file? It's kiinnnd of specialized..
 theorem ker_diagonal_prob_eq_bot {q : Prob} (hq₁ : 0 < q) (hq₂ : q < 1) :
-    HermitianMat.ker (.diagonal ℂ (Distribution.coin q ·)) = ⊥ := by
+    HermitianMat.ker (.diagonal ℂ (ProbDistribution.coin q ·)) = ⊥ := by
   apply Matrix.PosDef.toLin_ker_eq_bot
   apply Matrix.PosDef.diagonal
   intro i; fin_cases i
@@ -403,12 +403,12 @@ theorem Ref81Lem5 (ρ σ : MState d) (ε : Prob) (hε : ε < 1) (α : ℝ) (hα 
       simp only [POVM.measureDiscard_apply, p2, q2]
       constructor
       · congr
-        rw [Distribution.coin_eq_iff]
+        rw [ProbDistribution.coin_eq_iff]
         ext
         dsimp [MState.exp_val] at hT₂
-        simp [POVM.measure, Λ, p, Distribution.mk', coe_one_minus, ← hT₂, HermitianMat.inner_comm]
+        simp [POVM.measure, Λ, p, ProbDistribution.mk', coe_one_minus, ← hT₂, HermitianMat.inner_comm]
       · congr
-        rw [Distribution.coin_eq_iff]
+        rw [ProbDistribution.coin_eq_iff]
         ext
         dsimp [POVM.measure, Λ, q]
         rw [← hT₁]
@@ -459,8 +459,8 @@ theorem Ref81Lem5 (ρ σ : MState d) (ε : Prob) (hε : ε < 1) (α : ℝ) (hα 
       rw [MState.coe_ofClassical]
       rw [HermitianMat.diagonal_conj_diagonal, HermitianMat.diagonal_pow]
       rw [HermitianMat.trace_diagonal]
-      simp only [Fin.sum_univ_two, Fin.isValue, Distribution.coin_val_zero,
-        Distribution.coin_val_one, Prob.coe_one_minus]
+      simp only [Fin.sum_univ_two, Fin.isValue, ProbDistribution.coin_val_zero,
+        ProbDistribution.coin_val_one, Prob.coe_one_minus]
       rw [Real.mul_rpow p.zero_le (by positivity)]
       rw [← Real.rpow_natCast_mul (by bound)]
       rw [← Real.rpow_mul q.zero_le]

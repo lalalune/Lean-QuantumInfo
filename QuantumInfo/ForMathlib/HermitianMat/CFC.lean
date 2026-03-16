@@ -132,7 +132,7 @@ theorem cfc_toMat_eq_sum_smul_proj : (A.cfc f).mat =
     · rw [Finset.sum_apply, Finset.sum_apply]
       simp_all
   rw [h]
-  simp [Matrix.mul_sum, Matrix.sum_mul, Matrix.single, Matrix.mul_assoc]
+  simp [Matrix.single, Matrix.mul_assoc]
   congr! 1
   ext j k
   simp [Matrix.mul_apply,Finset.mul_sum, Finset.smul_sum, smul_ite, smul_zero]
@@ -348,8 +348,6 @@ theorem spectrum_subset_of_mem_Icc (A B : HermitianMat d 𝕜) :
 --   simp only [dist, AddSubgroupClass.subtype_apply, val_eq_coe, cfc_toMat] at ha ⊢
 --   sorry
 
-
-set_option maxHeartbeats 1600000 in
 @[fun_prop]
 protected theorem cfc_continuous {f : ℝ → ℝ} (hf : Continuous f) :
     Continuous (HermitianMat.cfc · f : HermitianMat d ℂ → HermitianMat d ℂ) := by
@@ -363,8 +361,11 @@ protected theorem cfc_continuous {f : ℝ → ℝ} (hf : Continuous f) :
     apply ContinuousOn.mono ?_ (ball_subset_Icc A r)
     obtain ⟨a, b, hab⟩ := spectrum_subset_of_mem_Icc (A - r • 1) (A + r • 1)
     open ComplexOrder in
-    have := ContinuousOn.cfc (A := CStarMatrix d d ℂ) isCompact_Icc f (by fun_prop) hab (fun x _ ↦ x.H)
-    exact this
+    refine ContinuousOn.cfc (s := fun _ ↦ Set.Icc a b) (t := Set.Icc (A - r • 1) (A + r • 1)) (A := CStarMatrix d d ℂ) f ?_ (by fun_prop) ?_ (fun x _ ↦ x.H)
+    · intro _ _
+      exact isCompact_Icc
+    · simp only [Set.mem_Icc]
+      exact fun _ _ ↦ eventually_nhdsWithin_of_forall hab
   · simp
   · ext x
     simp only [Set.mem_iUnion, Set.mem_univ, iff_true]
@@ -379,7 +380,7 @@ theorem Matrix.PosDef.spectrum_subset_Ioi {d 𝕜 : Type*} [Fintype d] [Decidabl
   have h_eigenvalues_pos : ∀ i : d, 0 < hA.1.eigenvalues i := by
     exact hA.eigenvalues_pos;
   have h_spectrum_eq_range : spectrum ℝ A = Set.range (hA.1.eigenvalues) := by
-    exact?;
+    exact Matrix.IsHermitian.spectrum_real_eq_range_eigenvalues hA.left;
   aesop
 
 /--
@@ -647,12 +648,12 @@ lemma spectrum_subset_of_isOpen (A₀ : HermitianMat d ℂ) (U : Set ℝ)
   have h_unitary : ∀ t ∈ K, ∃ δ_t > 0, ∃ ε_t > 0, ∀ B : HermitianMat d ℂ, ‖B - A₀‖ < δ_t → ∀ s : ℝ, |s - t| < ε_t → IsUnit (B.mat - algebraMap ℝ (Matrix d d ℂ) s) := by
     intro t ht
     have h_unitary : IsUnit (A₀.mat - algebraMap ℝ (Matrix d d ℂ) t) := by
-      simp_all +decide [ Set.ext_iff, spectrum.mem_iff ];
+      simp_all [ Set.ext_iff, spectrum.mem_iff ];
       simpa using hK_disjoint t ht |> IsUnit.neg |> IsUnit.mul <| isUnit_one
     generalize_proofs at *; (
     -- The set of units is open in the space of matrices.
     have h_unitary_open : IsOpen {B : Matrix d d ℂ | IsUnit B} := by
-      exact?
+      exact Units.isOpen
     generalize_proofs at *; (
     have h_unitary_cont : Continuous (fun p : HermitianMat d ℂ × ℝ => p.1.mat - algebraMap ℝ (Matrix d d ℂ) p.2) := by
       refine' Continuous.sub _ _ <;> fun_prop (disch := solve_by_elim)
@@ -665,12 +666,12 @@ lemma spectrum_subset_of_isOpen (A₀ : HermitianMat d ℂ) (U : Set ℝ)
   obtain ⟨δ, hδ_pos, hδ⟩ : ∃ δ > 0, ∀ t ∈ K, ∃ ε_t > 0, ∀ B : HermitianMat d ℂ, ‖B - A₀‖ < δ → ∀ s : ℝ, |s - t| < ε_t → IsUnit (B.mat - algebraMap ℝ (Matrix d d ℂ) s) := by
     choose! δ hδ ε hε h using h_unitary
     generalize_proofs at *; (
-    have := hK_compact.elim_nhds_subcover ( fun t => Metric.ball t ( ε t ) ) fun t ht => Metric.ball_mem_nhds t ( hε t ht ) ; simp_all +decide [ Set.subset_def ] ; (
+    have := hK_compact.elim_nhds_subcover ( fun t => Metric.ball t ( ε t ) ) fun t ht => Metric.ball_mem_nhds t ( hε t ht ) ; simp_all [ Set.subset_def ] ; (
     obtain ⟨ t, ht₁, ht₂ ⟩ := this
     generalize_proofs at *; (
     -- Let $\delta = \min(1, \min_{i \in t} \delta_i)$.
     obtain ⟨δ_min, hδ_min_pos, hδ_min⟩ : ∃ δ_min > 0, ∀ i ∈ t, δ_min ≤ δ i := by
-      by_cases ht : t.Nonempty <;> simp_all +decide [ Finset.Nonempty ];
+      by_cases ht : t.Nonempty <;> simp_all [ Finset.Nonempty ];
       · exact ⟨ Finset.min' ( t.image δ ) ⟨ _, Finset.mem_image_of_mem δ ht.choose_spec ⟩, by have := Finset.min'_mem ( t.image δ ) ⟨ _, Finset.mem_image_of_mem δ ht.choose_spec ⟩ ; aesop, fun i hi => Finset.min'_le _ _ ( Finset.mem_image_of_mem δ hi ) ⟩;
       · exact ⟨ 1, zero_lt_one ⟩
     generalize_proofs at *; (
@@ -737,7 +738,7 @@ lemma continuousWithinAt_cfc_of_continuousOn {T : Set ℝ} {g : ℝ → ℝ}
     specialize this ( show IsClosed ( spectrum ℝ A₀.val ) from h_finite.isClosed ) ( ContinuousMap.mk ( fun x => g x ) <| by exact continuousOn_iff_continuous_restrict.mp h_cont ) ; rcases this with ⟨ h, hh ⟩ ; exact ⟨ h, h.continuous, fun x hx => by simpa using congr_arg ( fun f => f ⟨ x, hx ⟩ ) hh ⟩ ;));
   obtain ⟨h, hh_cont, hh_eq⟩ := h_ext;
   have h_cfc_cont : ContinuousWithinAt (fun B => B.cfc h) {B : HermitianMat d ℂ | spectrum ℝ B.mat ⊆ T} A₀ := by
-    exact Continuous.continuousWithinAt ( by exact? );
+    exact Continuous.continuousWithinAt (HermitianMat.cfc_continuous hh_cont)
   have h_diff_small : ∀ ε > 0, ∃ U ∈ nhds A₀, ∀ B ∈ U ∩ {B : HermitianMat d ℂ | spectrum ℝ B.mat ⊆ T}, ‖B.cfc g - B.cfc h‖ < ε := by
     intro ε ε_pos
     obtain ⟨δ, δ_pos, hδ⟩ : ∃ δ > 0, ∀ x ∈ T, ∀ y ∈ spectrum ℝ A₀.mat, |x - y| < δ → |g x - h x| < ε / (Real.sqrt (Fintype.card d) + 1) := by
@@ -753,7 +754,7 @@ lemma continuousWithinAt_cfc_of_continuousOn {T : Set ℝ} {g : ℝ → ℝ}
         exact Set.toFinite _;
       obtain ⟨δ_min, hδ_min_pos, hδ_min⟩ : ∃ δ_min > 0, ∀ y ∈ spectrum ℝ A₀.mat, δ_min ≤ δ y := by
         by_cases h_empty : spectrum ℝ A₀.mat = ∅;
-        · exact ⟨ 1, zero_lt_one, by simp +decide [ h_empty ] ⟩;
+        · exact ⟨ 1, zero_lt_one, by simp [ h_empty ] ⟩;
         · have := h_finite.toFinset.exists_min_image δ;
           exact Exists.elim ( this ( Finset.nonempty_of_ne_empty ( by simpa [ Set.ext_iff ] using h_empty ) ) ) fun x hx => ⟨ δ x, hδ_pos x ( by simpa using hx.1 ), fun y hy => hx.2 _ ( h_finite.mem_toFinset.mpr hy ) ⟩;
       exact ⟨ δ_min, hδ_min_pos, fun x hx y hy hxy => hδ y hy x hx ( lt_of_lt_of_le hxy ( hδ_min y hy ) ) ⟩;
@@ -781,7 +782,7 @@ lemma continuousWithinAt_cfc_of_continuousOn {T : Set ℝ} {g : ℝ → ℝ}
   obtain ⟨δ, hδ_pos, hδ⟩ := h_cfc_cont (ε / 2) (half_pos hε)
   obtain ⟨U, hU_nhds, hU⟩ := h_diff_small (ε / 2) (half_pos hε)
   use Min.min δ (Metric.mem_nhds_iff.mp hU_nhds).choose
-  simp [hδ_pos, hU_nhds];
+  simp [hδ_pos];
   refine' ⟨ _, _ ⟩
   all_goals generalize_proofs at *;
   · exact ‹∃ ε, 0 < ε ∧ Metric.ball A₀ ε ⊆ U›.choose_spec.1;
@@ -842,23 +843,23 @@ lemma dist_lt_of_continuous_spectrum {X : Type*} [TopologicalSpace X]
             have := hf (x₀, (A x₀).H.eigenvalues i) ⟨hx₀, ?_⟩
             generalize_proofs at *;
             · convert this.sub ( ContinuousWithinAt.comp ( show ContinuousWithinAt ( fun p : ℝ => f x₀ p ) T ( ( A x₀ ).H.eigenvalues i ) from ?_ ) ( continuousWithinAt_snd ) ?_ ) using 1 <;> norm_num +zetaDelta at *;
-              · have := hf ( x₀, ( A x₀ ).H.eigenvalues i ) ⟨ hx₀, hA₁ x₀ hx₀ ( by
-                  exact? ) ⟩
+              · have := hf ( x₀, ( A x₀ ).H.eigenvalues i ) ⟨ hx₀, hA₁ x₀ hx₀ ((A x₀).H.eigenvalues_mem_spectrum_real i) ⟩
                 generalize_proofs at *; (
                 convert this.comp ( show ContinuousWithinAt ( fun p => ( x₀, p ) ) T ( ( A x₀ ).H.eigenvalues i ) from ?_ ) ?_ using 1 ;
                 generalize_proofs at *; (
                 exact ContinuousWithinAt.prodMk ( continuousWithinAt_const ) continuousWithinAt_id);
                 exact fun x hx => ⟨ hx₀, hx ⟩);
               · exact fun x hx => hx.2;
-            · exact hA₁ x₀ hx₀ ( by
-                exact? )
+            · exact hA₁ x₀ hx₀ ((A x₀).H.eigenvalues_mem_spectrum_real i) )
           generalize_proofs at *; (
-          have := h_cont.eventually ( Metric.ball_mem_nhds _ hε ) ; simp_all +decide [ Metric.mem_ball, dist_eq_norm ] ; (
+          have := h_cont.eventually ( Metric.ball_mem_nhds _ hε )
+          simp_all [ dist_eq_norm ]
+          (
           rw [ eventually_nhdsWithin_iff ] at this
           generalize_proofs at *; (
           rcases mem_nhds_prod_iff.mp this with ⟨ U, V, hU, hV, h ⟩
           generalize_proofs at *; (
-          exact ⟨ interior U, isOpen_interior, interior hU, isOpen_interior, mem_interior_iff_mem_nhds.mpr V, mem_interior_iff_mem_nhds.mpr hV, fun y hy hyS t ht htT => h ( Set.mk_mem_prod ( interior_subset hy ) ( interior_subset ht ) ) ⟨ hyS, htT ⟩ ⟩)))))
+          exact ⟨ interior U, isOpen_interior, interior hU, isOpen_interior, mem_interior_iff_mem_nhds.mpr V, mem_interior_iff_mem_nhds.mpr hV, fun y hy hyS t ht htT => h ( Set.mk_mem_prod ( interior_subset hy ) ( interior_subset ht ) ) ⟨ hyS, htT ⟩ ⟩))))
         generalize_proofs at *; (
         choose U_i V_i hU_i hV_i hx₀_i hV_i_i h_cont_i using h_cont; exact ⟨ U_i, V_i, hU_i, hV_i, hx₀_i, hV_i_i, h_cont_i ⟩ ;);
       -- The open set W := ⋃ᵢ V_i contains spectrum(A x₀) (since each λᵢ ∈ V_i and spectrum = range of eigenvalues). W is open as a union of open sets.
@@ -868,13 +869,13 @@ lemma dist_lt_of_continuous_spectrum {X : Type*} [TopologicalSpace X]
       have hW_spectrum : spectrum ℝ (A x₀).mat ⊆ W := by
         intro t ht
         obtain ⟨i, hi⟩ : ∃ i, t = (A x₀).H.eigenvalues i := by
-          have h_eigenvalues : spectrum ℝ (A x₀).mat = Set.range (A x₀).H.eigenvalues := by
-            exact?
+          have h_eigenvalues : spectrum ℝ (A x₀).mat = Set.range (A x₀).H.eigenvalues :=
+            (A x₀).H.spectrum_real_eq_range_eigenvalues
           generalize_proofs at *; (
           exact h_eigenvalues.subset ht |> Exists.imp fun i hi => hi.symm)
         aesop
       have hW_subset : ∀ᶠ B in nhds (A x₀), spectrum ℝ B.mat ⊆ W := by
-        exact?
+        exact spectrum_subset_of_isOpen (A x₀) W hW_open hW_spectrum
       have hW_subset_S : ∀ᶠ y in nhdsWithin x₀ S, spectrum ℝ (A y).mat ⊆ W := by
         exact Filter.mem_of_superset ( hA₂.continuousWithinAt hx₀ |> fun h => h.eventually ( hW_subset ) ) fun y hy => hy
       obtain ⟨U', hU'⟩ : ∃ U' ∈ nhds x₀, ∀ y ∈ U' ∩ S, spectrum ℝ (A y).mat ⊆ W := by
@@ -885,7 +886,7 @@ lemma dist_lt_of_continuous_spectrum {X : Type*} [TopologicalSpace X]
       have hU_mem : U ∈ nhds x₀ := by
         exact Filter.inter_mem hU'.1 hU''.1
       have hU_subset : ∀ y ∈ U ∩ S, spectrum ℝ (A y).mat ⊆ W := by
-        exact fun y hy => hU'.2 y ⟨ hy.1.1, hy.2 ⟩ |> Set.Subset.trans <| by simp +decide [ hW_def ] ;
+        exact fun y hy => hU'.2 y ⟨ hy.1.1, hy.2 ⟩ |> Set.Subset.trans <| by simp [ hW_def ] ;
       have hU_cont : ∀ y ∈ U ∩ S, ∀ t ∈ spectrum ℝ (A y).mat, ‖f y t - f x₀ t‖ < ε := by
         intro y hy t ht
         obtain ⟨i, hi⟩ : ∃ i, t ∈ V_i i := by
@@ -894,6 +895,7 @@ lemma dist_lt_of_continuous_spectrum {X : Type*} [TopologicalSpace X]
           exact h_cont.2.2 i y ⟨ hU''.2 i ( by aesop ), hy.2 ⟩ t ⟨ hi, hA₁ y hy.2 ht ⟩ |> fun h => by simpa using h;
         exact h_cont_i
       exact h_contra ⟨U, hU_mem, hU_cont⟩
+
 /-
 PROBLEM
 Joint continuity of the functional calculus, without requiring compactness of `T`.
@@ -926,7 +928,6 @@ In code, the proof structure should mirror continuous_cfc_joint_compact closely,
 - `dist_lt_of_continuous' hT hf x_in_S ε_pos` with `dist_lt_of_continuous_spectrum hf hA₁ hA₂ x_in_S ε_pos`
 - `continuousOn_cfc_of_compact hT (hf.uncurry_left x x_in_S)` with `continuousWithinAt_cfc_of_continuousOn (hf.uncurry_left x x_in_S) (hA₁ x x_in_S)` composed with hA₂ and hA₁.
 -/
-set_option maxHeartbeats 800000 in
 @[fun_prop]
 theorem continuous_cfc_joint {X d : Type*} [TopologicalSpace X] [Fintype d] [DecidableEq d]
   {f : X → ℝ → ℝ} {A : X → HermitianMat d ℂ} {S : Set X} {T : Set ℝ}
@@ -947,7 +948,7 @@ theorem continuous_cfc_joint {X d : Type*} [TopologicalSpace X] [Fintype d] [Dec
         -- By the triangle inequality, we can bound the distance between $(A x).cfc (f x)$ and $(A x₀).cfc (f x₀)$.
         have h_triangle : ∀ᶠ x in nhdsWithin x₀ S, ‖(A x).cfc (f x) - (A x).cfc (f x₀)‖ ≤ Real.sqrt (Fintype.card d) * (⨆ t ∈ spectrum ℝ (A x).mat, ‖f x t - f x₀ t‖) := by
           refine' Filter.Eventually.of_forall fun x => _;
-          exact?
+          exact norm_cfc_sub_cfc_le_sqrt_card
         generalize_proofs at *; (
         -- By the properties of the supremum, we can bound the distance between $(A x).cfc (f x)$ and $(A x₀).cfc (f x₀)$.
         have h_sup : Filter.Tendsto (fun x => ⨆ t ∈ spectrum ℝ (A x).mat, ‖f x t - f x₀ t‖) (nhdsWithin x₀ S) (nhds 0) := by
@@ -956,22 +957,22 @@ theorem continuous_cfc_joint {X d : Type*} [TopologicalSpace X] [Fintype d] [Dec
             generalize_proofs at *; (
             have := dist_lt_of_continuous_spectrum hf hA₁ hA₂ hx₀ ε_pos
             generalize_proofs at *; (
-            obtain ⟨ U, hU₁, hU₂ ⟩ := this; exact ⟨ U ∩ S, mem_nhdsWithin_iff_exists_mem_nhds_inter.mpr ⟨ U, hU₁, by simp +decide ⟩, fun x hx t ht => hU₂ x ⟨ hx.1, hx.2 ⟩ t ht ⟩ ;))
+            obtain ⟨ U, hU₁, hU₂ ⟩ := this; exact ⟨ U ∩ S, mem_nhdsWithin_iff_exists_mem_nhds_inter.mpr ⟨ U, hU₁, by simp ⟩, fun x hx t ht => hU₂ x ⟨ hx.1, hx.2 ⟩ t ht ⟩ ;))
           generalize_proofs at *; (
           refine' Metric.tendsto_nhds.mpr _;
-          intro ε ε_pos; rcases h_sup ( ε / 2 ) ( half_pos ε_pos ) with ⟨ U, hU₁, hU₂ ⟩ ; filter_upwards [ hU₁ ] with x hx; simp_all +decide [ dist_eq_norm ] ; (
-          rw [ abs_of_nonneg ( Real.iSup_nonneg fun _ => Real.iSup_nonneg fun _ => abs_nonneg _ ) ] ; refine' lt_of_le_of_lt ( ciSup_le fun t => _ ) ( half_lt_self ε_pos ) ; by_cases ht : t ∈ spectrum ℝ ( A x |> HermitianMat.mat ) <;> simp_all +decide [ abs_lt ] ;
+          intro ε ε_pos; rcases h_sup ( ε / 2 ) ( half_pos ε_pos ) with ⟨ U, hU₁, hU₂ ⟩ ; filter_upwards [ hU₁ ] with x hx; simp_all [ dist_eq_norm ] ; (
+          rw [ abs_of_nonneg ( Real.iSup_nonneg fun _ => Real.iSup_nonneg fun _ => abs_nonneg _ ) ] ; refine' lt_of_le_of_lt ( ciSup_le fun t => _ ) ( half_lt_self ε_pos ) ; by_cases ht : t ∈ spectrum ℝ ( A x |> HermitianMat.mat ) <;> simp_all [ abs_lt ] ;
           · exact abs_le.mpr ⟨ by linarith [ hU₂ x hx t ht ], by linarith [ hU₂ x hx t ht ] ⟩;
           · linarith [ ε_pos ]))
         generalize_proofs at *; (
         have h_final : Filter.Tendsto (fun x => ‖(A x).cfc (f x) - (A x).cfc (f x₀)‖) (nhdsWithin x₀ S) (nhds 0) := by
-          exact squeeze_zero_norm' ( by filter_upwards [ h_triangle ] with x hx; simpa using hx ) ( by simpa using h_sup.const_mul _ ) |> fun h => h.trans ( by simp +decide ) ;
+          exact squeeze_zero_norm' ( by filter_upwards [ h_triangle ] with x hx; simpa using hx ) ( by simpa using h_sup.const_mul _ ) |> fun h => h.trans ( by simp ) ;
         generalize_proofs at *; (
         convert h_cont.add ( show ContinuousWithinAt ( fun x => ( A x |> HermitianMat.cfc ) ( f x ) - ( A x |> HermitianMat.cfc ) ( f x₀ ) ) S x₀ from ?_ ) using 1 ; aesop
         generalize_proofs at *; (
-        exact tendsto_zero_iff_norm_tendsto_zero.mpr h_final |> fun h => h.trans ( by simp +decide [ ContinuousWithinAt ] ) ;)))))
+        exact tendsto_zero_iff_norm_tendsto_zero.mpr h_final |> fun h => h.trans ( by simp) ;)))))
       generalize_proofs at *; (
-      exact h_not_cont_at_x₀ <| fun x hx => h_cont x hx |> ContinuousWithinAt.mono <| by simpa;)
+      exact h_not_cont_at_x₀ <| fun x hx => h_cont x hx |> ContinuousWithinAt.mono <| by simp;)
 
 /-- Specialization of `continuousOn_cfc_fun` for nonsingular matrices. -/
 @[fun_prop]
@@ -1022,7 +1023,7 @@ lemma inv_cfc_eq_cfc_inv (hf : ∀ i, f (A.H.eigenvalues i) ≠ 0) :
       simp [ Matrix.IsHermitian.eigenvectorUnitary ];
     have h_inv : ∀ i j, (A.H.eigenvectorUnitary.val * (Matrix.single i i 1) * A.H.eigenvectorUnitary.val.conjTranspose) * (A.H.eigenvectorUnitary.val * (Matrix.single j j 1) * A.H.eigenvectorUnitary.val.conjTranspose) = if i = j then A.H.eigenvectorUnitary.val * (Matrix.single i i 1) * A.H.eigenvectorUnitary.val.conjTranspose else 0 := by
       simp [ ← Matrix.mul_assoc ];
-      intro i j; split_ifs <;> simp_all [ Matrix.mul_assoc, Matrix.mul_eq_one_comm.mp h_unitary ] ;
+      intro i j; split_ifs <;> simp_all [ Matrix.mul_assoc, mul_eq_one_comm.mp h_unitary ] ;
     simp_all [ Finset.sum_mul, Finset.mul_sum ];
     have h_sum : ∑ i, (A.H.eigenvectorUnitary.val * (Matrix.single i i 1) * A.H.eigenvectorUnitary.val.conjTranspose) = A.H.eigenvectorUnitary.val * (∑ i, Matrix.single i i 1) * A.H.eigenvectorUnitary.val.conjTranspose := by
       simp [ Finset.mul_sum, Finset.sum_mul, Matrix.mul_assoc ];
@@ -1217,7 +1218,7 @@ theorem inv_ge_one_of_le_one (hA : A.mat.PosDef) (h : A ≤ 1) : 1 ≤ A⁻¹ :=
       have h_pos : ∀ i, 0 < A.H.eigenvalues i ∧ A.H.eigenvalues i ≤ 1 := by
         -- Since $A$ is positive definite, all its eigenvalues are positive.
         have h_pos : ∀ i, 0 < A.H.eigenvalues i := by
-          exact?;
+          exact fun i => Matrix.PosDef.eigenvalues_pos hA i;
         -- Since $A \leq 1$, for any eigenvalue $\lambda_i$ of $A$, we have $\lambda_i \leq 1$.
         have h_le_one : ∀ i, A.H.eigenvalues i ≤ 1 := by
           have h_le_one : ∀ i, A.H.eigenvalues i ≤ 1 := by
@@ -1227,28 +1228,28 @@ theorem inv_ge_one_of_le_one (hA : A.mat.PosDef) (h : A ≤ 1) : 1 ≤ A⁻¹ :=
             have h_eigenvalue_le_one : ∀ x : d → 𝕜, x ≠ 0 → (star x ⬝ᵥ A.mat.mulVec x) / (star x ⬝ᵥ x) ≤ 1 := by
               intro x hx_ne_zero
               have h_eigenvalue_le_one : (star x ⬝ᵥ (1 - A.mat).mulVec x) ≥ 0 := by
-                exact?
+                exact Matrix.PosSemidef.dotProduct_mulVec_nonneg h x
               generalize_proofs at *; (
-              rw [ div_le_iff₀ ] <;> simp_all +decide [ Matrix.sub_mulVec, dotProduct_sub ])
+              rw [ div_le_iff₀ ] <;> simp_all [ Matrix.sub_mulVec, dotProduct_sub ])
             generalize_proofs at *; (
-            have := h_eigenvalue_le_one ( A.H.eigenvectorBasis i ) ?_ <;> simp_all +decide [ div_le_iff₀, Finset.sum_eq_zero_iff_of_nonneg, sq_nonneg ];
-            · have := Matrix.IsHermitian.mulVec_eigenvectorBasis ( show Matrix.IsHermitian ( A : Matrix d d _ ) from ‹_› ) i; simp_all +decide [ dotProduct_comm ] ;
-              by_cases h : ( A.H.eigenvectorBasis i |> WithLp.ofLp ) ⬝ᵥ star ( A.H.eigenvectorBasis i |> WithLp.ofLp ) = 0 <;> simp_all +decide [ div_le_iff₀ ] ; (
-              exact absurd h ( by exact ne_of_apply_ne ( fun x => ‖x‖ ) ( by simp +decide [ hA.1 ] ) ));
+            have := h_eigenvalue_le_one ( A.H.eigenvectorBasis i ) ?_ <;> simp_all [ div_le_iff₀,  ];
+            · have := Matrix.IsHermitian.mulVec_eigenvectorBasis ( show Matrix.IsHermitian ( A : Matrix d d _ ) from ‹_› ) i; simp_all [ dotProduct_comm ] ;
+              by_cases h : ( A.H.eigenvectorBasis i |> WithLp.ofLp ) ⬝ᵥ star ( A.H.eigenvectorBasis i |> WithLp.ofLp ) = 0 <;> simp_all [ div_le_iff₀ ] ; (
+              exact absurd h ( by exact ne_of_apply_ne ( fun x => ‖x‖ ) ( by simp ) ));
             · exact fun h => by simpa [ h ] using ( A.H.eigenvectorBasis.orthonormal.ne_zero i ) ;)
           generalize_proofs at *; (
           exact h_le_one)
         exact fun i => ⟨h_pos i, h_le_one i⟩;
       exact fun i => sub_nonneg_of_le ( one_le_inv₀ ( h_pos i |>.1 ) |>.2 ( h_pos i |>.2 ) );
-    exact?;
+    exact (cfc_nonneg_iff A fun x => x⁻¹ - 1).mpr h_cfc_nonneg;
   -- Since $A.cfc (fun x => x⁻¹ - 1) \geq 0$, we have $A.cfc (fun x => x⁻¹) \geq 1$.
   have h_cfc_ge_one : A.cfc (fun x => x⁻¹) ≥ 1 := by
     have h_cfc_sub : A.cfc (fun x => x⁻¹ - 1) = A.cfc (fun x => x⁻¹) - A.cfc (fun _ => 1) := by
-      exact?;
+      exact cfc_sub_apply A Inv.inv fun x => 1;
     aesop;
   convert h_cfc_ge_one.le using 1;
   convert cfc_inv.symm;
-  exact?
+  exact nonSingular_of_posDef hA
 
 /-- The trace of cfc(f, A) equals the sum of f applied to eigenvalues. -/
 lemma trace_cfc_eq (A : HermitianMat d ℂ) (f : ℝ → ℝ) :
@@ -1283,47 +1284,54 @@ lemma mulVec_eq_zero_iff_inner_eigenvector_zero
       have := A.H.mulVec_eigenvectorBasis i
       aesop;
     convert congr_arg ( fun y => ( ∑ i, c i • y i ) ) ( funext fun i => h_mulVec i ) using 1;
-    · simp +decide [ hc, Matrix.mulVec_smul, Finset.smul_sum ];
-      ext i; rw [ Matrix.mulVec, dotProduct ] ; simp +decide [ Finset.mul_sum _ _ _, mul_assoc, mul_comm, mul_left_comm ] ;
-      rw [ Finset.sum_comm ] ; simp +decide [ Matrix.mulVec, dotProduct, mul_assoc, mul_comm, mul_left_comm, Finset.mul_sum _ _ _ ] ;
-    · ext i; simp +decide [ Finset.sum_apply, Matrix.mulVec, dotProduct ] ;
+    · simp [ hc, ];
+      ext i; rw [ Matrix.mulVec, dotProduct ]
+      simp [ Finset.mul_sum _ _ _, mul_assoc, mul_comm ]
+      rw [ Finset.sum_comm ]
+      simp [ Matrix.mulVec, dotProduct, mul_comm, Finset.mul_sum _ _ _ ]
+    · ext i; simp [ Finset.sum_apply ] ;
   constructor;
   · intro h i hi
     have h_inner : inner ℂ (A.H.eigenvectorBasis i) (∑ j, c j • (A.H.eigenvalues j) • (A.H.eigenvectorBasis j)) = 0 := by
       convert congr_arg ( fun x => inner ℂ ( A.H.eigenvectorBasis i ) x ) ( show ( ∑ j, c j • A.H.eigenvalues j • A.H.eigenvectorBasis j ) = 0 from ?_ ) using 1;
-      · simp +decide [ inner_zero_right ];
+      · simp [ inner_zero_right ];
       · ext j; replace h := congr_fun h j; aesop;
-    simp_all +decide [ inner_sum, inner_smul_right ];
+    simp_all
     convert congr_arg ( fun x : ℂ => x / ( A.H.eigenvalues i ) ) h_inner using 1 <;> norm_num [ Finset.sum_div _ _ _, hi ];
-    refine' Finset.sum_congr rfl fun j _ => _ ; by_cases hj : A.H.eigenvalues j = 0 <;> simp_all +decide [ mul_div_assoc ] ; ring;
-    · by_cases hij : i = j <;> simp_all +decide [ OrthonormalBasis.orthonormal ];
-    · by_cases hij : i = j <;> simp_all +decide [ mul_div_cancel₀, inner_self_eq_norm_sq_to_K ];
+    refine' Finset.sum_congr rfl fun j _ => _ ; by_cases hj : A.H.eigenvalues j = 0 <;> simp_all [ mul_div_assoc ] ; ring_nf;
+    · by_cases hij : i = j <;> simp_all [ ];
+    · by_cases hij : i = j <;> simp_all [  inner_self_eq_norm_sq_to_K ];
   · intro h
     have h_zero_coeffs : ∀ i, A.H.eigenvalues i ≠ 0 → c i = 0 := by
-      intro i hi; specialize h i hi; simp_all +decide [ inner_sum, inner_smul_left, inner_smul_right ] ;
-      rw [ Finset.sum_eq_single i ] at h <;> simp_all +decide [ orthonormal_iff_ite.mp ( A.H.eigenvectorBasis.orthonormal ) ];
+      intro i hi; specialize h i hi; simp_all
+      rw [ Finset.sum_eq_single i ] at h <;> simp_all [ orthonormal_iff_ite.mp ( A.H.eigenvectorBasis.orthonormal ) ];
       aesop;
-    simp_all +decide [ Finset.sum_eq_zero, smul_smul ];
-    exact Finset.sum_eq_zero fun i _ => by by_cases hi : A.H.eigenvalues i = 0 <;> simp +decide [ hi, h_zero_coeffs i ] ;
+    simp_all
+    exact Finset.sum_eq_zero fun i _ => by by_cases hi : A.H.eigenvalues i = 0 <;> simp [ hi, h_zero_coeffs i ] ;
 
 open InnerProductSpace in
 lemma cfc_mulVec_expansion (A : HermitianMat d ℂ) (f : ℝ → ℝ) (x : EuclideanSpace ℂ d) :
     (A.cfc f).mat.mulVec x = ∑ i, (f (A.H.eigenvalues i) : ℂ) • inner ℂ (A.H.eigenvectorBasis i) x • A.H.eigenvectorBasis i := by
-  ext i; simp +decide [ Matrix.mulVec, dotProduct ] ; ring;
+  ext i; simp [ Matrix.mulVec, dotProduct ] ; ring_nf
   -- By definition of $cfc$, we know that $(A.cfc f).i j = \sum_k f(\lambda_k) \langle e_k, e_i \rangle \langle e_j, e_k \rangle$.
   have h_cfc_def : (A.cfc f).mat i = ∑ k, f (A.H.eigenvalues k) • (A.H.eigenvectorBasis k).ofLp i • star (A.H.eigenvectorBasis k).ofLp := by
     -- By definition of $cfc$, we know that $(A.cfc f).i j = \sum_k f(\lambda_k) \langle e_k, e_i \rangle \langle e_j, e_k \rangle$ follows directly from the definition of $cfc$.
     have h_cfc_def : (A.cfc f).mat = ∑ k, f (A.H.eigenvalues k) • (A.H.eigenvectorUnitary.val * (Matrix.single k k 1) * A.H.eigenvectorUnitary.val.conjTranspose) := by
       convert cfc_toMat_eq_sum_smul_proj A f using 1;
     convert congr_fun h_cfc_def i using 1;
-    simp +decide [ funext_iff, Matrix.mul_apply, Matrix.single ];
-    simp +decide [ Matrix.mul_apply, Matrix.conjTranspose_apply, Finset.sum_apply, Matrix.sum_apply, mul_assoc ];
-    intro x; congr; ext y; simp +decide [ Finset.sum_ite, Finset.filter_eq, Finset.filter_and ] ; ring;
+    simp [ funext_iff, Matrix.single ];
+    simp [ Matrix.mul_apply, Matrix.conjTranspose_apply, Matrix.sum_apply, mul_assoc ];
+    intro x; congr; ext y; simp [ Finset.sum_ite, Finset.filter_eq, Finset.filter_and ] ; ring_nf
     rw [ Finset.sum_eq_single y ] <;> aesop;
-  simp_all +decide [ Finset.sum_apply, dotProduct, inner_smul_left, inner_smul_right, Finset.mul_sum _ _ _, mul_assoc, mul_comm, mul_left_comm ] ; ring;
-  convert congr_arg ( fun y => ∑ j, x.ofLp j * y j ) h_cfc_def using 1 ; simp +decide [ Finset.mul_sum _ _ _, mul_assoc, mul_comm, mul_left_comm ] ; ring!;
-  rw [ Finset.sum_comm, Finset.sum_congr rfl ] ; intros ; simp +decide [ mul_assoc, mul_comm, mul_left_comm, inner ] ; ring!; (
-  simp +decide only [Finset.mul_sum _ _ _, mul_assoc])
+  simp_all [mul_comm, mul_left_comm ] ; ring_nf
+  convert congr_arg ( fun y => ∑ j, x.ofLp j * y j ) h_cfc_def using 1
+  simp [ Finset.mul_sum _ _ _, mul_assoc, mul_left_comm ]
+  ring_nf!
+  rw [ Finset.sum_comm, Finset.sum_congr rfl ]
+  intros
+  simp [ mul_assoc, inner ]
+  ring_nf!
+  simp only [Finset.mul_sum _ _ _, mul_assoc]
 
 section ker_cfc
 
@@ -1336,28 +1344,27 @@ lemma ker_cfc_le_ker_on_set
   intro x hx
   have h_inner : ∀ i, A.H.eigenvalues i ≠ 0 → inner ℂ (A.H.eigenvectorBasis i) x = 0 := by
     have h_inner_zero : (A.cfc f).mat.mulVec x = 0 := by
-      exact?
+      exact (mem_ker_iff_mulVec_zero (A.cfc f) x).mp hx
     have h_inner_zero_expansion : ∑ i, (f (A.H.eigenvalues i) : ℂ) • inner ℂ (A.H.eigenvectorBasis i) x • A.H.eigenvectorBasis i = 0 := by
       convert h_inner_zero using 1;
       rw [ cfc_mulVec_expansion ];
-      exact?
+      exact Iff.symm (WithLp.ofLp_eq_zero 2)
     have h_inner_zero_coeff : ∀ i, f (A.H.eigenvalues i) • inner ℂ (A.H.eigenvectorBasis i) x = 0 := by
       intro i
       have h_inner_zero_coeff_i : f (A.H.eigenvalues i) • inner ℂ (A.H.eigenvectorBasis i) x = inner ℂ (A.H.eigenvectorBasis i) (∑ j, (f (A.H.eigenvalues j) : ℂ) • inner ℂ (A.H.eigenvectorBasis j) x • A.H.eigenvectorBasis j) := by
-        simp +decide [ inner_sum, inner_smul_right, inner_smul_left, orthonormal_iff_ite.mp ( A.H.eigenvectorBasis.orthonormal ) ]
-      generalize_proofs at *; (
+        simp [  orthonormal_iff_ite.mp ( A.H.eigenvectorBasis.orthonormal ) ]
       rw [h_inner_zero_coeff_i, h_inner_zero_expansion]
-      simp [inner_zero_right]) -- This line is just to prevent the proof from being completed prematurely. In a real proof, this line would be replaced with the actual proof steps.
+      simp [inner_zero_right] -- This line is just to prevent the proof from being completed prematurely. In a real proof, this line would be replaced with the actual proof steps.
     have h_inner_zero_final : ∀ i, A.H.eigenvalues i ≠ 0 → inner ℂ (A.H.eigenvectorBasis i) x = 0 := by
       -- Since $A.H.eigenvalues i \neq 0$, by hypothesis $h$, we have $f(A.H.eigenvalues i) \neq 0$.
       have h_f_nonzero : ∀ i, A.H.eigenvalues i ≠ 0 → f (A.H.eigenvalues i) ≠ 0 := by
         intro i hi; specialize h ( A.H.eigenvalues i ) ( hs <| by
-          exact? ) ; contrapose! hi; aesop;
+          exact Matrix.IsHermitian.eigenvalues_mem_spectrum_real (H A) i ) ; contrapose! hi; aesop;
       generalize_proofs at *; (
       exact fun i hi => by simpa [ h_f_nonzero i hi ] using h_inner_zero_coeff i;) -- This line is just to prevent the proof from being completed prematurely. In a real proof, this line would be replaced with the actual proof steps.
     exact h_inner_zero_final;
   convert mulVec_eq_zero_iff_inner_eigenvector_zero A x |>.2 h_inner using 1;
-  exact?
+  exact mem_ker_iff_mulVec_zero A x
 
 lemma ker_cfc_le_ker (h : ∀ i, f i = 0 → i = 0) :
     (A.cfc f).ker ≤ A.ker := by
@@ -1374,15 +1381,16 @@ lemma ker_le_ker_cfc_on_set (hs : spectrum ℝ A.mat ⊆ s) (h : ∀ i ∈ s, i 
   have h_inner_zero : ∀ i, A.H.eigenvalues i ≠ 0 → inner ℂ (A.H.eigenvectorBasis i) x = 0 := by
     intro i hi
     have h_inner_zero : A.mat.mulVec x = 0 := by
-      exact?;
+      exact (mem_ker_iff_mulVec_zero A x).mp hx;
     have := mulVec_eq_zero_iff_inner_eigenvector_zero A x; aesop;
   have h_mulVec_zero : (A.cfc f).mat.mulVec x = ∑ i, (f (A.H.eigenvalues i) : ℂ) • inner ℂ (A.H.eigenvectorBasis i) x • A.H.eigenvectorBasis i := by
     convert cfc_mulVec_expansion A f x using 1;
-  convert h_mulVec_zero using 1; simp_all +decide [ funext_iff, LinearMap.ext_iff ] ;
-  ext i; specialize h_mulVec_zero i; simp_all +decide [ lin, Matrix.mulVec ] ;
-  refine' Finset.sum_eq_zero fun j _ => _ ; by_cases hj : A.H.eigenvalues j = 0 <;> simp_all +decide [ inner_smul_left, inner_smul_right ] ;
-  exact Or.inl ( h _ ( hs ( by
-    exact? ) ) hj )
+  convert h_mulVec_zero using 1
+  simp_all [ funext_iff] ;
+  ext i; specialize h_mulVec_zero i; simp_all [ lin, Matrix.mulVec ] ;
+  refine' Finset.sum_eq_zero fun j _ => ?_
+  by_cases hj : A.H.eigenvalues j = 0 <;> simp_all
+  exact Or.inl ( h _ ( hs (Matrix.IsHermitian.eigenvalues_mem_spectrum_real (H A) j ) ) hj )
 
 lemma ker_le_ker_cfc (h : ∀ i, i = 0 → f i = 0) :
     A.ker ≤ (A.cfc f).ker := by

@@ -706,7 +706,7 @@ private def «σ⋆» : (n : ℕ) → MState (H (i ^ n)) :=
   fun n ↦ Classical.choose (σ_max_exists n)
 
 --TODO: would be nice to write a `Mixable` thing for mixing `k` things according to a distribution,
--- in this case `Distribution.uniform (Fin 3)`.
+-- in this case `ProbDistribution.uniform (Fin 3)`.
 private def σ' : (n : ℕ) → MState (H (i ^ n)) :=
   fun n ↦ ⟨2/3, by norm_num⟩ [⟨1/2, by norm_num⟩ [«σ̃» m σ n ↔ «σ⋆» ρ ε n] ↔ (σ₁ i) ⊗ᵣ^[n]]
 
