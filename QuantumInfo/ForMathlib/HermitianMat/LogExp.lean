@@ -224,11 +224,13 @@ theorem logApprox_mono {x y : HermitianMat d 𝕜} (hx : x.mat.PosDef) (hy : y.m
         exact h_inv_cont.comp ( continuous_subtype_val.tendsto _ );
       · fun_prop;
       · intro t ht;
+        simp only [Set.mem_setOf_eq, mat_add, mat_smul, mat_one]
+        rw [Matrix.posDef_iff_dotProduct_mulVec] at hx ⊢
         refine' ⟨ _, _ ⟩;
         · exact H ((fun t => x + t • 1) t);
         · intro v hv_ne_zero
           have h_pos : 0 < star v ⬝ᵥ x.mat.mulVec v + t * star v ⬝ᵥ (1 : Matrix d d 𝕜).mulVec v := by
-            have := hx.2 v hv_ne_zero;
+            have := hx.2 hv_ne_zero;
             refine' add_pos_of_pos_of_nonneg this _;
             exact mul_nonneg ( mod_cast ht.1 ) ( Finset.sum_nonneg fun i _ => by simp [ mul_comm, RCLike.mul_conj ] );
           simp_all [ Matrix.add_mulVec ];
@@ -240,11 +242,12 @@ theorem logApprox_mono {x y : HermitianMat d 𝕜} (hx : x.mat.PosDef) (hy : y.m
           intro t ht;
           have h_det_pos : ∀ t ∈ Set.Icc (0 : ℝ) T, Matrix.PosDef (y.mat + t • 1) := by
             intro t ht;
+            rw [Matrix.posDef_iff_dotProduct_mulVec] at hy ⊢
             refine' ⟨ _, _ ⟩;
             · simp [ Matrix.IsHermitian, Matrix.conjTranspose_add, Matrix.conjTranspose_smul ];
             · intro x hx_ne_zero
               have h_pos : 0 < star x ⬝ᵥ y.mat.mulVec x + t * star x ⬝ᵥ x := by
-                have := hy.2 x hx_ne_zero;
+                have := hy.2 hx_ne_zero;
                 exact add_pos_of_pos_of_nonneg this ( mul_nonneg ( mod_cast ht.1 ) ( by simp [ dotProduct_comm ] ) );
               simp_all [ Matrix.add_mulVec ]
               simp_all [ Matrix.mulVec, dotProduct ]
@@ -269,17 +272,18 @@ theorem logApprox_mono {x y : HermitianMat d 𝕜} (hx : x.mat.PosDef) (hy : y.m
   have h_integral_limit : ∀ t ∈ Set.Icc (0 : ℝ) T, (y + t • 1)⁻¹ ≤ (x + t • 1)⁻¹ := by
     intro t ht;
     apply inv_antitone;
-    · constructor;
+    · rw [Matrix.posDef_iff_dotProduct_mulVec] at hx ⊢
+      constructor;
       · simp [ Matrix.IsHermitian];
       · intro v hv_ne_zero
         have h_pos : 0 < star v ⬝ᵥ x.mat.mulVec v + t * star v ⬝ᵥ v := by
-          have := hx.2 v hv_ne_zero;
+          have := hx.2 hv_ne_zero
           exact add_pos_of_pos_of_nonneg this ( mul_nonneg ( mod_cast ht.1 ) ( dotProduct_star_self_nonneg v ) );
         simp_all [ Matrix.add_mulVec ];
         convert h_pos using 2 ; simp [ Matrix.mulVec, dotProduct ];
         simp [ Matrix.one_apply, Finset.mul_sum, mul_left_comm ];
         simp [ mul_left_comm, Algebra.smul_def ];
-    · exact add_le_add_right hxy _;
+    · exact add_le_add_left hxy _;
   have h_integral_limit : ∀ t ∈ Set.Ioc 0 T, (1 + t)⁻¹ • 1 - (x + t • 1)⁻¹ ≤ (1 + t)⁻¹ • 1 - (y + t • 1)⁻¹ := by
     exact fun t ht => sub_le_sub_left ( h_integral_limit t <| Set.Ioc_subset_Icc_self ht ) _;
   filter_upwards [MeasureTheory.ae_restrict_mem measurableSet_Ioc] with t ht
@@ -389,7 +393,7 @@ lemma tendsto_logApprox {x : HermitianMat d 𝕜} (hx : x.mat.PosDef) :
 
 --PULLOUT
 open ComplexOrder in
-omit [DecidableEq d] in
+omit [DecidableEq d] [Fintype d] in
 theorem posDef_of_posDef_le (hA : A.mat.PosDef) (hAB : A ≤ B) : B.mat.PosDef := by
   rw [le_iff] at hAB
   convert hA.add_posSemidef hAB
@@ -447,17 +451,20 @@ lemma inv_convex {x y : HermitianMat d 𝕜} (hx : x.mat.PosDef) (hy : y.mat.Pos
                 exact isUnit_iff_ne_zero.mpr hA.det_pos.ne';
               simp [ h_inv ];
             rw [h_block_pos];
+            rw [Matrix.posDef_iff_dotProduct_mulVec] at hA
+            rw [Matrix.posSemidef_iff_dotProduct_mulVec]
             constructor;
             · ext i j ; simp [ Matrix.fromBlocks ];
               cases i <;> cases j <;> simp
               exact hA.1.apply _ _;
             · intro x
               simp [Matrix.mulVec, dotProduct];
-              have := hA.2 ( fun i => x ( Sum.inl i ) );
-              by_cases h : ( fun i => x ( Sum.inl i ) ) = 0 <;> simp_all [ dotProduct, Matrix.mulVec ];
-              · simp_all [ funext_iff ];
-              · exact le_of_lt this;
-          rw [ Matrix.PosSemidef ] at *;
+              have := @hA.2 ( fun i => x ( Sum.inl i ) );
+              by_cases h : ( fun i => x ( Sum.inl i ) ) = 0
+              · simp_all [ dotProduct, Matrix.mulVec ];
+                simp_all [ funext_iff ];
+              · exact le_of_lt (this h)
+          rw [ Matrix.posSemidef_iff_dotProduct_mulVec ] at *;
           simp_all [ Matrix.IsHermitian, Matrix.mul_assoc ];
           refine' ⟨ _, _ ⟩;
           · simp [Matrix.fromBlocks_conjTranspose, h_inv_pos.1 ];
@@ -483,18 +490,22 @@ lemma inv_convex {x y : HermitianMat d 𝕜} (hx : x.mat.PosDef) (hy : y.mat.Pos
       · split_ifs <;> simp_all [ ← add_smul ];
       · split_ifs <;> simp_all [ ← add_smul ];
   have h_schur : (a • x.mat + b • y.mat).PosDef := by
-    by_cases ha' : a = 0 <;> by_cases hb' : b = 0 <;> simp_all [ Matrix.PosSemidef ];
+    by_cases ha' : a = 0 <;> by_cases hb' : b = 0 <;> simp_all [ Matrix.posSemidef_iff_dotProduct_mulVec ];
+    rw [Matrix.posDef_iff_dotProduct_mulVec] at hx hy ⊢
     constructor;
     · simp_all [ Matrix.IsHermitian, Matrix.conjTranspose_add, Matrix.conjTranspose_smul ];
     · intro v hv_ne_zero
       have h_pos : 0 < a * (star v ⬝ᵥ x.mat.mulVec v) + b * (star v ⬝ᵥ y.mat.mulVec v) := by
-        have := hx.2 v hv_ne_zero; have := hy.2 v hv_ne_zero; simp_all [ Matrix.mulVec, dotProduct ] ;
+        have := hx.2 hv_ne_zero; have := hy.2 hv_ne_zero
+        clear hx hy
+        simp_all [ Matrix.mulVec, dotProduct ] ;
         exact add_pos_of_nonneg_of_pos ( mul_nonneg ( mod_cast ha ) ( le_of_lt ‹_› ) ) ( mul_pos ( mod_cast lt_of_le_of_ne hb ( Ne.symm hb' ) ) ( mod_cast this ) );
       convert h_pos using 1 ; simp [ Matrix.add_mulVec]
       ring_nf
       simp [ Matrix.mulVec, dotProduct, Finset.mul_sum, mul_left_comm];
       simp [mul_left_comm, Algebra.smul_def ];
   change (a • (x.mat)⁻¹ + b • (y.mat)⁻¹ - (a • x.mat + b • y.mat)⁻¹).PosSemidef
+  rw [Matrix.posSemidef_iff_dotProduct_mulVec] at h_pos_semidef ⊢
   refine' ⟨ _, fun v => _ ⟩;
   · simp_all [ Matrix.IsHermitian, Matrix.conjTranspose_nonsing_inv ];
   · have := h_pos_semidef.2;
@@ -524,30 +535,33 @@ Definition of the approximation of the matrix logarithm.
 -/
 lemma integrable_inv_shift {A : HermitianMat d 𝕜} (hA : A.mat.PosDef) (b : ℝ) (hb : 0 ≤ b) :
     IntervalIntegrable (fun t => (A + t • 1)⁻¹) volume 0 b := by
-  -- The function $t \mapsto (A + tI)^{-1}$ is continuous on $[0, b]$ because $A + tI$ is invertible for all $t \geq 0$.
-  suffices h_cont : ContinuousOn (fun t : ℝ => (A + t • 1 : HermitianMat d 𝕜)⁻¹) (Set.Icc 0 b) from
-    h_cont.intervalIntegrable_of_Icc hb
-  have h_cont : ContinuousOn (fun t : ℝ => (A.mat + t • 1)⁻¹) (Set.Icc 0 b) := by
-    have h_inv : ∀ t ∈ Set.Icc 0 b, IsUnit (A.mat + t • 1) := by
-      intro t ht
-      have h_pos_def : Matrix.PosDef (A.mat + t • 1) := by
-        simp_all [ Matrix.PosDef ];
-        simp_all [ Matrix.IsHermitian, Matrix.add_mulVec ]
-        intro x hx; specialize hA x hx; simp_all [ Matrix.mulVec, dotProduct ];
-        simp_all [ Matrix.one_apply, Finset.mul_sum ];
-        apply add_pos_of_pos_of_nonneg hA
-        refine Finset.sum_nonneg fun i _ ↦ ?_
-        simp [ Algebra.smul_def, mul_comm ];
-        apply mul_nonneg (by simp [RCLike.mul_conj])
-        simpa using ht.1
-      exact h_pos_def.isUnit
-    have h_cont_inv : ContinuousOn (fun t : ℝ => (A.mat + t • 1).det⁻¹) (Set.Icc 0 b) := by
-      apply ContinuousOn.inv₀ (by fun_prop)
-      exact (Matrix.det_ne_zero_of_left_inverse <| h_inv · · |>.unit.inv_mul)
-    simp [Matrix.inv_def]
-    fun_prop
-  rw [continuousOn_iff_continuous_restrict] at *
-  exact continuous_induced_rng.mpr h_cont
+  -- Since A is positive definite, for any t ≥ 0, A + t • 1 is also positive definite, hence invertible.
+  have h_inv : ∀ t : ℝ, 0 ≤ t → IsUnit (A + t • 1).mat := by
+    intro t ht
+    have h_pos_def : (A + t • 1).mat.PosDef := by
+      convert hA.add_posSemidef _ using 1
+      constructor <;> simp [*]
+      · simp [ Matrix.IsHermitian];
+      · simp [ Matrix.one_apply, Finsupp.sum ];
+        intro x
+        refine Finset.sum_nonneg fun i _ => ?_
+        split_ifs <;> simp [ *, mul_comm, RCLike.mul_conj ]
+        positivity
+    exact Matrix.PosDef.isUnit h_pos_def
+  have h_inv_cont : ContinuousOn (fun t : ℝ => (A + t • 1).mat⁻¹) (Set.Icc 0 b) := by
+    intro t ht
+    have h_inv : IsUnit (A + t • 1).mat := h_inv t ht.1
+    have h_inv_cont : ContinuousAt (fun t : ℝ => (A + t • 1).mat⁻¹) t := by
+      have h_det_cont : ContinuousAt (fun t : ℝ => (A + t • 1).mat.det) t := by
+        fun_prop (disch := solve_by_elim)
+      have h_adj_cont : ContinuousAt (fun t : ℝ => (A + t • 1).mat.adjugate) t := by
+        exact Continuous.continuousAt ( by exact Continuous.matrix_adjugate <| by continuity )
+      simp_all [ Matrix.inv_def ];
+      exact ContinuousAt.smul ( h_det_cont.inv₀ <| by simpa [ Matrix.isUnit_iff_isUnit_det ] using h_inv t ht.1 ) h_adj_cont
+    exact h_inv_cont.continuousWithinAt
+  have h_inv_cont : ContinuousOn (fun t : ℝ => (A + t • 1)⁻¹) (Set.Icc 0 b) := by
+    exact (continuousOn_iff_coe fun t => (A + t • 1)⁻¹).mpr h_inv_cont
+  exact h_inv_cont.intervalIntegrable_of_Icc hb
 
 open ComplexOrder in
 /--

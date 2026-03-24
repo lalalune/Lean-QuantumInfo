@@ -160,7 +160,7 @@ theorem sandwich_self (hB : B.mat.PosDef) :
   rw [ hB_inv ] at hB_inv_sqrt;
   ext1
   simp [mul_assoc];
-  rw [ ← Matrix.mul_assoc, Matrix.mul_eq_one_comm.mp ];
+  rw [ ← Matrix.mul_assoc, mul_eq_one_comm.mp ];
   rw [ ← Matrix.mul_assoc, hB_inv_sqrt, Matrix.nonsing_inv_mul _ ];
   exact isUnit_iff_ne_zero.mpr hB.det_pos.ne'
 
@@ -191,8 +191,7 @@ lemma rpow_inv_eq_neg_rpow (hA : A.mat.PosDef) (p : ℝ) : (A ^ p)⁻¹ = A ^ (-
 open ComplexOrder in
 lemma sandwich_le_one (hB : B.mat.PosDef) (h : A ≤ B) :
     (A.conj (B ^ (-1/2 : ℝ)).mat) ≤ 1 := by
-  convert ← conj_mono h using 1
-  exact sandwich_self hB
+  exact le_trans (conj_mono h) (sandwich_self hB).le
 
 open ComplexOrder in
 lemma rpow_neg_mul_rpow_self (hA : A.mat.PosDef) (p : ℝ) :
@@ -219,7 +218,7 @@ lemma isUnit_rpow_toMat (hA : A.mat.PosDef) (p : ℝ) : IsUnit (A ^ p).mat := by
   have hA_inv : IsUnit (A ^ (-p)).mat := by
     have hA_inv : (A ^ (-p)).mat * (A ^ p).mat = 1 := by
       exact rpow_neg_mul_rpow_self hA p
-    exact Matrix.isUnit_of_right_inverse hA_inv;
+    exact IsUnit.of_mul_eq_one _ hA_inv
   -- Since $(A^{-p}) (A^p) = 1$, we have that $(A^p)$ is the inverse of $(A^{-p})$.
   have hA_inv : (A ^ p).mat = (A ^ (-p)).mat⁻¹ := by
     have hA_inv : (A ^ (-p)).mat * (A ^ p).mat = 1 := by
@@ -382,7 +381,7 @@ theorem rpowApprox_mono {A B : HermitianMat d ℂ} (hA : A.mat.PosDef) (hB : B.m
     have h_inv_antitone : (B + t • 1)⁻¹ ≤ (A + t • 1)⁻¹ := by
       apply inv_antitone
       · exact hA.add_posSemidef ( Matrix.PosSemidef.smul ( Matrix.PosSemidef.one ) ht.1.le )
-      · exact add_le_add_right hAB _
+      · exact add_le_add_left hAB _
     exact smul_le_smul_of_nonneg_left (sub_le_sub_left h_inv_antitone _) (Real.rpow_nonneg ht.1.le q)
   rw [ intervalIntegral.integral_of_le hT.le, intervalIntegral.integral_of_le hT.le ] at *
   refine integral_mono_ae ?_ ?_ h_integral_mono
@@ -422,7 +421,7 @@ theorem rpowApprox_mono {A B : HermitianMat d ℂ} (hA : A.mat.PosDef) (hB : B.m
           simp [Matrix.inv_def]
         exact ContinuousOn.congr ( ContinuousOn.smul ( h_det_cont.inv₀ fun t ht => ne_of_gt <| h_cont_inv t ht |> fun h => h.det_pos ) h_adj_cont ) h_inv_cont
       exact (continuousOn_iff_coe fun t => (B + t • 1)⁻¹).mpr h_inv_cont
-    exact (h_cont_tq.smul ((((continuousOn_const.add continuousOn_id).inv₀ (by grind)).smul
+    exact (h_cont_tq.smul ((((continuousOn_const.add continuousOn_id).inv₀ (by simp; grind)).smul
       continuousOn_const).sub h_cont_inv)).integrableOn_Icc.mono_set (Set.Ioc_subset_Icc_self)
 
 open MeasureTheory ComplexOrder in
@@ -624,6 +623,7 @@ theorem rpow_le_rpow_of_le (hA : 0 ≤ A) (hAB : A ≤ B)
   have h_pos_def : ∀ ε > 0, (Aε ε).mat.PosDef ∧ (Bε ε).mat.PosDef ∧ Aε ε ≤ Bε ε := by
     intro ε hε_pos
     have h_pos_def_Aε : (Aε ε).mat.PosDef := by
+      rw [Matrix.posDef_iff_dotProduct_mulVec] at ⊢
       constructor <;> norm_num [ hε_pos, hA, hAB ];
       · exact H (Aε ε)
       · intro x hx_nonzero
@@ -639,9 +639,9 @@ theorem rpow_le_rpow_of_le (hA : 0 ≤ A) (hAB : A ≤ B)
         exact h_inner.symm ▸ add_pos_of_nonneg_of_pos h_inner_nonneg ( mul_pos ( mod_cast hε_pos ) ( mod_cast h_inner_pos ) ) |> lt_of_lt_of_le <| le_rfl;
     have h_pos_def_Bε : (Bε ε).mat.PosDef := by
       convert posDef_of_posDef_le h_pos_def_Aε _ using 1
-      exact add_le_add_right hAB _ |> le_trans ( by simp [ Aε ] ) ;
+      exact add_le_add_left hAB _ |> le_trans ( by simp [ Aε ] ) ;
     have h_le_Aε_Bε : Aε ε ≤ Bε ε := by
-      exact add_le_add_right hAB _ |> le_trans <| by simp [ Bε ] ;
+      exact add_le_add_left hAB _ |> le_trans <| by simp [ Bε ] ;
     exact ⟨h_pos_def_Aε, h_pos_def_Bε, h_le_Aε_Bε⟩
   -- By the continuity of the function $M \mapsto M^q$, we have $(Aε ε)^q \to A^q$ and $(Bε ε)^q \to B^q$ as $\epsilon \to 0^+$.
   have h_cont : Filter.Tendsto (fun ε => (Aε ε) ^ q) (nhdsWithin 0 (Set.Ioi 0)) (nhds (A ^ q)) ∧ Filter.Tendsto (fun ε => (Bε ε) ^ q) (nhdsWithin 0 (Set.Ioi 0)) (nhds (B ^ q)) := by

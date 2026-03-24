@@ -294,12 +294,16 @@ theorem Lemma3 {ρ : MState d} (ε : Prob) {S : Set (MState d)} (hS₁ : IsCompa
 
 --Maybe should be phrased in terms of `0 < ...` instead? Maybe belongs in another file? It's kiinnnd of specialized..
 theorem ker_diagonal_prob_eq_bot {q : Prob} (hq₁ : 0 < q) (hq₂ : q < 1) :
-    HermitianMat.ker (.diagonal ℂ (Distribution.coin q ·)) = ⊥ := by
-  apply Matrix.PosDef.toLin_ker_eq_bot
-  apply Matrix.PosDef.diagonal
-  intro i; fin_cases i
-  · simpa
-  · simpa [← Complex.ofReal_one, Complex.real_lt_real]
+    HermitianMat.ker (.diagonal ℂ (ProbDistribution.coin q ·)) = ⊥ := by
+  have hA : (Matrix.toLin' (HermitianMat.diagonal ℂ (ProbDistribution.coin q ·)).mat).ker = ⊥ := by
+    apply Matrix.PosDef.toLin_ker_eq_bot
+    apply Matrix.PosDef.diagonal
+    intro i; fin_cases i
+    · simpa
+    · simpa [← Complex.ofReal_one, Complex.real_lt_real]
+  simp [LinearMap.ker_eq_bot', HermitianMat.ker] at hA ⊢
+  intro m hm
+  simpa only [WithLp.ofLp_eq_zero] using hA m congr($hm)
 
 variable {d₂ : Type*} [Fintype d₂] [DecidableEq d₂] in
 /-- Lemma S1 -/
@@ -379,7 +383,7 @@ theorem Ref81Lem5 (ρ σ : MState d) (ε : Prob) (hε : ε < 1) (α : ℝ) (hα 
   have hq : 0 < q := pos_of_lt_one {σ} ⟨σ, rfl, h_supp⟩ hε
 
   suffices —log q ≤ D̃_ α(p2‖q2) + —log (1 - ε) * (.ofNNReal ⟨α, pf1⟩) / (.ofNNReal ⟨α - 1, pf2⟩) by
-    refine this.trans (add_le_add_right ?_ _)
+    refine this.trans (add_le_add_left ?_ _)
     --Show that this is an instance of the Data Processing Inequality
     obtain ⟨Φ, hΦ₁, hΦ₂⟩ : ∃ (Φ : CPTPMap d (Fin 2)), p2 = Φ ρ ∧ q2 = Φ σ := by
       --The relevant map here is to take the T that optimizes inside β_ ε (ρ‖{σ}),
@@ -403,18 +407,18 @@ theorem Ref81Lem5 (ρ σ : MState d) (ε : Prob) (hε : ε < 1) (α : ℝ) (hα 
       simp only [POVM.measureDiscard_apply, p2, q2]
       constructor
       · congr
-        rw [Distribution.coin_eq_iff]
+        rw [ProbDistribution.coin_eq_iff]
         ext
         dsimp [MState.exp_val] at hT₂
-        simp [POVM.measure, Λ, p, Distribution.mk', coe_one_minus, ← hT₂, HermitianMat.inner_comm]
+        simp [POVM.measure, Λ, p, ProbDistribution.mk', coe_one_minus, ← hT₂, HermitianMat.inner_comm]
       · congr
-        rw [Distribution.coin_eq_iff]
+        rw [ProbDistribution.coin_eq_iff]
         ext
         dsimp [POVM.measure, Λ, q]
         rw [← hT₁]
         exact HermitianMat.inner_comm _ _
     rw [hΦ₁, hΦ₂]
-    exact sandwichedRenyiEntropy_DPI hα.le ρ σ Φ
+    exact sandwichedRenyiEntropy_DPI_ax hα.le ρ σ Φ
 
   --If q = 1, this inequality is trivial
   by_cases hq₂ : q = 1
@@ -437,7 +441,7 @@ theorem Ref81Lem5 (ρ σ : MState d) (ε : Prob) (hε : ε < 1) (α : ℝ) (hα 
 
   --The logs are finite
   rw [Prob.negLog, Prob.negLog, if_neg hq.ne']
-  rw [if_neg (show 1 - ε ≠ 0 by simpa [Subtype.eq_iff, Prob.coe_sub] using h₂.ne')]
+  rw [if_neg (show 1 - ε ≠ 0 by simpa [Subtype.ext_iff, Prob.coe_sub] using h₂.ne')]
 
   --Turn the ENNReal problem into a Real problem
   have hα₂ : Subtype.mk _ pf2 ≠ 0 := by
@@ -459,8 +463,8 @@ theorem Ref81Lem5 (ρ σ : MState d) (ε : Prob) (hε : ε < 1) (α : ℝ) (hα 
       rw [MState.coe_ofClassical]
       rw [HermitianMat.diagonal_conj_diagonal, HermitianMat.diagonal_pow]
       rw [HermitianMat.trace_diagonal]
-      simp only [Fin.sum_univ_two, Fin.isValue, Distribution.coin_val_zero,
-        Distribution.coin_val_one, Prob.coe_one_minus]
+      simp only [Fin.sum_univ_two, Fin.isValue, ProbDistribution.coin_val_zero,
+        ProbDistribution.coin_val_one, Prob.coe_one_minus]
       rw [Real.mul_rpow p.zero_le (by positivity)]
       rw [← Real.rpow_natCast_mul (by bound)]
       rw [← Real.rpow_mul q.zero_le]
