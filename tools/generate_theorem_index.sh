@@ -6,7 +6,8 @@ cd "$ROOT_DIR"
 
 OUT_FILE="${1:-docs/THEOREM_INDEX.md}"
 TMP_FILE="$(mktemp)"
-trap 'rm -f "$TMP_FILE"' EXIT
+TMP_RAW="$(mktemp)"
+trap 'rm -f "$TMP_FILE" "$TMP_RAW"' EXIT
 
 {
   echo "# Theorem Index"
@@ -17,13 +18,21 @@ trap 'rm -f "$TMP_FILE"' EXIT
   echo "|---|---|---|---:|---:|"
 } > "$OUT_FILE"
 
+set +e
 rg -n '^[[:space:]]*(theorem|lemma)[[:space:]]+[A-Za-z0-9_'\''`.]+' . \
   --glob '*.lean' \
   --glob '!.lake/**' \
   --glob '!scratch/**' \
   --glob '!Meta/**' \
-  --sort path \
-  > "$TMP_FILE" || true
+  > "$TMP_RAW"
+RG_STATUS=$?
+set -e
+
+if [[ "$RG_STATUS" -ne 0 && "$RG_STATUS" -ne 1 ]]; then
+  exit "$RG_STATUS"
+fi
+
+LC_ALL=C sort -t ':' -k1,1 -k2,2n "$TMP_RAW" > "$TMP_FILE"
 
 awk -F: '
 function layer_for(file, owner) {
