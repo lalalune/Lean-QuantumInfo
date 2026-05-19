@@ -1,5 +1,13 @@
 # The Leaning Of Everything
 
+## Physlib Note
+
+This repository contains much Lean formalization of quantum information theory. In March 2026, it
+merged with PhysLean, previously known as HEPLean, to form
+[Physlib](https://github.com/leanprover-community/physlib), now under the
+`leanprover-community` organization. New development of that quantum information line is expected
+to continue there.
+
 `TheLeaningOfEverything` is a Lean 4 project for building a checked foundation of mathematics
 and mathematical physics. The goal is to prove the structural results that let major areas of
 mathematics explain each other: algebra, analysis, geometry, probability, information theory,
@@ -27,6 +35,17 @@ The long-term ambition is a unified formal account of major mathematics: not sep
 formalization, but a network of shared foundations that can support serious theorem proving across
 physics, information, and pure mathematics.
 
+## Major Accomplishment: Generalized Quantum Stein's Lemma
+
+The initial guiding goal of this repository was completing a proof of the
+[Generalized Quantum Stein's Lemma](https://arxiv.org/abs/2408.02722v1), following the proof in the
+linked paper. The first milestone was formalizing all the arguments in that paper while relying on
+standard or obvious results, which was completed in October 2025. The project was completed when the
+other standard results were formalized as well, which was completed in April 2026.
+
+The final theorem is stated as `limit_hypotesting_eq_limit_rel_entropy` in
+`QuantumInfo/Finite/ResourceTheory/SteinsLemma.lean`.
+
 ## Current Scope
 
 The active library surface includes:
@@ -44,6 +63,9 @@ The active library surface includes:
 Some areas are mature enough to serve as dependencies for other files. Others are active
 formalization fronts. The build is the source of truth: code that is imported by `lakefile.lean`
 must elaborate under Lean.
+
+As of May 5, 2026, approximate project counts were 2143 theorem-like declarations, 423 definitions,
+and 38105 lines of Lean code.
 
 ## Repository Layout
 
@@ -104,3 +126,8 @@ If you cite the repository, use:
   howpublished = {\url{https://github.com/lalalune/TheLeaningOfEverything}},
 }
 ```
+
+For the Stein's Lemma work in particular, cite
+[the report](https://arxiv.org/abs/2510.08672). Thanks to all contributors, especially Leonardo
+Lessa and Rodolfo Soldati. Thanks also to Hayata Yamasaki, who contributed substantial operator
+inequality code that was ported into this repository.
