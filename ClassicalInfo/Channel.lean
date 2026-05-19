@@ -49,30 +49,23 @@ def product : Channel (A × C) (B × D) :=
  output distribution `Distribution O`, and this process is applied
  independently on each symbol in the list. -/
 structure DMChannel where
-  symb_dist : I → Distribution O
+  symb_dist : I → ProbDistribution O
 
 namespace DMChannel
 
--- Helper lemma: coercion distributes over finite products of probabilities
-private lemma coe_finset_prod_prob {α : Type*} (s : Finset α) (p : α → Prob) :
-    ((s.prod p : Prob) : ℝ) = s.prod (fun i => (p i : ℝ)) := by
-  induction s using Finset.cons_induction with
-  | empty => simp
-  | cons i t hi ih =>
-    simp only [Finset.prod_cons hi, Prob.coe_mul]
-    rw [ih]
-
 /-- Apply a discrete memoryless channel to an n-character string. -/
-def on_fin (C : DMChannel I O) {n : ℕ} (is : Fin n → I) : Distribution (Fin n → O) :=
-  ⟨fun os ↦ ∏ k, C.symb_dist (is k) (os k), by
-    simp_rw [coe_finset_prod_prob]
-    let g : Fin n → O → ℝ := fun k o => ↑((C.symb_dist (is k)) o)
-    show ∑ x ∈ Fintype.piFinset (fun _ => Finset.univ), ∏ k, g k (x k) = 1
-    rw [Finset.sum_prod_piFinset]
-    simp only [g, Distribution.normalized, Finset.prod_const_one]⟩
+def on_fin (C : DMChannel I O) {n : ℕ} (is : Fin n → I) : ProbDistribution (Fin n → O) :=
+  ProbDistribution.mk' (fun os ↦ ∏ k, (C.symb_dist (is k) (os k) : ℝ))
+    (fun _ ↦ Finset.prod_nonneg fun k _ ↦ Prob.zero_le_coe)
+    (by
+      have h := Finset.sum_prod_piFinset (Finset.univ : Finset O)
+        (fun (k : Fin n) (j : O) ↦ ((C.symb_dist (is k)) j : ℝ))
+      simp only [Fintype.piFinset_univ] at h
+      simp only [h]
+      exact Finset.prod_eq_one fun k _ ↦ ProbDistribution.normalized (C.symb_dist (is k)))
 
 /-- Apply a discrete memoryless channel to a list. -/
-def on_list (C : DMChannel I O) (is : List I) : Distribution (Fin (is.length) → O) :=
+def on_list (C : DMChannel I O) (is : List I) : ProbDistribution (Fin (is.length) → O) :=
   on_fin I O C is.get
 
 end DMChannel
