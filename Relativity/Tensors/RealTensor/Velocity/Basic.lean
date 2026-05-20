@@ -14,6 +14,7 @@ Lorentz vectors which have norm equal to one and which are future-directed.
 -/
 
 open TensorProduct
+noncomputable section
 
 namespace Lorentz
 open Vector
@@ -180,3 +181,5 @@ lemma isPathConnected : IsPathConnected (@Set.univ (Velocity d)) := by
 end Velocity
 
 end Lorentz
+
+end

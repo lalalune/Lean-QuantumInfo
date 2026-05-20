@@ -64,7 +64,7 @@ def ofSpecialOrthogonal {d} :
     have ha := A.2
     rw [Matrix.mem_specialOrthogonalGroup_iff, Matrix.mem_orthogonalGroup_iff'] at ha
     rw [ha.1]
-    simp⟩, by
+    ext i j <;> cases i <;> cases j <;> simp [Matrix.one_apply]⟩, by
       simp [mem_rotations_iff]
       have hA := A.2
       rw [Matrix.mem_specialOrthogonalGroup_iff] at hA
@@ -110,8 +110,7 @@ def ofSpecialOrthogonal {d} :
         trans (Matrix.fromBlocks (1 : Matrix (Fin 1) (Fin 1) ℝ) 0 0 (M * M.transpose))
           (Sum.inr i) (Sum.inr j)
         · simp [M]
-        · rw [hΛ, Matrix.one_apply, Matrix.one_apply]
-          simp
+        · simpa [Matrix.one_apply] using congr_fun (congr_fun hΛ (Sum.inr i)) (Sum.inr j)
       · trans Λ.1.det
         · rw [← h1]
           simp

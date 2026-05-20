@@ -276,7 +276,9 @@ lemma IsOrthochronous.iff_in_orthchroRep_ker : IsOrthochronous Λ ↔ Λ ∈ ort
     apply orthchroMap_not_IsOrthochronous at h
     change orthchroRep Λ = _ at h
     rw [MonoidHom.mem_ker, h]
-    trivial
+    intro h'
+    have h'' : (1 : ZMod 2) = 0 := congrArg (fun z : ℤ₂ => Additive.ofMul z) h'
+    norm_num at h''
 
 /-- The homomorphism from `LorentzGroup` to `ℤ₂` assigns the same value to any Lorentz
   transformation and its inverse. -/

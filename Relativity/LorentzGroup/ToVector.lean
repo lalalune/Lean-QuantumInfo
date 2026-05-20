@@ -94,14 +94,15 @@ lemma smul_timeComponent_eq_toVector_minkowskiProduct {d : ℕ} (Λ : LorentzGro
   rw [minkowskiProduct_eq_timeComponent_spatialPart]
   congr
   · simp [inv_eq_dual, minkowskiMatrix.dual_apply, minkowskiMatrix.inl_0_inl_0]
-  · simp only [Fin.isValue, inv_eq_dual, PiLp.inner_apply, toVector_apply, RCLike.inner_apply,
-      conj_trivial]
+  · simp only [Fin.isValue, inv_eq_dual, PiLp.inner_apply, toVector_apply,
+      real_inner_eq_re_inner, RCLike.inner_apply, map_mul, map_ofNat, map_one, Complex.conj_re,
+      Complex.conj_ofReal, Complex.ofReal_re]
     rw [← Finset.sum_neg_distrib]
     congr
     funext i
     simp [Vector.spatialPart_apply_eq_toCoord, minkowskiMatrix.dual_apply,
       minkowskiMatrix.inl_0_inl_0, minkowskiMatrix.inr_i_inr_i]
-    ring
+    ring_nf
 
 end LorentzGroup
 

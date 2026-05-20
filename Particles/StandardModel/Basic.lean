@@ -18,6 +18,8 @@ This file defines the basic properties of the standard model in particle physics
 
 namespace StandardModel
 
+noncomputable section
+
 open Manifold
 open Matrix
 open Complex
@@ -199,5 +201,7 @@ abbrev gaugeBundleI := Bundle.Trivial SpaceTime GaugeGroupI
 
 /-- A global section of `gaugeBundleI`. -/
 abbrev gaugeTransformI : Type := ∀ x : SpaceTime, gaugeBundleI x
+
+end
 
 end StandardModel

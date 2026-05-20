@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install elan
         run: |
@@ -24,8 +24,8 @@ jobs:
           lean --version
           lake --version
 
-      - name: Resolve dependencies
-        run: lake update
+      - name: Fetch dependency cache
+        run: lake exe cache get
 
       - name: Build
         run: lake build

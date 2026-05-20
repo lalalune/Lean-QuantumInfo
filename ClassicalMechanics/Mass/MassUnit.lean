@@ -71,7 +71,9 @@ lemma div_pos (x y : MassUnit) : (0 : ℝ≥0) < x/ y := by
 @[simp]
 lemma div_self (x : MassUnit) :
     x / x = (1 : ℝ≥0) := by
-  simp [div_eq_val, x.val_ne_zero]
+  apply NNReal.eq
+  change x.val / x.val = 1
+  field_simp [x.val_ne_zero]
 
 lemma div_symm (x y : MassUnit) :
     x / y = (y / x)⁻¹ := NNReal.eq <| by
