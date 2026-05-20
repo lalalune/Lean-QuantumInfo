@@ -156,12 +156,15 @@ variable  [TopologicalSpace R] [SMul R α] [ContinuousSMul R α] [StarModule R �
 
 instance : ContinuousSMul R (HermitianMat n α) where
   continuous_smul := by
-    rw [continuous_induced_rng]
-    fun_prop
+    have hval : Continuous fun p : R × HermitianMat n α => p.1 • (p.2 : Matrix n n α) :=
+      continuous_fst.smul (continuous_subtype_val.comp continuous_snd)
+    exact Continuous.subtype_mk hval fun p ↦ by
+      change star (p.1 • (p.2 : Matrix n n α)) = p.1 • (p.2 : Matrix n n α)
+      rw [star_smul, star_trivial]
+      exact congrArg (fun x : Matrix n n α => p.1 • x) (selfAdjoint.star_val_eq (x := p.2))
 
 --Shorcut instances:
 instance : IsTopologicalAddGroup (HermitianMat n 𝕜) := inferInstance
-instance : ContinuousSMul ℝ (HermitianMat n ℂ) := inferInstance
 
 --TODO: Would be good to figure out the general (not just RCLike) version of this.
 instance : T3Space (HermitianMat n 𝕜) :=
@@ -400,7 +403,7 @@ instance [i : Nonempty n] : FaithfulSMul ℝ (HermitianMat n 𝕜) where
     simpa [RCLike.smul_re, -mat_apply] using congr(RCLike.re ($(h 1).val i.some i.some))
 
 /-- The continuous linear map associated with a Hermitian matrix. -/
-def lin : EuclideanSpace 𝕜 n →L[𝕜] EuclideanSpace 𝕜 n where
+noncomputable def lin : EuclideanSpace 𝕜 n →L[𝕜] EuclideanSpace 𝕜 n where
   toLinearMap := A.mat.toEuclideanLin
   cont := LinearMap.continuous_of_finiteDimensional _
 
@@ -421,7 +424,7 @@ noncomputable def eigenspace (μ : 𝕜) : Submodule 𝕜 (EuclideanSpace 𝕜 n
 
 /-- The kernel of a Hermitian matrix `A` as a submodule of Euclidean space, defined by
 `LinearMap.ker A.toMat.toEuclideanLin`. Equivalently, the zero-eigenspace. -/
-def ker : Submodule 𝕜 (EuclideanSpace 𝕜 n) :=
+noncomputable def ker : Submodule 𝕜 (EuclideanSpace 𝕜 n) :=
   LinearMap.ker A.lin.toLinearMap
 
 theorem mem_ker_iff_mulVec_zero (x : EuclideanSpace 𝕜 n) : x ∈ A.ker ↔ A.mat.mulVec x = 0 := by
@@ -446,7 +449,7 @@ theorem ker_pos_smul {c : ℝ} (hc : c ≠ 0) : (c • A).ker = A.ker := by
 
 /-- The support of a Hermitian matrix `A` as a submodule of Euclidean space, defined by
 `LinearMap.range A.toMat.toEuclideanLin`. Equivalently, the sum of all nonzero eigenspaces. -/
-def support : Submodule 𝕜 (EuclideanSpace 𝕜 n) :=
+noncomputable def support : Submodule 𝕜 (EuclideanSpace 𝕜 n) :=
   LinearMap.range A.lin.toLinearMap
 
 /-- The support of a Hermitian matrix is the sum of its nonzero eigenspaces. -/
@@ -719,6 +722,7 @@ theorem ne_zero_iff_ne_zero_spectrum (A : HermitianMat n 𝕜) :
       hx', Matrix.isUnit_iff_isUnit_det] at hx
 
 open scoped Pointwise in
+omit [Fintype n] [DecidableEq n] [Fintype m] [DecidableEq m] in
 theorem spectrum_prod [Fintype m] [DecidableEq m] [Fintype n] [DecidableEq n]
   {A : HermitianMat m 𝕜} {B : HermitianMat n 𝕜} :
     spectrum ℝ (A ⊗ₖ B).mat = spectrum ℝ A.mat * spectrum ℝ B.mat :=

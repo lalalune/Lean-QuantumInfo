@@ -13,11 +13,18 @@ a standard LHV model. This shows:
 2. The classical bound |S| ≤ 2 is a special case of |S| ≤ 2 + 4ε
 -/
 
+/-- The pointwise-zero correlation deviation field. -/
+def zeroDeviationField (Λ : Type*) [MeasurableSpace Λ] : Fin 2 → Fin 2 → Λ → ℝ :=
+  fun _ _ _ => 0
+
+@[simp]
+theorem zeroDeviationField_apply (i j : Fin 2) (ω : Λ) :
+    zeroDeviationField Λ i j ω = 0 := rfl
 
 /-- A "zero deviation" correlation structure -/
 def zeroDeviation (Λ : Type*) [MeasurableSpace Λ] (μ₀ : Measure Λ)
     [IsProbabilityMeasure μ₀] : CorrelationDeviation Λ μ₀ where
-  ε := fun _ _ _ => 0
+  ε := zeroDeviationField Λ
   measurable := fun _ _ => measurable_const
   bounded := fun _ _ _ => by simp
   normalized := fun _ _ => by simp
@@ -286,7 +293,7 @@ theorem thermal_bound_tight (ε : ℝ) (_hε : |ε| < 1) :
       rw [abs_of_nonneg hpos]
       ring
   · -- ε < 0: use ε₀₀ = ε, rest = -ε
-    push_neg at hpos
+    push Not at hpos
     use fun i j => if i = 0 ∧ j = 0 then ε else -ε
     constructor
     · intro i j
@@ -340,7 +347,7 @@ lemma classical_correlation_range (E : ℝ)
           apply integral_congr_ae
           filter_upwards [h_abs_one] with ω hω
           exact hω
-      _ = 1 := by simp [measureReal_univ_eq_one]
+      _ = 1 := by simp
   -- From |x| ≤ 1 we get -1 ≤ x ≤ 1
   exact abs_le.mp h_abs_int
 
@@ -417,7 +424,7 @@ lemma realization_epsilon (Λ : Type*) [MeasurableSpace Λ] (R : QuantumThermalR
   -- If all thermal contributions are non-negative and ε_max < ε_tsirelson,
   -- then S ≤ 2 + 4*ε_max < 2√2, contradicting R.achieves_quantum
   by_contra h
-  push_neg at h
+  push Not at h
   obtain ⟨hε_small, hε_pos⟩ := h
   -- Get bound on |ε i j ω|
   have hε_bound : ∀ i j ω, |R.M.deviation.ε i j ω| ≤ R.S.ε_max := by

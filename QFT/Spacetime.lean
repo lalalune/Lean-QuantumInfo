@@ -91,7 +91,8 @@ structure PoincareTransformation (d : ℕ) [NeZero d] where
   translation : MinkowskiSpace d
 
 /-- Action of a Poincaré transformation on a spacetime point. -/
-def PoincareTransformation.act {d : ℕ} [NeZero d] (g : PoincareTransformation d) (x : MinkowskiSpace d) :
+noncomputable def PoincareTransformation.act {d : ℕ} [NeZero d]
+    (g : PoincareTransformation d) (x : MinkowskiSpace d) :
     MinkowskiSpace d :=
   g.lorentz.toLinearMap x + g.translation
 

@@ -125,18 +125,43 @@ lemma projector_support_eq_sum : A.supportProj.mat =
       convert congr_arg ( fun x => ( 1 / A.H.eigenvalues i ) • x ) ( A.H.mulVec_eigenvectorBasis i ) using 1 ; simp +decide [ hi ];
       simp +decide [ funext_iff, Matrix.mulVec, dotProduct ]
       exact PiLp.ext_iff
-  have h_orthonormal_basis : ∃ b : OrthonormalBasis {i : n | A.H.eigenvalues i ≠ 0} (𝕜) (Submodule.span (𝕜) (Set.image (fun i => A.H.eigenvectorBasis i) {i | A.H.eigenvalues i ≠ 0})), ∀ i, b i = A.H.eigenvectorBasis i := by
-    refine' ⟨ _, _ ⟩;
-    refine' OrthonormalBasis.mk _ _;
-    use fun i => ⟨ A.H.eigenvectorBasis i, Submodule.subset_span ( Set.mem_image_of_mem _ i.2 ) ⟩;
-    all_goals simp +decide [ Orthonormal ];
-    · intro i j hij; have := A.H.eigenvectorBasis.orthonormal; simp_all +decide [ orthonormal_iff_ite ] ;
-      exact fun h => hij <| Subtype.ext h;
-    · rw [ Submodule.eq_top_iff' ];
-      rintro ⟨ x, hx ⟩;
-      rw [ Submodule.mem_span ] at hx ⊢;
-      intro p hp; specialize hx ( Submodule.map ( Submodule.subtype _ ) p ) ; simp_all +decide [ Set.range_subset_iff ] ;
-      exact hx fun i hi => ⟨ _, hp i hi, rfl ⟩;
+  have h_orthonormal_basis : ∃ b : OrthonormalBasis {i : n | A.H.eigenvalues i ≠ 0} (𝕜) (Submodule.span (𝕜) (Set.image (fun i => A.H.eigenvectorBasis i) {i | A.H.eigenvalues i ≠ 0})), ∀ i, (b i : EuclideanSpace 𝕜 n) = A.H.eigenvectorBasis i := by
+    let v : {i : n | A.H.eigenvalues i ≠ 0} →
+        Submodule.span (𝕜) (Set.image (fun i => A.H.eigenvectorBasis i)
+          {i | A.H.eigenvalues i ≠ 0}) :=
+      fun i => ⟨A.H.eigenvectorBasis i, Submodule.subset_span (Set.mem_image_of_mem _ i.2)⟩
+    have hv_orth : Orthonormal 𝕜 v := by
+      change Orthonormal 𝕜
+        (fun i : {i : n | A.H.eigenvalues i ≠ 0} =>
+          (⟨A.H.eigenvectorBasis i,
+            Submodule.subset_span (Set.mem_image_of_mem _ i.2)⟩ :
+              Submodule.span (𝕜) (Set.image (fun i => A.H.eigenvectorBasis i)
+                {i | A.H.eigenvalues i ≠ 0})))
+      simp +decide [Orthonormal]
+      intro i j hij
+      have := A.H.eigenvectorBasis.orthonormal
+      simp_all +decide [orthonormal_iff_ite]
+      exact fun h => hij <| Subtype.ext h
+    have hv_span : ⊤ ≤ Submodule.span 𝕜 (Set.range v) := by
+      rw [show (⊤ : Submodule 𝕜
+          (Submodule.span (𝕜) (Set.image (fun i => A.H.eigenvectorBasis i)
+            {i | A.H.eigenvalues i ≠ 0}))) ≤ Submodule.span 𝕜 (Set.range v) ↔
+          Submodule.span 𝕜 (Set.range v) = ⊤ by
+            exact ⟨fun h => top_le_iff.mp h, fun h => h.ge⟩]
+      rw [Submodule.eq_top_iff']
+      rintro ⟨x, hx⟩
+      rw [Submodule.mem_span] at hx ⊢
+      intro p hp
+      specialize hx (Submodule.map (Submodule.subtype _) p)
+      simp_all +decide [Set.range_subset_iff, v]
+      exact hx fun i hi => ⟨_, hp i hi, rfl⟩
+    let b : OrthonormalBasis {i : n | A.H.eigenvalues i ≠ 0} (𝕜)
+        (Submodule.span (𝕜) (Set.image (fun i => A.H.eigenvectorBasis i)
+          {i | A.H.eigenvalues i ≠ 0})) := OrthonormalBasis.mk hv_orth hv_span
+    refine ⟨b, ?_⟩
+    have hb : ⇑b = v := OrthonormalBasis.coe_mk hv_orth hv_span
+    intro i
+    exact congr_arg Subtype.val (congr_fun hb i)
   obtain ⟨ b, hb ⟩ := h_orthonormal_basis
   have h_sum_rankOne : (projector A.support).mat = ∑ i, Matrix.vecMulVec (b i) (star (b i)) := by
     convert projector_eq_sum_rankOne _ b using 1
@@ -160,15 +185,36 @@ theorem supportProj_eq_cfc : A.supportProj = A.cfc (if · = 0 then 0 else 1) := 
   simp [ Finset.sum_ite, Finset.filter_eq, Finset.filter_and ];
   rw [ Finset.sum_eq_single i ] <;> aesop
 
+theorem cfc_pow (f : ℝ → ℝ) (m : ℕ) :
+    A.cfc (fun x ↦ f x ^ m) = A.cfc f ^ m := by
+  ext1
+  simp only [mat_cfc, mat_pow]
+  exact _root_.cfc_pow f m A.mat
+
+theorem cfc_comp_neg (f : ℝ → ℝ) :
+    (-A).cfc f = A.cfc (fun x ↦ f (-x)) := by
+  nth_rw 1 [← cfc_id A]
+  rw [← cfc_neg, ← cfc_comp]
+  rfl
+
+theorem cfc_le_one (f : ℝ → ℝ) :
+    A.cfc f ≤ 1 ↔ ∀ i, f (A.H.eigenvalues i) ≤ 1 := by
+  open MatrixOrder in
+  change _root_.cfc f A.mat ≤ 1 ↔ ∀ i, f (A.H.eigenvalues i) ≤ 1
+  rw [_root_.cfc_le_one_iff f A.mat, A.H.spectrum_real_eq_range_eigenvalues]
+  grind
+
+@[simp]
+theorem cfc_zero : A.cfc (fun _ : ℝ ↦ 0) = 0 := by
+  simp
+
 theorem supportProj_nonneg : 0 ≤ A.supportProj := by
   rw [supportProj_eq_cfc, zero_le_cfc]
   intro i
   split <;> norm_num
 
 theorem supportProj_le_one : A.supportProj ≤ 1 := by
-  open MatrixOrder in
-  rw [← Subtype.coe_le_coe, val_eq_coe, selfAdjoint.val_one, supportProj_eq_cfc]
-  apply cfc_le_one (f := fun x ↦ if x = 0 then 0 else 1)
+  rw [supportProj_eq_cfc, cfc_le_one]
   intro i
   split <;> norm_num
 
@@ -229,18 +275,12 @@ theorem proj_lt_def : {A <ₚ B} = (B - A).cfc (fun x ↦ if 0 < x then 1 else 0
 
 theorem proj_le_sq : {A ≤ₚ B}^2 = {A ≤ₚ B} := by
   rw [proj_le_def]
-  --TODO: Should do a `HermitianMat.cfc_pow`.
-  ext1
-  simp only [cfc, mat_pow, mat_mk]
-  rw [← cfc_pow _ 2 (hf := by cfc_cont_tac)]
+  rw [← cfc_pow (B - A) (fun x ↦ if 0 ≤ x then 1 else 0) 2]
   simp
 
 theorem proj_lt_sq : {A <ₚ B}^2 = {A <ₚ B} := by
   rw [proj_lt_def]
-  --TODO: Should do a `HermitianMat.cfc_pow`.
-  ext1
-  simp only [cfc, mat_pow, mat_mk]
-  rw [← cfc_pow _ 2 (hf := by cfc_cont_tac)]
+  rw [← cfc_pow (B - A) (fun x ↦ if 0 < x then 1 else 0) 2]
   simp
 
 theorem proj_zero_le_cfc : {0 ≤ₚ A} = cfc A (fun x ↦ if 0 ≤ x then 1 else 0) := by
@@ -251,17 +291,13 @@ theorem proj_zero_lt_cfc : {0 <ₚ A} = cfc A (fun x ↦ if 0 < x then 1 else 0)
 
 theorem proj_le_zero_cfc : {A ≤ₚ 0} = cfc A (fun x ↦ if x ≤ 0 then 1 else 0) := by
   simp only [proj_le, zero_sub]
-  --TODO: Should do a `HermitianMat.cfc_comp_neg`?
-  nth_rw 1 [← cfc_id A]
-  rw [← cfc_neg, ← cfc_comp]
+  rw [cfc_comp_neg]
   congr! 2 with x
   simp
 
 theorem proj_lt_zero_cfc : {A <ₚ 0} = cfc A (fun x ↦ if x < 0 then 1 else 0) := by
   simp only [proj_lt, zero_sub]
-  --TODO: Should do a `HermitianMat.cfc_comp_neg`?
-  nth_rw 1 [← cfc_id A]
-  rw [← cfc_neg, ← cfc_comp]
+  rw [cfc_comp_neg]
   congr! 2 with x
   simp
 
@@ -276,12 +312,9 @@ theorem proj_lt_nonneg : 0 ≤ {A <ₚ B} := by
   apply ite_nonneg <;> norm_num
 
 theorem proj_le_le_one : {A ≤ₚ B} ≤ 1 := by
-  --The whole `rw` line is a defeq, i.e. `change _root_.cfc _ (B - A).mat ≤ 1` works too.
-  --TODO better API.
-  open MatrixOrder in
-  rw [← Subtype.coe_le_coe, val_eq_coe, selfAdjoint.val_one]
-  apply cfc_le_one (f := fun x ↦ if 0 ≤ x then 1 else 0)
-  intros; split <;> norm_num
+  rw [proj_le, cfc_le_one]
+  intro i
+  split <;> norm_num
 
 open MatrixOrder in
 theorem proj_le_mul_nonneg : 0 ≤ {A ≤ₚ B}.mat * (B - A).mat := by
@@ -405,7 +438,7 @@ theorem proj_le_inner_nonneg  : 0 ≤ ⟪{A ≤ₚ B}, (B - A)⟫ :=
   inner_mul_nonneg (proj_le_mul_nonneg A B)
 
 theorem proj_le_inner_le : ⟪{A ≤ₚ B}, A⟫ ≤ ⟪{A ≤ₚ B}, B⟫ := by
-  rw [← sub_nonneg, ← inner_sub_right]
+  rw [← sub_nonneg, ← HermitianMat.inner_sub_left]
   exact proj_le_inner_nonneg A B
 
 open RealInnerProductSpace in
@@ -416,7 +449,7 @@ open RealInnerProductSpace in
 theorem inner_proj_le_le : ⟪{A ≤ₚ B}, A⟫ ≤ ⟪{A ≤ₚ B}, B⟫ :=
   proj_le_inner_le A B
 
---TODO: When we upgrade `cfc_continuous` from 𝕜 to ℂ, we upgrade these too.
+-- These continuity lemmas are complex-specialized to match the current `cfc_continuous` API.
 @[fun_prop]
 theorem posPart_Continuous : Continuous (·⁺ : HermitianMat n ℂ → _) := by
   simp_rw [posPart_eq_cfc_max]
@@ -469,7 +502,7 @@ theorem proj_lt_mul_lt : {A <ₚ B}.mat * A.mat ≤ {A <ₚ B}.mat * B.mat := by
   exact A.proj_lt_mul_nonneg B
 
 theorem inner_negPart_nonpos : ⟪A, A⁻⟫ ≤ 0 := by
-  rw [← neg_le_neg_iff, neg_zero, ← inner_neg_right]
+  rw [← neg_le_neg_iff, neg_zero, ← HermitianMat.inner_neg_right]
   apply inner_mul_nonneg
   nth_rw 1 [← A.cfc_id]
   rw [negPart_eq_cfc_ite]
@@ -494,16 +527,17 @@ theorem inner_negPart_zero_iff : ⟪A, A⁻⟫ = 0 ↔ 0 ≤ A := by
   constructor
   · intro h
     nth_rw 1 [← posPart_add_negPart A] at h
-    rw [inner_sub_left, sub_eq_zero, posPart_inner_negPart_zero, eq_comm, inner_self_eq_zero] at h
-    rw [← zero_smul ℝ 1, ← cfc_const A, negPart_eq_cfc_ite] at h --TODO cfc_zero
-    rw [cfc_eq_cfc_iff_eqOn, A.H.spectrum_real_eq_range_eigenvalues] at h
-    simp only [Set.eqOn_range] at h
-    replace h (i) := congrFun h i
-    simp only [Function.comp_apply, ite_eq_right_iff, neg_eq_zero] at h
+    rw [HermitianMat.inner_sub_right, sub_eq_zero, posPart_inner_negPart_zero, eq_comm] at h
+    have hneg_zero : A⁻ = 0 := inner_self_eq_zero.mp h
+    rw [← cfc_zero A, negPart_eq_cfc_ite] at hneg_zero
+    rw [cfc_eq_cfc_iff_eqOn, A.H.spectrum_real_eq_range_eigenvalues] at hneg_zero
+    simp only [Set.eqOn_range] at hneg_zero
+    replace hneg_zero (i) := congrFun hneg_zero i
+    simp only [Function.comp_apply, ite_eq_right_iff, neg_eq_zero] at hneg_zero
     rw [zero_le_iff, A.H.posSemidef_iff_eigenvalues_nonneg]
     intro i
-    contrapose! h
-    use i, h.le, h.ne
+    contrapose! hneg_zero
+    use i, hneg_zero.le, hneg_zero.ne
   · intro h
     apply le_antisymm
     · exact inner_negPart_nonpos A
@@ -520,7 +554,7 @@ theorem posPart_eq_zero_iff : A⁺ = 0 ↔ A ≤ 0 := by
     have hinner_zero : ⟪-A, (-A)⁻⟫ = 0 := (inner_negPart_zero_iff (-A)).2 hnonneg
     have hself_zero : ⟪(-A)⁻, (-A)⁻⟫ = 0 := by
       nth_rw 1 [← posPart_add_negPart (-A)] at hinner_zero
-      rw [inner_sub_left, posPart_inner_negPart_zero, sub_eq_zero] at hinner_zero
+      rw [HermitianMat.inner_sub_right, posPart_inner_negPart_zero, sub_eq_zero] at hinner_zero
       simpa [eq_comm] using hinner_zero
     have hzero : (-A)⁻ = 0 := by
       simpa using (inner_self_eq_zero.mp hself_zero)
@@ -535,7 +569,7 @@ theorem posPart_le_zero_iff : A⁺ ≤ 0 ↔ A ≤ 0 := by
       _ ≤ 0 := h
   · intro h
     have hzero : A⁺ = 0 := (posPart_eq_zero_iff (A := A)).2 h
-    simpa [hzero]
+    simp [hzero]
 
 theorem inner_negPart_neg_iff : ⟪A, A⁻⟫ < 0 ↔ ¬0 ≤ A := by
   simp [← inner_negPart_zero_iff, lt_iff_le_and_ne, inner_negPart_nonpos A]

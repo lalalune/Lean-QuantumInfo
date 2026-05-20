@@ -63,10 +63,21 @@ For `⟨k, op⟩` representing `i^k * (P₀ ⊗ ... ⊗ P_{n-1})`, we scale the 
 noncomputable def toGate (p : NQubitPauliGroupElement n) : QuantumGate (NQubitBasis n) :=
   PauliGroupElement.phasePowerToUnitComplex p.phasePower • (p.operators.toGate)
 
+/-- Canonical gate view of an n-qubit Pauli group element. -/
+noncomputable abbrev gate (p : NQubitPauliGroupElement n) : QuantumGate (NQubitBasis n) :=
+  toGate p
+
+/-- `gate` is definitionally `toGate`. -/
+@[simp] lemma gate_eq_toGate (p : NQubitPauliGroupElement n) : p.gate = p.toGate := rfl
+
 /-- Connection between `toGate` and `toMatrix`. -/
 lemma toGate_val (p : NQubitPauliGroupElement n) : (toGate p).val = toMatrix p :=
   by simp [toMatrix, toGate, smul_UnitComplex_gate_val, NQubitPauliOperator.toGate_val,
     PauliGroupElement.phasePowerToUnitComplex_coe]
+
+/-- Matrix bridge for canonical aliases: `gate` viewed as a matrix is `toMatrix`. -/
+@[simp] lemma gate_val (p : NQubitPauliGroupElement n) : p.gate.val = p.toMatrix := by
+  simpa [gate] using toGate_val p
 
 /-- The identity element of the n-qubit Pauli group: I ⊗ I ⊗ ... ⊗ I with phase 1. -/
 def one (n : ℕ) : NQubitPauliGroupElement n :=
@@ -75,6 +86,21 @@ def one (n : ℕ) : NQubitPauliGroupElement n :=
 /-- The central element `-1` of the n-qubit Pauli group: phase -1 with identity operators. -/
 def minusOne (n : ℕ) : NQubitPauliGroupElement n :=
   ⟨2, NQubitPauliOperator.identity n⟩
+
+/-- The central phase element `i` of the n-qubit Pauli group. -/
+def phaseI (n : ℕ) : NQubitPauliGroupElement n :=
+  ⟨1, NQubitPauliOperator.identity n⟩
+
+/-- The central phase element `-i` of the n-qubit Pauli group. -/
+def phaseNegI (n : ℕ) : NQubitPauliGroupElement n :=
+  ⟨3, NQubitPauliOperator.identity n⟩
+
+@[simp] lemma phaseI_phasePower (n : ℕ) : (phaseI n).phasePower = 1 := rfl
+@[simp] lemma phaseI_operators (n : ℕ) :
+    (phaseI n).operators = NQubitPauliOperator.identity n := rfl
+@[simp] lemma phaseNegI_phasePower (n : ℕ) : (phaseNegI n).phasePower = 3 := rfl
+@[simp] lemma phaseNegI_operators (n : ℕ) :
+    (phaseNegI n).operators = NQubitPauliOperator.identity n := rfl
 
 /-- Extract the global phase power. -/
 def phase (p : NQubitPauliGroupElement n) : Fin 4 := p.phasePower

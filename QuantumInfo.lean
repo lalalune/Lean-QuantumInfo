@@ -5,6 +5,7 @@ Authors: Alex Meiburg
 -/
 --Mathlib imports
 import QuantumInfo.ForMathlib
+import QuantumInfo.ForMathlib.ComplexLaplaceTransform
 
 --Code
 import QuantumInfo.Finite.Channel.DegradableOrder
@@ -23,6 +24,7 @@ import QuantumInfo.Finite.Entropy
 import QuantumInfo.Finite.MState
 import QuantumInfo.Finite.Pinching
 import QuantumInfo.Finite.POVM
+import QuantumInfo.Finite.QKD
 import QuantumInfo.Finite.Unitary
 
 --Documentation without code

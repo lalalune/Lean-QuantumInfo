@@ -385,6 +385,7 @@ local instance : Inner 𝕜 (E×F) := ⟨fun (x,y) (x',y') => ⟪x,x'⟫ + ⟪y,
 lemma prod_inner_apply' (x y : (E × F)) : ⟪x, y⟫ = ⟪x.fst, y.fst⟫ + ⟪x.snd, y.snd⟫ := rfl
 
 open InnerProductSpace' in
+set_option backward.isDefEq.respectTransparency false in
 noncomputable
 instance : InnerProductSpace' 𝕜 (E × F) where
   norm₂ x := (WithLp.instProdNormedAddCommGroup 2 (WithLp 2 E) (WithLp 2 F)).toNorm.norm
@@ -411,15 +412,12 @@ instance : InnerProductSpace' 𝕜 (E × F) where
 
   norm₂_sq_eq_re_inner := by
     intro (x,y)
-    have : 0 ≤ re ⟪x,x⟫ := PreInnerProductSpace.Core.re_inner_nonneg (𝕜:=𝕜) (F:=E) _ x
-    have : 0 ≤ re ⟪y,y⟫ := PreInnerProductSpace.Core.re_inner_nonneg (𝕜:=𝕜) (F:=F) _ y
-    simp only [norm, OfNat.ofNat_ne_zero, ↓reduceDIte, ENNReal.ofNat_ne_top, ↓reduceIte,
-      WithLp.toLp_fst, WithLp.equiv_apply, ENNReal.toReal_ofNat, Real.rpow_ofNat, WithLp.toLp_snd,
-      one_div, WithLp.prod_inner_apply, prod_inner_apply', map_add]
-    repeat rw [Real.sq_sqrt (by assumption)]
-    norm_num
-    rw[← Real.rpow_mul_natCast (by linarith)]
-    simp
+    let z : WithLp 2 (WithLp 2 E × WithLp 2 F) :=
+      WithLp.toLp 2 (WithLp.toLp 2 x, WithLp.toLp 2 y)
+    change ‖z‖ ^ 2 =
+      re (((WithLp.instProdInnerProductSpace (𝕜:=𝕜) (E := WithLp 2 E)
+        (F := WithLp 2 F)).toCore.inner z z))
+    simpa [z, InnerProductSpace.toInner] using (norm_sq_eq_re_inner (𝕜 := 𝕜) z)
   inner_top_equiv_norm := by
     obtain ⟨c₁,d₁,hc₁,hd₁,h₁⟩ := inner_top_equiv_norm (𝕜:=𝕜) (E:=E)
     have h₁₁ := fun x => (h₁ x).1
@@ -433,28 +431,40 @@ instance : InnerProductSpace' 𝕜 (E × F) where
     constructor
     · positivity
     · intro (x,y)
-      have : 0 ≤ re ⟪y, y⟫ := by apply PreInnerProductSpace.Core.re_inner_nonneg
-      have : 0 ≤ re ⟪x, x⟫ := by apply PreInnerProductSpace.Core.re_inner_nonneg
+      have hy_nonneg : 0 ≤ re ⟪y, y⟫ := by apply PreInnerProductSpace.Core.re_inner_nonneg
+      have hx_nonneg : 0 ≤ re ⟪x, x⟫ := by apply PreInnerProductSpace.Core.re_inner_nonneg
       simp only [Prod.norm_mk, smul_eq_mul, prod_inner_apply', map_add]
       constructor
       · by_cases h : ‖x‖ ≤ ‖y‖
         · have : max ‖x‖ ‖y‖ ≤ ‖y‖ := by simp[h]
           calc _ ≤ c₂ * ‖y‖ ^ 2 := by gcongr; simp
               _ ≤ re ⟪y,y⟫ := h₂₁ y
-              _ ≤ _ := by simpa
+              _ ≤ _ := by
+                exact le_add_of_nonneg_left hx_nonneg
         · have : max ‖x‖ ‖y‖ ≤ ‖x‖ := by simp at h; simp; linarith
           calc _ ≤ c₁ * ‖x‖ ^ 2 := by gcongr; simp
               _ ≤ re ⟪x,x⟫ := h₁₁ x
-              _ ≤ _ := by simpa
-      · by_cases h : re ⟪x,x⟫ ≤ re ⟪y,y⟫
-        · calc _ ≤ re ⟪y,y⟫ + re ⟪y,y⟫ := by simp [h]
-              _ ≤ d₂ * ‖y‖ ^ 2 + d₂ * ‖y‖ ^ 2 := by gcongr <;> exact h₂₂ y
-              _ ≤ _ := by ring_nf; gcongr <;> simp
-        · have h : re ⟪y,y⟫ ≤ re ⟪x,x⟫ := by linarith
-          calc _ ≤ re ⟪x,x⟫ + re ⟪x,x⟫ := by simp [h]
-              _ ≤ d₁ * ‖x‖ ^ 2 + d₁ * ‖x‖ ^ 2 := by gcongr <;> exact h₁₂ x
-              _ ≤ _ := by ring_nf; gcongr <;> simp
+              _ ≤ _ := by
+                exact le_add_of_nonneg_right hy_nonneg
+      · calc
+            re ⟪x, x⟫ + re ⟪y, y⟫ ≤ d₁ * ‖x‖ ^ 2 + d₂ * ‖y‖ ^ 2 := by
+              gcongr
+              · exact h₁₂ x
+              · exact h₂₂ y
+            _ ≤ max d₁ d₂ * max ‖x‖ ‖y‖ ^ 2 +
+                max d₁ d₂ * max ‖x‖ ‖y‖ ^ 2 := by
+              gcongr
+              · exact le_max_left d₁ d₂
+              · have hx : ‖x‖ ≤ max ‖x‖ ‖y‖ := le_max_left ‖x‖ ‖y‖
+                have hmax : 0 ≤ max ‖x‖ ‖y‖ := (norm_nonneg x).trans hx
+                nlinarith
+              · exact le_max_right d₁ d₂
+              · have hy : ‖y‖ ≤ max ‖x‖ ‖y‖ := le_max_right ‖x‖ ‖y‖
+                have hmax : 0 ≤ max ‖x‖ ‖y‖ := (norm_nonneg y).trans hy
+                nlinarith
+            _ = 2 * max d₁ d₂ * max ‖x‖ ‖y‖ ^ 2 := by ring
 
+set_option backward.isDefEq.respectTransparency false in
 open InnerProductSpace' in
 noncomputable
 instance {ι : Type*} [Fintype ι] : InnerProductSpace' 𝕜 (ι → E) where
@@ -488,14 +498,20 @@ instance {ι : Type*} [Fintype ι] : InnerProductSpace' 𝕜 (ι → E) where
       Real.rpow_two, one_div]
     conv_rhs => rw [inner]
     simp [InnerProductSpace.toInner, PiLp.innerProductSpace]
+    rw [PiLp.norm_sq_eq_of_L2]
+    simp [norm_withLp2_eq_norm2, norm₂_sq_eq_re_inner]
+    have hsum : (∑ i, √(re ⟪x i, x i⟫) ^ 2) = ∑ i, re ⟪x i, x i⟫ := by
+      apply Finset.sum_congr rfl
+      intro i hi
+      exact Real.sq_sqrt (PreInnerProductSpace.Core.re_inner_nonneg (𝕜 := 𝕜) (F := E) _ (x i))
+    rw [hsum]
     rw [← Real.rpow_two, ← Real.rpow_mul]
     swap
     · apply Finset.sum_nonneg
       intro i hi
-      exact sq_nonneg √(re ⟪ (x i),(x i)⟫)
+      exact PreInnerProductSpace.Core.re_inner_nonneg (𝕜 := 𝕜) (F := E) _ (x i)
     simp only [isUnit_iff_ne_zero, ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true,
       IsUnit.inv_mul_cancel, Real.rpow_one]
-    congr 1
 
   inner_top_equiv_norm := by
     obtain ⟨c, d, hc, hd, hcd⟩ := inner_top_equiv_norm (𝕜 := 𝕜) (E := E)
@@ -589,7 +605,10 @@ instance {ι : Type*} [Fintype ι] : InnerProductSpace' 𝕜 (ι → E) where
             _ = (Real.sqrt c * ‖x‖) ^ 2 := by ring
         have hmain : c * ‖x‖ ^ 2 ≤ ‖z‖ ^ 2 := by
           simpa [hrewrite] using hsq
-        simpa [smul_eq_mul, xL2, z, hz_re] using hmain
+        change c * ‖x‖ ^ 2 ≤
+          re ((PiLp.innerProductSpace (𝕜 := 𝕜) (fun _ : ι => WithLp 2 E)).inner z z)
+        rw [hz_re]
+        exact hmain
       · have hxL2_upper_sq : ‖xL2‖ ^ 2 ≤ d * ‖x‖ ^ 2 := by
           have hsq : ‖xL2‖ ^ 2 ≤ (Real.sqrt d * ‖x‖) ^ 2 := by
             exact pow_le_pow_left₀ (by positivity) hxL2_upper 2
@@ -604,7 +623,10 @@ instance {ι : Type*} [Fintype ι] : InnerProductSpace' 𝕜 (ι → E) where
         have hmain' : ‖z‖ ^ 2 ≤ ((Fintype.card ι : ℝ) * d + d) * ‖x‖ ^ 2 := by
           refine hmain.trans ?_
           nlinarith [hd, sq_nonneg ‖x‖]
-        simpa [smul_eq_mul, xL2, z, hz_re, mul_assoc, mul_left_comm, mul_comm] using hmain'
+        change re ((PiLp.innerProductSpace (𝕜 := 𝕜) (fun _ : ι => WithLp 2 E)).inner z z) ≤
+          ((Fintype.card ι : ℝ) * d + d) * ‖x‖ ^ 2
+        rw [hz_re]
+        exact hmain'
 
 variable {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [hE : InnerProductSpace' ℝ E]
 local notation "⟪" x ", " y "⟫" => inner ℝ x y

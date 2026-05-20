@@ -103,11 +103,22 @@ theorem cfc_toMat_eq_sum_smul_proj : (A.cfc f).mat =
     ∑ i, f (A.H.eigenvalues i) • (A.H.eigenvectorUnitary.val * (Matrix.single i i 1) * A.H.eigenvectorUnitary.val.conjTranspose) := by
   rw [A.mat_cfc, A.H.cfc_eq, Matrix.IsHermitian.cfc]
   have h : ( Matrix.diagonal ( RCLike.ofReal ∘ f ∘ Matrix.IsHermitian.eigenvalues A.H ) : Matrix d d 𝕜 ) = ∑ i, f ( A.H.eigenvalues i ) • Matrix.single i i 1 := by
-    ext i j ; by_cases hij : i = j <;> simp [ hij ];
-    · simp [ Matrix.sum_apply, Matrix.single ];
-      simp [ Algebra.smul_def ];
-    · rw [Finset.sum_apply, Finset.sum_apply]
-      simp_all
+    ext i j
+    rw [Matrix.sum_apply]
+    by_cases hij : i = j
+    · subst j
+      rw [Finset.sum_eq_single i]
+      · simp [Matrix.diagonal, Matrix.single, Algebra.smul_def]
+      · intro x _ hx
+        simp [Matrix.single, hx]
+      · intro hi
+        exact (hi (Finset.mem_univ i)).elim
+    · rw [Finset.sum_eq_zero]
+      · simp [Matrix.diagonal, hij]
+      · intro x _
+        simp [Matrix.single]
+        intro hxi hxj
+        exact (hij (hxi.symm.trans hxj)).elim
   rw [h]
   simp [Matrix.single, Matrix.mul_assoc]
   congr! 1
@@ -115,7 +126,7 @@ theorem cfc_toMat_eq_sum_smul_proj : (A.cfc f).mat =
   simp [Matrix.mul_apply,Finset.mul_sum, Finset.smul_sum, smul_ite, smul_zero]
 
 --Ensure we get this instance:
-/-- info: locallyCompact_of_proper -/
+/-- info: instLocallyCompactSpace -/
 #guard_msgs in
 #synth LocallyCompactSpace (HermitianMat d 𝕜)
 
@@ -245,8 +256,8 @@ theorem cfc_conj_unitary (U : Matrix.unitaryGroup d 𝕜) :
 
 theorem zero_le_cfc : 0 ≤ A.cfc f ↔ ∀ i, 0 ≤ f (A.H.eigenvalues i) := by
   open MatrixOrder in
-  rw [cfc, ← Subtype.coe_le_coe, ZeroMemClass.coe_zero]
-  rw [cfc_nonneg_iff f A.mat, A.H.spectrum_real_eq_range_eigenvalues]
+  change 0 ≤ (_root_.cfc f A.mat : Matrix d d 𝕜) ↔ ∀ i, 0 ≤ f (A.H.eigenvalues i)
+  rw [_root_.cfc_nonneg_iff f A.mat, A.H.spectrum_real_eq_range_eigenvalues]
   grind
 
 theorem cfc_nonneg_iff : 0 ≤ A.cfc f ↔ ∀ i, 0 ≤ f (A.H.eigenvalues i) :=
@@ -277,7 +288,9 @@ theorem cfc_posDef : (A.cfc f).mat.PosDef ↔ ∀ i, 0 < f (A.H.eigenvalues i) :
 theorem cfc_nonSingular (hf : ∀ i, f (A.H.eigenvalues i) ≠ 0) : NonSingular (A.cfc f) := by
   rw [nonSingular_iff_eigenvalue_ne_zero]
   obtain ⟨e, he⟩ := cfc_eigenvalues f A
-  simpa [he] using fun i ↦ hf (e i)
+  intro i
+  rw [he]
+  exact hf (e i)
 
 theorem trace_mul_cfc (A : HermitianMat d 𝕜) (f : ℝ → ℝ) :
     (A.mat * (A.cfc f).mat).trace = ∑ i, A.H.eigenvalues i * f (A.H.eigenvalues i) := by
@@ -350,11 +363,11 @@ theorem spectrum_subset_of_mem_Icc (A B : HermitianMat d 𝕜) :
 -- protected theorem cfc_continuous {f : ℝ → ℝ} (hf : Continuous f) :
 --     Continuous (cfc · f : HermitianMat d 𝕜 → HermitianMat d 𝕜) := by
 --   rcases isEmpty_or_nonempty d
---   · proof omitted
+--   · ...
 --   rw [Metric.continuous_iff] at hf ⊢
 --   intro x ε hε
 --   have _ : Nonempty (spectrum ℝ x.toMat) := by
---     proof omitted
+--     ...
 --   replace hf b := hf b ε hε
 --   choose fc hfc₀ hfc using hf
 --   let δ : ℝ := ⨆ e : spectrum ℝ x.toMat, fc e
@@ -367,7 +380,7 @@ theorem spectrum_subset_of_mem_Icc (A B : HermitianMat d 𝕜) :
 --     simp [hfc₀]
 --   intro a ha
 --   simp only [dist, AddSubgroupClass.subtype_apply, val_eq_coe, cfc_toMat] at ha ⊢
---   proof omitted
+--   ...
 
 @[fun_prop]
 protected theorem cfc_continuous {f : ℝ → ℝ} (hf : Continuous f) :
@@ -387,7 +400,8 @@ protected theorem cfc_continuous {f : ℝ → ℝ} (hf : Continuous f) :
       exact isCompact_Icc
     · simp only [Set.mem_Icc]
       exact fun _ _ ↦ eventually_nhdsWithin_of_forall hab
-  · simp
+  · intro ab
+    exact (Metric.isOpen_ball : IsOpen (Metric.ball (ab.1 : HermitianMat d ℂ) (ab.2 : ℝ)))
   · ext x
     simp only [Set.mem_iUnion, Set.mem_univ, iff_true]
     use ⟨x, 1⟩
@@ -1238,41 +1252,40 @@ lemma intervalIntegrable_sum_smul_const (T₁ T₂ : ℝ) {μ : Measure ℝ} (g 
   simp_all [intervalIntegrable_iff]
   exact integrable_finset_sum _ fun i _ ↦ Integrable.smul_const (hg i) _
 
+omit [DecidableEq d] in
 /--
 A function to Hermitian matrices is integrable iff its matrix values are integrable.
 -/
 lemma intervalIntegrable_toMat_iff (A : ℝ → HermitianMat d 𝕜) (T₁ T₂ : ℝ) {μ : Measure ℝ} :
     IntervalIntegrable (fun t ↦ (A t).mat) μ T₁ T₂ ↔ IntervalIntegrable A μ T₁ T₂ := by
-  --TODO Cleanup
-  simp [ intervalIntegrable_iff ];
-  constructor <;> intro h;
-  · -- Since `toMat` is a linear isometry, the integrability of `A.toMat` implies the integrability of `A`.
-    have h_toMat_integrable : IntegrableOn (fun t ↦ (A t).mat) (Set.uIoc T₁ T₂) μ → IntegrableOn A (Set.uIoc T₁ T₂) μ := by
-      intro h_toMat_integrable
-      have h_toMat_linear : ∃ (L : HermitianMat d 𝕜 →ₗ[ℝ] Matrix d d 𝕜), ∀ x, L x = x.mat := by
-        refine' ⟨ _, _ ⟩;
-        refine' { .. };
-        exacts [ fun x ↦ x.mat, fun x y ↦ rfl, fun m x ↦ rfl, fun x ↦ rfl ];
-      obtain ⟨L, hL⟩ := h_toMat_linear;
-      have h_toMat_linear : IntegrableOn (fun t ↦ L (A t)) (Set.uIoc T₁ T₂) μ → IntegrableOn A (Set.uIoc T₁ T₂) μ := by
-        intro h_toMat_integrable
-        have h_toMat_linear : ∃ (L_inv : Matrix d d 𝕜 →ₗ[ℝ] HermitianMat d 𝕜), ∀ x, L_inv (L x) = x := by
-          have h_toMat_linear : Function.Injective L := by
-            intro x y hxy;
-            simp_all only [HermitianMat.ext_iff]
-          have h_toMat_linear : ∃ (L_inv : Matrix d d 𝕜 →ₗ[ℝ] HermitianMat d 𝕜), L_inv.comp L = LinearMap.id := by
-            exact IsSemisimpleModule.extension_property L h_toMat_linear LinearMap.id;
-          exact ⟨ h_toMat_linear.choose, fun x ↦ by simpa using LinearMap.congr_fun h_toMat_linear.choose_spec x ⟩;
-        obtain ⟨ L_inv, hL_inv ⟩ := h_toMat_linear;
-        have h_toMat_linear : IntegrableOn (fun t ↦ L_inv (L (A t))) (Set.uIoc T₁ T₂) μ := by
-          exact ContinuousLinearMap.integrable_comp ( L_inv.toContinuousLinearMap ) h_toMat_integrable;
-        aesop;
-      aesop;
-    exact h_toMat_integrable h;
-  · apply h.norm.mono'
-    · have := h.aestronglyMeasurable;
-      fun_prop
-    · filter_upwards with t using le_rfl
+  have hmat_to_A :
+      (∀ s, IntegrableOn (fun t ↦ (A t).mat) s μ → IntegrableOn A s μ) := by
+    intro s h
+    have h_toMat_linear : ∃ (L : HermitianMat d 𝕜 →ₗ[ℝ] Matrix d d 𝕜), ∀ x, L x = x.mat := by
+      refine' ⟨ _, _ ⟩
+      refine' { .. }
+      exacts [ fun x ↦ x.mat, fun x y ↦ rfl, fun m x ↦ rfl, fun x ↦ rfl ]
+    obtain ⟨L, hL⟩ := h_toMat_linear
+    have hL_inj : Function.Injective L := by
+      intro x y hxy
+      simp_all only [HermitianMat.ext_iff]
+    obtain ⟨L_inv, hL_inv⟩ :
+        ∃ (L_inv : Matrix d d 𝕜 →ₗ[ℝ] HermitianMat d 𝕜), ∀ x, L_inv (L x) = x := by
+      obtain ⟨L_inv, hcomp⟩ := IsSemisimpleModule.extension_property L hL_inj LinearMap.id
+      exact ⟨L_inv, fun x ↦ by simpa using LinearMap.congr_fun hcomp x⟩
+    have h' : IntegrableOn (fun t ↦ L_inv ((A t).mat)) s μ :=
+      ContinuousLinearMap.integrable_comp L_inv.toContinuousLinearMap h
+    convert h' using 1
+    ext t i j
+    have ht : A t = L_inv ((A t).mat) := by
+      rw [← hL (A t), hL_inv]
+    exact congr_fun (congr_fun (congrArg (fun x : HermitianMat d 𝕜 => (x : Matrix d d 𝕜)) ht) i) j
+  constructor
+  · intro h
+    exact ⟨hmat_to_A _ h.1, hmat_to_A _ h.2⟩
+  · intro h
+    exact ⟨by simpa [IntegrableOn] using ContinuousLinearMap.integrable_comp (matₗ (R := ℝ)) h.1,
+      by simpa [IntegrableOn] using ContinuousLinearMap.integrable_comp (matₗ (R := ℝ)) h.2⟩
 
 /--
 The CFC of an integrable function family is integrable.
@@ -1364,16 +1377,59 @@ lemma mulVec_eq_zero_iff_inner_eigenvector_zero
       · ext j; replace h := congr_fun h j; aesop;
     simp_all
     convert congr_arg ( fun x : ℂ => x / ( A.H.eigenvalues i ) ) h_inner using 1 <;> norm_num [ Finset.sum_div _ _ _, hi ];
-    refine' Finset.sum_congr rfl fun j _ => _ ; by_cases hj : A.H.eigenvalues j = 0 <;> simp_all [ mul_div_assoc ] ; ring_nf;
-    · by_cases hij : i = j <;> simp_all [ ];
-    · by_cases hij : i = j <;> simp_all [  inner_self_eq_norm_sq_to_K ];
+    refine' Finset.sum_congr rfl fun j _ => _
+    by_cases hj : A.H.eigenvalues j = 0
+    · have hij : i ≠ j := by
+        intro hji
+        subst j
+        exact hi hj
+      rw [hj]
+      have hinner : inner ℂ (A.H.eigenvectorBasis i)
+          ((A.H.eigenvalues j) • A.H.eigenvectorBasis j) = 0 := by
+        change inner ℂ (A.H.eigenvectorBasis i)
+          ((A.H.eigenvalues j : ℂ) • A.H.eigenvectorBasis j) = 0
+        simp [orthonormal_iff_ite.mp A.H.eigenvectorBasis.orthonormal, hij]
+      have hbasis : inner ℂ (A.H.eigenvectorBasis i) (A.H.eigenvectorBasis j) = 0 := by
+        simp [hij, orthonormal_iff_ite.mp A.H.eigenvectorBasis.orthonormal]
+      have hzero : inner ℂ (A.H.eigenvectorBasis i) ((0 : ℝ) • A.H.eigenvectorBasis j) = 0 := by
+        change inner ℂ (A.H.eigenvectorBasis i) ((0 : ℂ) • A.H.eigenvectorBasis j) = 0
+        simp
+      simp [hbasis, hzero]
+    · by_cases hij : i = j
+      · subst j
+        have hinner : inner ℂ (A.H.eigenvectorBasis i)
+            ((A.H.eigenvalues i) • A.H.eigenvectorBasis i) =
+            (A.H.eigenvalues i : ℂ) := by
+          change inner ℂ (A.H.eigenvectorBasis i)
+            ((A.H.eigenvalues i : ℂ) • A.H.eigenvectorBasis i) =
+            (A.H.eigenvalues i : ℂ)
+          rw [inner_smul_right, inner_self_eq_norm_sq_to_K]
+          rw [A.H.eigenvectorBasis.norm_eq_one]
+          norm_num
+        simp [hinner]
+        field_simp [hi]
+      ·
+        have hinner : inner ℂ (A.H.eigenvectorBasis i)
+            ((A.H.eigenvalues j) • A.H.eigenvectorBasis j) = 0 := by
+          change inner ℂ (A.H.eigenvectorBasis i)
+            ((A.H.eigenvalues j : ℂ) • A.H.eigenvectorBasis j) = 0
+          simp [hij,
+            orthonormal_iff_ite.mp A.H.eigenvectorBasis.orthonormal]
+        have hbasis : inner ℂ (A.H.eigenvectorBasis i) (A.H.eigenvectorBasis j) = 0 := by
+          simp [hij, orthonormal_iff_ite.mp A.H.eigenvectorBasis.orthonormal]
+        simp [hinner, hbasis]
   · intro h
     have h_zero_coeffs : ∀ i, A.H.eigenvalues i ≠ 0 → c i = 0 := by
       intro i hi; specialize h i hi; simp_all
       rw [ Finset.sum_eq_single i ] at h <;> simp_all [ orthonormal_iff_ite.mp ( A.H.eigenvectorBasis.orthonormal ) ];
       aesop;
     simp_all
-    exact Finset.sum_eq_zero fun i _ => by by_cases hi : A.H.eigenvalues i = 0 <;> simp [ hi, h_zero_coeffs i ] ;
+    exact Finset.sum_eq_zero fun i _ => by
+      by_cases hi : A.H.eigenvalues i = 0
+      · rw [hi]
+        rw [show (0 : ℝ) • (A.H.eigenvectorBasis i).ofLp = 0 by exact zero_smul ℝ _]
+        exact smul_zero (c i)
+      · simp [h_zero_coeffs i hi]
 
 open InnerProductSpace in
 lemma cfc_mulVec_expansion (A : HermitianMat d ℂ) (f : ℝ → ℝ) (x : EuclideanSpace ℂ d) :
@@ -1389,15 +1445,19 @@ lemma cfc_mulVec_expansion (A : HermitianMat d ℂ) (f : ℝ → ℝ) (x : Eucli
     simp [ Matrix.mul_apply, Matrix.conjTranspose_apply, Matrix.sum_apply, mul_assoc ];
     intro x; congr; ext y; simp [ Finset.sum_ite, Finset.filter_eq, Finset.filter_and ] ; ring_nf
     rw [ Finset.sum_eq_single y ] <;> aesop;
-  simp_all [mul_comm, mul_left_comm ] ; ring_nf
+  simp_all [mul_comm] ; ring_nf
   convert congr_arg ( fun y => ∑ j, x.ofLp j * y j ) h_cfc_def using 1
-  simp [ Finset.mul_sum _ _ _, mul_assoc, mul_left_comm ]
+  simp [ Finset.mul_sum _ _ _, mul_left_comm ]
   ring_nf!
   rw [ Finset.sum_comm, Finset.sum_congr rfl ]
-  intros
+  intro k hk
   simp [ mul_assoc, inner ]
   ring_nf!
-  simp only [Finset.mul_sum _ _ _, mul_assoc]
+  simp [Finset.mul_sum, Finset.smul_sum, mul_assoc, mul_comm, mul_left_comm]
+  refine Finset.sum_congr rfl fun j _ => ?_
+  exact RCLike.real_smul_eq_coe_mul (f (A.H.eigenvalues k))
+    (x.ofLp j * ((A.H.eigenvectorBasis k).ofLp i *
+      (starRingEnd ℂ) ((A.H.eigenvectorBasis k).ofLp j)))
 
 section ker_cfc
 
@@ -1417,10 +1477,24 @@ lemma ker_cfc_le_ker_on_set
       exact Iff.symm (WithLp.ofLp_eq_zero 2)
     have h_inner_zero_coeff : ∀ i, f (A.H.eigenvalues i) • inner ℂ (A.H.eigenvectorBasis i) x = 0 := by
       intro i
-      have h_inner_zero_coeff_i : f (A.H.eigenvalues i) • inner ℂ (A.H.eigenvectorBasis i) x = inner ℂ (A.H.eigenvectorBasis i) (∑ j, (f (A.H.eigenvalues j) : ℂ) • inner ℂ (A.H.eigenvectorBasis j) x • A.H.eigenvectorBasis j) := by
-        simp [  orthonormal_iff_ite.mp ( A.H.eigenvectorBasis.orthonormal ) ]
-      rw [h_inner_zero_coeff_i, h_inner_zero_expansion]
-      simp [inner_zero_right] -- This line is just to prevent the proof from being completed prematurely. In a real proof, this line would be replaced with the actual proof steps.
+      have h_inner_zero_coeff_i : (f (A.H.eigenvalues i) : ℂ) *
+          inner ℂ (A.H.eigenvectorBasis i) x =
+          inner ℂ (A.H.eigenvectorBasis i) (∑ j,
+            ((f (A.H.eigenvalues j) : ℂ) * inner ℂ (A.H.eigenvectorBasis j) x) •
+              A.H.eigenvectorBasis j) := by
+        simp [orthonormal_iff_ite.mp ( A.H.eigenvectorBasis.orthonormal ) ]
+      change (f (A.H.eigenvalues i) : ℂ) * inner ℂ (A.H.eigenvectorBasis i) x = 0
+      rw [h_inner_zero_coeff_i]
+      have hsum :
+          (∑ j, ((f (A.H.eigenvalues j) : ℂ) *
+              inner ℂ (A.H.eigenvectorBasis j) x) • A.H.eigenvectorBasis j)
+            =
+          (∑ j, (f (A.H.eigenvalues j) : ℂ) •
+              inner ℂ (A.H.eigenvectorBasis j) x • A.H.eigenvectorBasis j) := by
+        refine Finset.sum_congr rfl fun j _ => by
+          rw [smul_smul]
+      rw [hsum, h_inner_zero_expansion]
+      simp
     have h_inner_zero_final : ∀ i, A.H.eigenvalues i ≠ 0 → inner ℂ (A.H.eigenvectorBasis i) x = 0 := by
       -- Since $A.H.eigenvalues i \neq 0$, by hypothesis $h$, we have $f(A.H.eigenvalues i) \neq 0$.
       have h_f_nonzero : ∀ i, A.H.eigenvalues i ≠ 0 → f (A.H.eigenvalues i) ≠ 0 := by

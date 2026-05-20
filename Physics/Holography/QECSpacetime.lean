@@ -54,8 +54,13 @@ def codeRate : ℚ := hc.d_bulk / hc.d_boundary
 /-- The code distance measures the minimal weight of a
     detectable error. In the holographic context, this
     corresponds to the depth of the bulk region that can be
-    reconstructed from a given boundary region. -/
-noncomputable def codeDistance : ℕ := 0
+    reconstructed from a given boundary region. This coarse model uses the
+    boundary redundancy as the available reconstruction distance. -/
+def codeDistance : ℕ := hc.d_boundary - hc.d_bulk
+
+theorem codeDistance_add_bulk_eq_boundary_of_embedding :
+    hc.codeDistance + hc.d_bulk = hc.d_boundary := by
+  exact Nat.sub_add_cancel hc.embedding
 
 end HolographicCode
 

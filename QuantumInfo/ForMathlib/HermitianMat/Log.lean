@@ -67,10 +67,16 @@ theorem log_smul {A : HermitianMat n 𝕜} {x : ℝ} (hx : x ≠ 0) [NonSingular
     (x • A).log = Real.log x • 1 + A.log := by
   simp [log_smul_of_pos A hx]
 
-open ComplexOrder in
+open ComplexOrder
+open scoped MatrixOrder in
 theorem inv_antitone (hA : A.mat.PosDef) (h : A ≤ B) : B⁻¹ ≤ A⁻¹ := by
+  have hBA : (B.mat - A.mat).PosSemidef := by
+    simpa using (HermitianMat.le_iff.mp h)
   obtain ⟨C, hC⟩ : ∃ C : Matrix n n 𝕜, B.mat - A.mat = C.conjTranspose * C :=
-    Matrix.posSemidef_iff_eq_conjTranspose_mul_self.mp h
+    by
+      obtain ⟨C, hC⟩ := CStarAlgebra.nonneg_iff_eq_star_mul_self.mp hBA.nonneg
+      refine ⟨C, ?_⟩
+      simpa using hC
   have h_inv_posDef : (1 + C * A.mat⁻¹ * C.conjTranspose).PosDef := by
     exact Matrix.PosDef.one.add_posSemidef (hA.inv.posSemidef.mul_mul_conjTranspose_same C)
   have hB_inv : B.mat⁻¹ =
@@ -119,9 +125,10 @@ noncomputable local instance matrixCStarAlgebra {n : Type*} [Fintype n] [Decidab
 /-- The matrix logarithm is operator monotone. -/
 theorem log_mono {A B : HermitianMat n ℂ} (hA : A.mat.PosDef) (hAB : A ≤ B) :
     A.log ≤ B.log := by
-  rw [← Subtype.coe_le_coe]
   change CFC.log A.mat ≤ CFC.log B.mat
-  have hABmat : A.mat ≤ B.mat := (Subtype.coe_le_coe).2 hAB
+  have hABmat : A.mat ≤ B.mat := by
+    rw [Matrix.le_iff]
+    simpa using (HermitianMat.le_iff.mp hAB)
   exact CFC.log_le_log (a := A.mat) (b := B.mat) hABmat (ha := hA.isStrictlyPositive)
 
 /-
@@ -634,7 +641,8 @@ lemma log_conj_unitary (A : HermitianMat n 𝕜) (U : Matrix.unitaryGroup n 𝕜
 open RealInnerProductSpace in
 theorem inner_log_smul_of [NonSingular A] {x : ℝ} (hx : x ≠ 0) :
     ⟪(x • A).log, B⟫ = Real.log x * B.trace + ⟪A.log, B⟫ := by
-  simp [log_smul hx, inner_add_left]
+  rw [log_smul hx, HermitianMat.inner_add_left, HermitianMat.inner_smul_left,
+    HermitianMat.one_inner]
 
 section kron
 

@@ -42,7 +42,7 @@ The Wilson action for a gauge configuration U, given a character abstract functi
 S_W = β ∑_P (1 - χ(U_P) / χ(1))
 -/
 noncomputable def wilsonAction {G : Type} [Group G] [Fintype L.Plaquette]
-    (χ : G → ℝ) (β : ℝ) (U : GaugeField G L) : ℝ :=
+    (χ : G → ℝ) (_β : ℝ) (U : GaugeField G L) : ℝ :=
   Finset.univ.sum (fun p : L.Plaquette => 1 - χ (plaquetteVar U p) / χ 1)
 
 /-- 

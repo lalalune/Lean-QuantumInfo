@@ -18,6 +18,12 @@ abbrev Bit : Type := Bool
 /-- Minimal event model: an event is a coordinate assignment with one distinguished time slot. -/
 abbrev Event (d : ℕ) : Type := Fin (d + 1) → ℝ
 
+/-- The coordinate-origin event. -/
+def originEvent (d : ℕ) : Event d := fun _ => 0
+
+@[simp]
+lemma originEvent_apply (d : ℕ) (i : Fin (d + 1)) : originEvent d i = 0 := rfl
+
 /-- Time-coordinate index. -/
 def timeIndex (d : ℕ) : Fin (d + 1) := ⟨0, Nat.succ_pos d⟩
 

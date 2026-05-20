@@ -31,13 +31,26 @@ structure OrthogonalProjection where
 
 namespace OrthogonalProjection
 
+/-- The zero bounded operator underlying the zero projection. -/
+def zeroOperator : H →L[ℂ] H := 0
+
+set_option linter.unusedSectionVars false in
+@[simp]
+theorem zeroOperator_eq_zero : zeroOperator H = 0 := rfl
+
 /-- The zero projection. -/
 def zero : OrthogonalProjection H where
-  toOp := 0
+  toOp := zeroOperator H
   self_adj := by
-    simp
+    simp [zeroOperator]
   idempotent := by
-    simp
+    simp [zeroOperator]
+
+@[simp]
+theorem zero_toOp : (zero H).toOp = zeroOperator H := rfl
+
+@[simp]
+theorem zero_toOp_apply (x : H) : (zero H).toOp x = 0 := rfl
 
 /-- The identity projection. -/
 def one : OrthogonalProjection H where
@@ -103,12 +116,13 @@ noncomputable def dirac (lam0 : ℝ) : PVM H where
     by_cases hS : lam0 ∈ S
     · have hT : lam0 ∈ T := hST hS
       simp [hS, hT, OrthogonalProjection.one]
-    · simp [hS, OrthogonalProjection.zero]
+    · simp [hS, OrthogonalProjection.zero, OrthogonalProjection.zeroOperator]
   multiplicative := by
     classical
     intro S T
     by_cases hS : lam0 ∈ S <;> by_cases hT : lam0 ∈ T <;>
-      simp [hS, hT, Set.mem_inter_iff, OrthogonalProjection.zero, OrthogonalProjection.one]
+      simp [hS, hT, Set.mem_inter_iff, OrthogonalProjection.zero,
+        OrthogonalProjection.zeroOperator, OrthogonalProjection.one]
 
 end PVM
 

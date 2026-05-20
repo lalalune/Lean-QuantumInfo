@@ -12,31 +12,21 @@ import ClassicalInfo.Entropy
 Entanglement measures. (Mixed) convex roof extensions. Definition of product / separable / entangled states
 are in `Braket.lean` and/or `MState.lean`
 
-Important definitions:
+Important definitions and theorem APIs:
  * `convex_roof`: Convex roof extension of `g : Ket d → ℝ≥0`
  * `mixed_convex_roof`: Mixed convex roof extension of `f : MState d → ℝ≥0`
  * `EoF`: Entanglement of Formation
+ * `convex_roof_ne_top`, `mixed_convex_roof_ne_top`: the `ℝ≥0∞` roofs are finite.
+ * `le_convex_roof_iff`, `le_mixed_convex_roof_iff`: lower-bound characterizations.
+ * `convex_roof_le`, `mixed_convex_roof_le`: exact ensemble witnesses give upper bounds.
+ * `convex_roof_le_iff`, `mixed_convex_roof_le_iff`: approximate upper-bound characterizations.
+ * `mixed_convex_roof_le_convex_roof`: the mixed roof is bounded by the pure-state roof of a mixed-state function.
+ * `convex_roof_of_pure`, `mixed_convex_roof_of_pure`: roofs agree with the original function on pure states.
+ * `traceRight_pure_MES`, `Sᵥₙ_eq_trace_cfc`, `Sᵥₙ_ofClassical`, `EoF_of_MES`: current `EoF` computations.
 
-TODO:
- - Other entanglement measures (not necessarily based on convex roof extensions). In roughly increasing order of
-   difficulty to implement: (Logarithmic) Negativity, Entanglement of Purification, Squashed Entanglement, Relative
-   Entropy of Entanglement, Entanglement Cost, Distillable Entanglement.
-   For a compendium on the zoo of entanglement measures, see
-   [1] Christandl, Matthias. “The Structure of Bipartite Quantum States - Insights from Group Theory and Cryptography.”
-       https://doi.org/10.48550/arXiv.quant-ph/0604183.
- - Define classes of entanglement measures with good properties, including: monotonicity under LOCC (easier: just LO),
-   monotonicity on average under LOCC, convexity (if the latter two are present, it is called an entanglement monotone
-   by some), vanishing on separable states, normalized on the maximally entangled state, (sub)additivity, regularisible.
-   For other properties, see [1] above and:
-   [2] Szalay, Szilárd. “Multipartite Entanglement Measures.” (mainly Sec. IV)
-       https://doi.org/10.1103/PhysRevA.92.042329.
-   [3] Horodecki, Ryszard, Paweł Horodecki, Michał Horodecki, and Karol Horodecki. “Quantum Entanglement.”
-       https://doi.org/10.1103/RevModPhys.81.865.
- - Useful properties of convex roof extensions:
-   1. If f is monotonically non-increasing under LOCC, so is its convex roof.
-   2. If f ψ is zero if and only if ψ is a product state, then its convex roof is faithful: zero if and only if
-      the mixed state is separable
-   For other properties, see Sec. IV.F of [2] above.
+Related product and separability facts are in `QuantumInfo.Finite.MState`, including
+`MState.IsSeparable`, `MState.pure_separable_iff_IsProd`, and
+`MState.pure_separable_iff_traceLeft_pure`.
 -/
 
 noncomputable section
@@ -71,6 +61,7 @@ variable [DecidableEq d] [DecidableEq d₁] [DecidableEq d₂]
 variable (f : MState d → ℝ≥0)
 variable (g : Ket d → ℝ≥0)
 
+set_option maxHeartbeats 800000
 /-- The convex roof extension `convex_roof_ENNReal` is never ∞. -/
 theorem convex_roof_ne_top : ∀ ρ, convex_roof_ENNReal g ρ ≠ ∞ := fun ρ => by
   simp only [convex_roof_ENNReal, ne_eq, iInf_eq_top, coe_ne_top, imp_false, not_forall]
@@ -79,16 +70,16 @@ theorem convex_roof_ne_top : ∀ ρ, convex_roof_ENNReal g ρ ≠ ∞ := fun ρ 
     simp only
     exact Fintype.equivFin d
   use (congrPEnsemble ed) <| spectral_ensemble ρ
-  rw [mix_congrPEnsemble_eq_mix ed]
-  push_neg
-  convert spectral_ensemble_mix
+  push Not
+  change mix (toMEnsemble ((congrPEnsemble ed) (spectral_ensemble ρ))) = ρ
+  exact (mix_congrPEnsemble_eq_mix ed (spectral_ensemble ρ)).trans spectral_ensemble_mix
 
 omit [Nonempty d] in
 /-- The convex roof extension `mixed_convex_roof_ENNReal` is never ∞. -/
 theorem mixed_convex_roof_ne_top : ∀ ρ, mixed_convex_roof_ENNReal f ρ ≠ ∞ := fun ρ => by
   simp only [mixed_convex_roof_ENNReal, ne_eq, iInf_eq_top, coe_ne_top, imp_false, not_forall]
   use 1, trivial_mEnsemble ρ 0
-  push_neg
+  push Not
   exact trivial_mEnsemble_mix ρ 0
 
 /-- Convex roof extension of a function `g : Ket d → ℝ≥0`, defined as the infimum of all pure-state
@@ -108,24 +99,22 @@ def mixed_convex_roof : MState d → ℝ≥0 := fun x ↦ (mixed_convex_roof_ENN
 /-- Auxiliary function. Convex roof of a function `f : MState d → ℝ≥0` defined over mixed states by resctricting `f` to pure states -/
 def convex_roof_of_MState_fun : MState d → ℝ≥0 := convex_roof (f ∘ pure)
 
--- TODO: make `le_convex_roof`, `convex_roof_le`, `le_mixed_convex_roof` and `mixed_convex_roof_le` if-and-only-if statements.
-
 omit [Nonempty d] in
 theorem le_mixed_convex_roof (ρ : MState d) :
   (∀ n > 0, ∀ e : MEnsemble d (Fin n), mix e = ρ → c ≤ average_NNReal f e) → (c ≤ mixed_convex_roof f ρ) := fun h => by
   unfold mixed_convex_roof
   rw [WithTop.le_untop_iff]
   apply le_iInf; intro ⟨n, hnpos⟩; apply le_iInf; intro e; apply le_iInf; intro hmix
-  rw [some_eq_coe', ENNReal.coe_le_coe]
-  exact h n hnpos e hmix
+  rw [some_eq_coe']
+  exact WithTop.coe_le_coe.mpr (h n hnpos e hmix)
 
 theorem le_convex_roof (ρ : MState d) :
   (∀ n > 0, ∀ e : PEnsemble d (Fin n), mix (toMEnsemble e) = ρ → c ≤ pure_average_NNReal g e) → (c ≤ convex_roof g ρ) := fun h => by
   unfold convex_roof
   rw [WithTop.le_untop_iff]
   apply le_iInf; intro ⟨n, hnpos⟩; apply le_iInf; intro e; apply le_iInf; intro hmix
-  rw [some_eq_coe', ENNReal.coe_le_coe]
-  exact h n hnpos e hmix
+  rw [some_eq_coe']
+  exact WithTop.coe_le_coe.mpr (h n hnpos e hmix)
 
 theorem convex_roof_le (ρ : MState d):
 (∃ n > 0, ∃ e : PEnsemble d (Fin n), mix (toMEnsemble e) = ρ ∧ pure_average_NNReal g e ≤ c) → (convex_roof g ρ ≤ c) := fun h => by
@@ -133,8 +122,8 @@ theorem convex_roof_le (ρ : MState d):
   unfold convex_roof
   rw [WithTop.untop_le_iff]
   apply iInf_le_of_le ⟨n, hnpos⟩; apply iInf_le_of_le e; apply iInf_le_of_le hmix
-  rw [some_eq_coe', ENNReal.coe_le_coe]
-  exact h
+  rw [some_eq_coe']
+  exact WithTop.coe_le_coe.mpr h
 
 omit [Nonempty d] in
 theorem mixed_convex_roof_le (ρ : MState d):
@@ -143,8 +132,71 @@ theorem mixed_convex_roof_le (ρ : MState d):
   unfold mixed_convex_roof
   rw [WithTop.untop_le_iff]
   apply iInf_le_of_le ⟨n, hnpos⟩; apply iInf_le_of_le e; apply iInf_le_of_le hmix
-  rw [some_eq_coe', ENNReal.coe_le_coe]
-  exact h
+  rw [some_eq_coe']
+  exact WithTop.coe_le_coe.mpr h
+
+omit [Nonempty d] in
+/-- Lower-bound characterization for the mixed convex roof. -/
+theorem le_mixed_convex_roof_iff {c : ℝ≥0} (ρ : MState d) :
+    c ≤ mixed_convex_roof f ρ ↔
+      ∀ n > 0, ∀ e : MEnsemble d (Fin n), mix e = ρ → c ≤ average_NNReal f e := by
+  constructor
+  · intro h n hnpos e hmix
+    exact le_trans h <|
+      mixed_convex_roof_le (f := f) (c := average_NNReal f e) ρ
+        ⟨n, hnpos, e, hmix, le_rfl⟩
+  · exact le_mixed_convex_roof (f := f) (c := c) ρ
+
+/-- Lower-bound characterization for the convex roof. -/
+theorem le_convex_roof_iff {c : ℝ≥0} (ρ : MState d) :
+    c ≤ convex_roof g ρ ↔
+      ∀ n > 0, ∀ e : PEnsemble d (Fin n), mix (toMEnsemble e) = ρ →
+        c ≤ pure_average_NNReal g e := by
+  constructor
+  · intro h n hnpos e hmix
+    exact le_trans h <|
+      convex_roof_le (g := g) (c := pure_average_NNReal g e) ρ
+        ⟨n, hnpos, e, hmix, le_rfl⟩
+  · exact le_convex_roof (g := g) (c := c) ρ
+
+/-- Approximate upper-bound characterization for the convex roof. -/
+theorem convex_roof_le_iff {c : ℝ≥0} (ρ : MState d) :
+    convex_roof g ρ ≤ c ↔
+      ∀ ε > 0, ∃ n > 0, ∃ e : PEnsemble d (Fin n),
+        mix (toMEnsemble e) = ρ ∧ pure_average_NNReal g e ≤ c + ε := by
+  constructor
+  · intro h ε hε
+    by_contra hnot
+    push Not at hnot
+    have hlow : c + ε ≤ convex_roof g ρ := by
+      apply le_convex_roof (g := g) (c := c + ε) ρ
+      intro n hnpos e hmix
+      exact le_of_lt (hnot n hnpos e hmix)
+    exact (not_lt_of_ge (le_trans hlow h)) (lt_add_of_pos_right c hε)
+  · intro h
+    refine le_of_forall_pos_le_add fun ε hε => ?_
+    rcases h ε hε with ⟨n, hnpos, e, hmix, havg⟩
+    exact convex_roof_le (g := g) (c := c + ε) ρ ⟨n, hnpos, e, hmix, havg⟩
+
+omit [Nonempty d] in
+/-- Approximate upper-bound characterization for the mixed convex roof. -/
+theorem mixed_convex_roof_le_iff {c : ℝ≥0} (ρ : MState d) :
+    mixed_convex_roof f ρ ≤ c ↔
+      ∀ ε > 0, ∃ n > 0, ∃ e : MEnsemble d (Fin n),
+        mix e = ρ ∧ average_NNReal f e ≤ c + ε := by
+  constructor
+  · intro h ε hε
+    by_contra hnot
+    push Not at hnot
+    have hlow : c + ε ≤ mixed_convex_roof f ρ := by
+      apply le_mixed_convex_roof (f := f) (c := c + ε) ρ
+      intro n hnpos e hmix
+      exact le_of_lt (hnot n hnpos e hmix)
+    exact (not_lt_of_ge (le_trans hlow h)) (lt_add_of_pos_right c hε)
+  · intro h
+    refine le_of_forall_pos_le_add fun ε hε => ?_
+    rcases h ε hε with ⟨n, hnpos, e, hmix, havg⟩
+    exact mixed_convex_roof_le (f := f) (c := c + ε) ρ ⟨n, hnpos, e, hmix, havg⟩
 
 /-- The mixed convex roof extension of `f` is smaller than or equal to its convex roof extension, since
 the former minimizes over a larger set of ensembles. -/

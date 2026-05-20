@@ -6,7 +6,8 @@ Authors: Zhi Kai Pong, Joseph Tooby-Smith, Lode Vermeulen
 import Mathlib.Analysis.Calculus.FDeriv.Symmetric
 import Mathlib.Analysis.Calculus.FDeriv.CompCLM
 import Mathlib.Analysis.Calculus.Gradient.Basic
-import SpaceAndTime.Space.DistOfFunction
+import Mathematics.Distribution.Basic
+import SpaceAndTime.Space.Basic
 /-!
 
 # Derivatives on Space
@@ -255,19 +256,7 @@ lemma deriv_euclid {d ν μ} {f : Space d → EuclideanSpace ℝ (Fin n)}
   rw [deriv_eq_fderiv_basis]
   change fderiv ℝ (EuclideanSpace.proj μ ∘ fun x => f x) x (basis ν) = _
   rw [fderiv_comp]
-  · simp
-    rw [← deriv_eq_fderiv_basis]
-  · fun_prop
-  · fun_prop
-
-lemma deriv_lorentz_vector {d ν μ} {f : Space d → Lorentz.Vector d}
-    (hf : Differentiable ℝ f) (x : Space d) :
-    deriv ν (fun x => f x μ) x = deriv ν (fun x => f x) x μ := by
-  rw [deriv_eq_fderiv_basis]
-  change fderiv ℝ (Lorentz.Vector.coordCLM μ ∘ fun x => f x) x (basis ν) = _
-  rw [fderiv_comp]
-  · simp
-    rw [← deriv_eq_fderiv_basis]
+  · rw [ContinuousLinearMap.fderiv]
     rfl
   · fun_prop
   · fun_prop
@@ -438,7 +427,7 @@ open Distribution SchwartzMap
 noncomputable def distDeriv {M d} [NormedAddCommGroup M] [NormedSpace ℝ M]
     (μ : Fin d) : ((Space d) →d[ℝ] M) →ₗ[ℝ] (Space d) →d[ℝ] M where
   toFun f :=
-    - f.comp (SchwartzMap.pderivCLM (𝕜 := ℝ) (E := Space d) (F := ℝ) (basis μ))
+    - f.comp (LineDeriv.lineDerivOpCLM ℝ 𝓢(Space d, ℝ) (basis μ))
   map_add' f1 f2 := by
     ext ε
     simp [add_comm]
@@ -455,8 +444,8 @@ noncomputable def distDeriv {M d} [NormedAddCommGroup M] [NormedSpace ℝ M]
 lemma distDeriv_apply {M d} [NormedAddCommGroup M] [NormedSpace ℝ M]
     (μ : Fin d) (f : (Space d) →d[ℝ] M) (ε : 𝓢(Space d, ℝ)) :
     (distDeriv μ f) ε =
-    - f ((SchwartzMap.evalCLM (𝕜 := ℝ) (E := Space d) (F := ℝ) (basis μ))
-      ((SchwartzMap.fderivCLM (𝕜 := ℝ) (E := Space d) (F := ℝ)) ε)) := by
+    - f ((SchwartzMap.evalCLM ℝ (Space d) ℝ (basis μ))
+      ((SchwartzMap.fderivCLM ℝ (Space d) ℝ) ε)) := by
   rfl
 
 /-!
@@ -490,10 +479,10 @@ lemma distDeriv_commute {M d} [NormedAddCommGroup M] [NormedSpace ℝ M]
     (μ ν : Fin d) (f : (Space d) →d[ℝ] M) :
     (distDeriv ν (distDeriv μ f)) = (distDeriv μ (distDeriv ν f)) := by
   ext ε
-  simp [distDeriv, SchwartzMap.pderivCLM]
+  simp [distDeriv, SchwartzMap.lineDerivOpCLM_eq]
   apply congrArg (fun g : 𝓢(Space d, ℝ) => f g)
   ext x
-  simpa [SchwartzMap.pderivCLM_apply]
+  simpa [LineDeriv.lineDerivOpCLM_apply]
     using schwartMap_fderiv_comm (μ := μ) (ν := ν) (x := x) (η := ε)
 
 end Space

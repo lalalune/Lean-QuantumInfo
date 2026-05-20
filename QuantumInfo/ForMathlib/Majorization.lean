@@ -25,6 +25,47 @@ variable {d : Type*} [Fintype d] [DecidableEq d]
 
 noncomputable section
 
+private lemma List.Perm.exists_get_equiv {l₁ l₂ : List ℝ} (h : l₁.Perm l₂) :
+    ∃ σ : Fin l₁.length ≃ Fin l₂.length, ∀ i, l₁.get i = l₂.get (σ i) := by
+  induction' h with l₁ l₂ h ih <;> simp_all
+  · obtain ⟨σ, hσ⟩ := ‹∃ σ : Fin l₂.length ≃ Fin h.length,
+      ∀ i : Fin l₂.length, l₂[i] = h[σ i]›
+    use Equiv.ofBijective (fun i => Fin.cases 0 (fun i => Fin.succ (σ i)) i)
+      ⟨by
+        intro i j hij
+        revert j
+        refine i.cases ?_ ?_
+        · intro j
+          refine j.cases ?_ ?_
+          · intro _; rfl
+          · intro j h
+            cases h
+        · intro i j
+          refine j.cases ?_ ?_
+          · intro h
+            simp at h
+          · intro j h
+            exact congr_arg Fin.succ (σ.injective (Fin.succ_injective _ h)),
+       by
+        intro i
+        refine i.cases ?_ ?_
+        · exact ⟨0, rfl⟩
+        · intro i
+          exact ⟨Fin.succ (σ.symm i), by simp⟩⟩
+    intro i
+    refine i.cases ?_ ?_
+    · rfl
+    · intro i
+      simpa using hσ i
+  · refine' ⟨Equiv.swap ⟨0, by simp⟩ ⟨1, by simp⟩, _⟩
+    simp [Fin.forall_fin_succ]
+    aesop
+  · rename_i h₁ h₂ h₃ h₄
+    obtain ⟨σ₁, hσ₁⟩ := h₃
+    obtain ⟨σ₂, hσ₂⟩ := h₄
+    use σ₁.trans σ₂
+    simp [hσ₁, hσ₂]
+
 /-! ## Sorted singular values -/
 
 /-- The singular values of a square complex matrix `A`, defined as the square
@@ -479,23 +520,7 @@ lemma exists_sorting_equiv (M : Matrix d d ℂ) :
     have h_perm : List.Perm (List.ofFn (singularValuesSorted M)) (List.ofFn (singularValues M ∘ (Fintype.equivFin d).symm)) := by
       exact Multiset.coe_eq_coe.mp h_perm
     have h_perm : ∃ σ : Fin (Fintype.card d) ≃ Fin (Fintype.card d), ∀ i, singularValuesSorted M i = singularValues M (Fintype.equivFin d |>.symm (σ i)) := by
-      have h_perm : ∀ {l1 l2 : List ℝ}, l1.Perm l2 → ∃ σ : Fin l1.length ≃ Fin l2.length, ∀ i, l1.get i = l2.get (σ i) := by
-        intros l1 l2 h_perm; induction' h_perm with l1 l2 h_perm ih <;> simp_all
-        · obtain ⟨σ, hσ⟩ := ‹∃ σ : Fin l2.length ≃ Fin h_perm.length, ∀ i : Fin l2.length, l2[i] = h_perm[σ i]›; use Equiv.ofBijective (fun i => Fin.cases 0 (fun i => Fin.succ (σ i)) i) ⟨fun i j hij => ?_, fun i => ?_⟩
-          simp_all [Fin.forall_fin_succ]
-          · rcases i with ⟨_ | i, hi⟩ <;> rcases j with ⟨_ | j, hj⟩ <;> simp_all [Fin.ext_iff]
-            simpa [Fin.ext_iff] using σ.injective (Fin.ext hij)
-          · refine i.cases ?_ ?_
-            · simp [Fin.exists_fin_succ]
-            · simp only [Fin.exists_fin_succ, Fin.cases_zero, Fin.cases_succ, Fin.succ_inj]
-              exact fun i => Or.inr ⟨σ.symm i, by simp⟩
-        · refine' ⟨Equiv.swap ⟨0, by simp⟩ ⟨1, by simp⟩, _⟩; simp [Fin.forall_fin_succ]; aesop
-        · rename_i h₁ h₂ h₃ h₄
-          obtain ⟨σ₁, hσ₁⟩ := h₃
-          obtain ⟨σ₂, hσ₂⟩ := h₄
-          use σ₁.trans σ₂
-          simp [hσ₁, hσ₂]
-      obtain ⟨σ, hσ⟩ := h_perm ‹_›
+      obtain ⟨σ, hσ⟩ := h_perm.exists_get_equiv
       refine ⟨Equiv.ofBijective (fun i => ⟨σ ⟨i, ?_⟩, ?_⟩) ⟨?_, ?_⟩, ?_⟩
       · simp
       · exact lt_of_lt_of_le (Fin.is_lt _) (by simp)
@@ -564,35 +589,17 @@ lemma exists_subset_prod_eq_sorted_prod (M : Matrix d d ℂ) (k : ℕ)
     have h_perm : List.Perm (List.ofFn (singularValuesSorted M)) (List.ofFn (singularValues M ∘ (Fintype.equivFin d).symm)) := by
       exact Multiset.coe_eq_coe.mp h_perm
     have h_perm : ∃ σ : Fin (Fintype.card d) ≃ Fin (Fintype.card d), List.ofFn (singularValuesSorted M) = List.map (fun i => singularValues M ((Fintype.equivFin d).symm (σ i))) (List.finRange (Fintype.card d)) := by
-      have := h_perm
-      have h_perm : ∀ {l₁ l₂ : List ℝ}, List.Perm l₁ l₂ → ∃ σ : Fin l₁.length ≃ Fin l₂.length, l₁ = List.map (fun i => l₂.get (σ i)) (List.finRange l₁.length) := by
-        intro l₁ l₂ h_perm
-        induction' h_perm with l₁ l₂ h_perm ih
-        · aesop
-        · rename_i a_ih
-          obtain ⟨σ, hσ⟩ := a_ih
-          use Equiv.ofBijective (fun i => Fin.cases ⟨0, by simp⟩ (fun i => Fin.succ (σ i)) i) ⟨fun i j hij => ?_, fun i => ?_⟩
-          · simp [List.finRange_succ] at *
-            exact hσ
-          · rcases i with ⟨_ | i, hi⟩ <;> rcases j with ⟨_ | j, hj⟩ <;> simp [Fin.ext_iff] at hij ⊢
-            simpa [Fin.ext_iff] using σ.injective (Fin.ext hij) |> fun h => by simpa [Fin.ext_iff] using h;
-          · rcases i with ⟨_ | i, hi⟩
-            · exact ⟨⟨0, by simp⟩, rfl⟩
-            · exact ⟨Fin.succ (σ.symm ⟨i, by simpa using hi⟩), by simp⟩
-        · use Equiv.swap ⟨0, by simp⟩ ⟨1, by simp⟩; simp [List.finRange_succ]
-          refine' List.ext_get _ _ <;> simp [Function.comp]
-          intro n hn hn'; rcases n with (_ | _ | n) <;> trivial
-        · rename_i h₁ h₂ h₃ h₄
-          obtain ⟨σ₁, hσ₁⟩ := h₃
-          obtain ⟨σ₂, hσ₂⟩ := h₄
-          use σ₁.trans σ₂
-          simp [hσ₁, hσ₂]
-      obtain ⟨σ, hσ⟩ := h_perm ‹_›
-      simp [List.ofFn_eq_map] at hσ ⊢
-      generalize_proofs at *; (
-      exact ⟨Equiv.ofBijective (fun i => ⟨σ ⟨i, by simp⟩, by solve_by_elim⟩) ⟨fun i j hij => by simpa [Fin.ext_iff] using σ.injective (Fin.ext <| by simpa [Fin.ext_iff] using hij), fun i => by
-        obtain ⟨a, ha⟩ := σ.surjective ⟨i, by simp⟩
-        exact ⟨⟨a, by simpa using a.2⟩, Fin.ext <| by simpa [Fin.ext_iff] using congr_arg Fin.val ha⟩⟩, fun i => by simpa [Fin.ext_iff] using congr_arg (fun l => l[i]!) hσ⟩)
+      obtain ⟨σ, hσ⟩ := h_perm.exists_get_equiv
+      have hlen₁ : (List.ofFn (singularValuesSorted M)).length = Fintype.card d := by simp
+      have hlen₂ : (List.ofFn (singularValues M ∘ (Fintype.equivFin d).symm)).length = Fintype.card d := by simp
+      let τ : Fin (Fintype.card d) ≃ Fin (Fintype.card d) :=
+        (finCongr hlen₁.symm).trans (σ.trans (finCongr hlen₂))
+      refine ⟨τ, ?_⟩
+      apply List.ext_get
+      · simp
+      · intro n hn₁ hn₂
+        have h := hσ ((finCongr hlen₁.symm) ⟨n, by simpa using hn₁⟩)
+        simpa [τ, List.get_eq_getElem, List.getElem_finRange, hlen₁, hlen₂] using h
     obtain ⟨σ, hσ⟩ := h_perm
     use Equiv.ofBijective (fun i => (Fintype.equivFin d).symm (σ i)) ⟨fun i j hij => by simpa [Fin.ext_iff] using σ.injective (by simpa [Fin.ext_iff] using hij), fun i => by
       exact ⟨σ.symm (Fintype.equivFin d i), by simp⟩;⟩
@@ -874,8 +881,12 @@ lemma sum_mul_log_nonneg_of_weak_log_maj {n : ℕ}
     convert h_abel ⟨n, Nat.lt_succ_self _⟩ using 1
     · rw [show (Iic ⟨n, Nat.lt_succ_self _⟩ : Finset (Fin (n + 1))) = Finset.univ from Finset.eq_univ_of_forall fun i => Finset.mem_Iic.mpr (Nat.le_of_lt_succ i.2)]
     · refine' congr rfl (Finset.sum_bij (fun i hi => ⟨i, by omega⟩) _ _ _ _) <;> simp [Fin.add_def, Nat.mod_eq_of_lt]
-      · exact fun i j h => Fin.ext h
-      · exact fun i hi => ⟨⟨i, by linarith [Fin.is_lt i, show (i : ℕ) < n from hi]⟩, rfl⟩
+      · intro i _ j _ h
+        exact Fin.ext h
+      · intro i hi
+        refine ⟨⟨i, by linarith [Fin.is_lt i, show (i : ℕ) < n from hi]⟩, ?_, ?_⟩
+        · exact Finset.mem_univ _
+        · simp
   -- Since $D_k \geq 0$ for all $k$, we have $x_{n-1} D_{n-1} \geq 0$ and $(x_i - x_{i+1}) D_i \geq 0$ for all $i$.
   have h_nonneg : ∀ k : Fin n, 0 ≤ D k := by
     intro k

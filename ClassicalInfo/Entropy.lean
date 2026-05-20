@@ -125,6 +125,28 @@ lemma Hₛ_eq_of_multiset_map_eq (d₁ : ProbDistribution α) (d₂ : ProbDistri
   convert congr_arg (fun m ↦ m.map (fun x ↦ -Real.log x.1 * x.1 ) |> Multiset.sum ) h using 1
   <;> simp [Hₛ, H₁, mul_comm, Real.negMulLog]
 
---TODO:
--- * Shannon entropy is concave under mixing distributions.
--- * Shannon entropy as an expectation value
+@[simp]
+theorem ProbDistribution.mix_apply (p : Prob) (d₁ d₂ : ProbDistribution α) (x : α) :
+    (p[d₁ ↔ d₂] : ProbDistribution α) x = p[d₁ x ↔ d₂ x] := by
+  ext
+  change (Mixable.to_U (p[d₁ ↔ d₂] : ProbDistribution α)) x =
+    Mixable.to_U (p[d₁ x ↔ d₂ x] : Prob)
+  simp [Mixable.mix, Mixable.mix_ab]
+  rfl
+
+/-- Shannon entropy is concave under mixing distributions. -/
+theorem Hₛ_concave (d₁ d₂ : ProbDistribution α) (p : Prob) :
+    p[Hₛ d₁ ↔ Hₛ d₂] ≤ Hₛ (p[d₁ ↔ d₂]) := by
+  calc
+    p[Hₛ d₁ ↔ Hₛ d₂]
+        = ∑ x, p[H₁ (d₁ x) ↔ H₁ (d₂ x)] := by
+          simp [Hₛ, Mixable.mix, Mixable.mix_ab, Finset.mul_sum, Finset.sum_add_distrib]
+    _ ≤ ∑ x, H₁ (p[d₁ x ↔ d₂ x]) := by
+      exact Finset.sum_le_sum fun x _ ↦ H₁_concave (d₁ x) (d₂ x) p
+    _ = Hₛ (p[d₁ ↔ d₂]) := by
+      simp [Hₛ]
+
+/-- Shannon entropy is the expectation value of `-log p(x)`. -/
+theorem Hₛ_eq_expect_val_neg_log (d : ProbDistribution α) :
+    Hₛ d = ProbDistribution.expect_val ⟨fun x ↦ -Real.log (d x : ℝ), d⟩ := by
+  simp [Hₛ, H₁, Real.negMulLog, ProbDistribution.expect_val]

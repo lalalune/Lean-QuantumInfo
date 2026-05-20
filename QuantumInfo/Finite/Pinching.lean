@@ -144,6 +144,7 @@ theorem pinching_self (ρ : MState d) : pinching_map ρ ρ = ρ := by
   simp only [pinching_sum, HermitianMat.mat_one, mul_one]
   rfl
 
+set_option maxHeartbeats 800000
 /-- Lemma 3.10 of Hayashi's book "Quantum Information Theory - Mathematical Foundations".
 Also, Lemma 5 in https://arxiv.org/pdf/quant-ph/0107004.
 -- Used in (S60) -/
@@ -211,14 +212,19 @@ theorem pinching_bound (ρ σ : MState d) : ρ.M ≤ (↑(Fintype.card (spectrum
   · rw [← map_sum, ← Complex.ofReal_mul, ← norm_mul]
     rw [Complex.mul_conj, Complex.norm_real, Real.norm_of_nonneg (Complex.normSq_nonneg _)]
     simp_rw [← Complex.mul_conj, map_sum, Finset.mul_sum, Finset.sum_mul]
-    congr! with x _ y _
+    congr!
+    rename_i a a' ha b b' hb
     rw [← Matrix.mul_assoc]
-    exact h_mul x y
+    cases ha
+    cases hb
+    exact h_mul a b
   · have hc (c d : ℂ) : d = starRingEnd ℂ d  → c = d → c = d.re := by
       rintro h rfl; simp [Complex.ext_iff] at h ⊢; linarith
     apply hc <;> clear hc
     · simpa using mul_comm _ _
-    · exact h_mul x x
+    · rename_i a a' ha
+      cases ha
+      exact h_mul a a
 
 open ComplexOrder in
 theorem ker_le_ker_pinching_of_PosDef (ρ σ : MState d) (hpos : σ.m.PosDef) : σ.M.ker ≤ (pinching_map σ ρ).M.ker := by
@@ -323,7 +329,7 @@ theorem pinching_map_ker_le (ρ σ : MState d) : (pinching_map σ ρ).M.ker ≤ 
   simp only [WithLp.toLp_sum, WithLp.toLp_ofLp] at hv_sum
   rw [← hv_sum]
   exact Submodule.sum_mem _ fun k _ ↦ by
-    simpa [h_ker_conj k, Matrix.toEuclideanLin_apply, (pinching_kraus σ k).H.eq] using hv k
+    simpa [h_ker_conj k, Matrix.toLpLin_apply, (pinching_kraus σ k).H.eq] using hv k
 
 noncomputable section AristotleLemmas
 
@@ -405,7 +411,20 @@ theorem pinching_pythagoras (ρ σ : MState d) :
     have h_eq₁ := inner_cfc_pinching_right ρ σ Real.log
     have h_eq₂ := inner_cfc_pinching ρ σ Real.log
     rw [← HermitianMat.log] at h_eq₁ h_eq₂
-    simp only [inner_sub_right]
+    rw [show ⟪ρ.M, ρ.M.log - σ.M.log⟫ = ⟪ρ.M, ρ.M.log⟫ - ⟪ρ.M, σ.M.log⟫ by
+      exact HermitianMat.inner_sub_left (R := ℝ) ρ.M ρ.M.log σ.M.log]
+    rw [show ⟪ρ.M, ρ.M.log - (pinching_map σ ρ).M.log⟫ =
+        ⟪ρ.M, ρ.M.log⟫ - ⟪ρ.M, (pinching_map σ ρ).M.log⟫ by
+      exact HermitianMat.inner_sub_left (R := ℝ) ρ.M ρ.M.log (pinching_map σ ρ).M.log]
+    rw [show ⟪(pinching_map σ ρ).M, (pinching_map σ ρ).M.log - σ.M.log⟫ =
+        ⟪(pinching_map σ ρ).M, (pinching_map σ ρ).M.log⟫ -
+          ⟪(pinching_map σ ρ).M, σ.M.log⟫ by
+      exact HermitianMat.inner_sub_left (R := ℝ) (pinching_map σ ρ).M
+        (pinching_map σ ρ).M.log σ.M.log]
+    change (↑(⟪ρ.M, ρ.M.log⟫ - ⟪ρ.M, σ.M.log⟫) : EReal) =
+      ↑(⟪ρ.M, ρ.M.log⟫ - ⟪ρ.M, (pinching_map σ ρ).M.log⟫) +
+        ↑(⟪(pinching_map σ ρ).M, (pinching_map σ ρ).M.log⟫ -
+          ⟪(pinching_map σ ρ).M, σ.M.log⟫)
     rw [h_eq₂, h_eq₁]
     simp only [EReal.coe_sub]
     rw [← add_sub_assoc, EReal.sub_add_cancel]

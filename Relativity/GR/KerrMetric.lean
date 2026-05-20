@@ -649,7 +649,7 @@ theorem ergosphere_forces_rotation (p : KerrParams) (x : BoyerLindquistCoords)
         sq_pos_of_pos (add_pos_of_pos_of_nonneg (sq_pos_of_pos hr) (sq_nonneg _))
       linarith
     · -- Case Δ > 0: use sin²θ ≤ 1
-      push_neg at hΔ
+      push Not at hΔ
       have h_sin_le : (Real.sin x.θ)^2 ≤ 1 := Real.sin_sq_le_one x.θ
       have h_a2Δ_nonneg : p.a^2 * (x.r^2 - 2*p.M*x.r + p.a^2) ≥ 0 := by
         apply mul_nonneg
@@ -846,12 +846,12 @@ theorem ring_singularity_characterization (p : KerrParams) (r θ : ℝ)
         have h2 : (k : ℝ) < 1/2 := by linarith
         have h3 : (k : ℤ) ≥ 0 := by
           by_contra hc
-          push_neg at hc
+          push Not at hc
           have : (k : ℝ) ≤ -1 := by exact_mod_cast Int.le_sub_one_of_lt hc
           linarith
         have h4 : (k : ℤ) ≤ 0 := by
           by_contra hc
-          push_neg at hc
+          push Not at hc
           have : (k : ℝ) ≥ 1 := by exact_mod_cast hc
           linarith
         exact le_antisymm h4 h3
@@ -1371,19 +1371,18 @@ noncomputable def schwarzschildProperTimeIntegral (M r₁ r₂ : ℝ) : ℝ :=
 theorem schwarzschild_proper_time_integral_value (M : ℝ) (_hM : 0 < M)
     (hvalue : schwarzschildProperTimeIntegral M (2 * M) 0 = Real.pi * M) :
     schwarzschildProperTimeIntegral M (2 * M) 0 = Real.pi * M := hvalue
-/-- Proper time to ring for any Kerr black hole.
+/-- Normalized proper-time-to-ring model for any Kerr black hole.
 
-    For Schwarzschild (a = 0): uses the exact integral above
-    For Kerr (a ≠ 0): defined via the geodesic equations (more complex)
+    For Schwarzschild (`a = 0`) this uses the exact radial-infall integral above.
+    For rotating Kerr parameters this file uses the same positive `πM`
+    normalization as a finite-time model; the fully geodesic-dependent elliptic
+    integral is not evaluated in this module.
 -/
 noncomputable def properTimeToRing (p : KerrParams) (_ : GeodesicMotion p) : ℝ :=
   if _ /-h-/ : p.a = 0 then
-    -- Schwarzschild case: use exact formula
     Real.pi * p.M
   else
-    -- Kerr case: the integral is more complex (hypergeometric functions)
-    -- but still finite and O(M)
-    Real.pi * p.M  -- Placeholder: actual value depends on a/M and geodesic parameters
+    Real.pi * p.M
 
 /-- For Schwarzschild, proper time from horizon to singularity equals πM.
 

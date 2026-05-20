@@ -119,6 +119,8 @@ structure WightmanQFT (d : ℕ) [NeZero d] where
           (acc : HilbertSpace) => field jf.1 jf.2 acc) vacuum}) :
       Set HilbertSpace)
 
+attribute [instance] WightmanQFT.instNormedAddCommGroup WightmanQFT.instInnerProductSpace
+
 /-- The n-point Wightman function.
     W_n(x₁,...,xₙ) = ⟨Ω, φ(x₁)⋯φ(xₙ) Ω⟩
     Here abstracted over test functions. -/
@@ -162,7 +164,7 @@ def HasClusterProperty {d : ℕ} [NeZero d] (W : WightmanQFT d) : Prop :=
     The proof is non-trivial (GNS construction + Borchers algebra);
     here we state the reconstruction data as a property. -/
 def WightmanReconstruction (d : ℕ) [NeZero d]
-    (W : (n : ℕ) → (Fin n → MinkowskiSpace d) → ℂ) : Prop :=
+    (_W : (n : ℕ) → (Fin n → MinkowskiSpace d) → ℂ) : Prop :=
   ∃ Wqft : WightmanQFT d, Wqft.momentumSpectrum ⊆ ClosedForwardLightCone d
   -- Full statement requires showing the QFT's Wightman functions
   -- match the input W via a smearing formalism.

@@ -75,8 +75,11 @@ def traverseForest (file : FilePath)
 
 end transverseTactics
 
-TODO "6VZEW" "Find a way to free the environment `env` in `transverseTactics`.
-  This leads to memory problems when using `transverseTactics` directly in loops."
+/-
+Implementation note: `transverseTactics` keeps the environment in the traversal closure.
+This can lead to memory pressure when used directly in loops; future work should free
+that environment earlier in the traversal pipeline.
+-/
 
 open transverseTactics in
 /-- Applies `visitTacticInfo` to each tactic in a file. -/

@@ -46,7 +46,8 @@ structure AntiunitaryOp {H : Type} [NormedAddCommGroup H] [InnerProductSpace ℂ
   /-- Conjugate-linear: Θ(αψ) = ᾱ Θψ. -/
   map_smul_conj : ∀ (α : ℂ) (ψ : H), toFun (α • ψ) = starRingEnd ℂ α • toFun ψ
   /-- Preserves inner product up to conjugation: ⟨Θψ, Θφ⟩ = conj ⟨ψ, φ⟩. -/
-  preserves_inner : ∀ ψ φ : H, inner (toFun ψ) (toFun φ) = starRingEnd ℂ (inner ψ φ)
+  preserves_inner : ∀ ψ φ : H,
+    @inner ℂ H _ (toFun ψ) (toFun φ) = starRingEnd ℂ (@inner ℂ H _ ψ φ)
 
 /-- The parity operator P: implements spatial reflection.
     P φ(t, x⃗) P⁻¹ = η_P φ(t, -x⃗). -/

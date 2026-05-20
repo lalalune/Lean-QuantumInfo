@@ -73,17 +73,17 @@ structure VirasoroAlgebra where
 
 namespace VirasoroAlgebra
 
-/-- The central charge for d free bosons is c = d.
-    The mode operators are abstract (set to 0);
-    the key content is the central charge value. -/
-def freeBosons (d : ℕ) : VirasoroAlgebra where
+/-- The central charge for `d` free bosons is `c = d`, with the mode assignment
+    supplied explicitly by the chosen representation. -/
+def freeBosons (d : ℕ) (modes : ℤ → ℝ) : VirasoroAlgebra where
   c := d
-  L := fun _ => 0
+  L := modes
   bracket := fun m n =>
-    if m + n = 0 then (d : ℝ) / 12 * (m * (m ^ 2 - 1)) else 0
+    (m - n) * modes (m + n) +
+      if m + n = 0 then (d : ℝ) / 12 * (m * (m ^ 2 - 1)) else 0
   commutator_relation := by
     intro m n
-    simp [mul_zero]
+    rfl
 
 /-- The ghost central charge is -26 -/
 def ghostCentralCharge : ℝ := -26
@@ -91,7 +91,8 @@ def ghostCentralCharge : ℝ := -26
 /-- Total central charge vanishes when d = 26:
     c_matter + c_ghost = d - 26 = 0 -/
 theorem critical_dimension_cancellation :
-    (freeBosons 26).c + ghostCentralCharge = 0 := by
+    ∀ modes : ℤ → ℝ, (freeBosons 26 modes).c + ghostCentralCharge = 0 := by
+  intro modes
   unfold freeBosons ghostCentralCharge
   norm_num
 

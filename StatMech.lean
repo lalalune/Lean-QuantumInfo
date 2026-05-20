@@ -5,4 +5,7 @@ Authors: Alex Meiburg
 -/
 import StatMech.Hamiltonian
 import StatMech.IdealGas
+import StatMech.MicroCanonicalEnsemble.Basic
+import StatMech.MicroCanonicalEnsemble.IdealGas
+import StatMech.MicroCanonicalEnsemble.ThermoQuantities
 import StatMech.ThermoQuantities

@@ -18,8 +18,23 @@ in Bundled.lean.
 
 namespace MatrixMap
 
+open scoped Kronecker
+
 variable {A B C D : Type*} [Fintype A] [Fintype B] [Fintype C] [Fintype D]
 variable {κ 𝕜 : Type*} [Fintype κ] [RCLike 𝕜]
+
+private theorem map_eq_sum_single {A B R : Type*} [Fintype A] [Fintype B]
+    [DecidableEq A] [Semiring R] (M : MatrixMap A B R) (x : Matrix A A R) :
+    M x = ∑ a₁, ∑ a₂, x a₁ a₂ • M (Matrix.single a₁ a₂ 1) := by
+  conv_lhs =>
+    rw [show x = ∑ a₁, ∑ a₂, x a₁ a₂ • Matrix.single a₁ a₂ (1 : R) by
+      ext i j
+      simp only [Matrix.sum_apply, Matrix.smul_apply, Matrix.single]
+      rw [Finset.sum_eq_single i]
+      · rw [Finset.sum_eq_single j] <;> simp +contextual
+      · simp +contextual
+      · simp]
+  simp only [map_sum, LinearMap.map_smulₛₗ, RingHom.id_apply]
 
 section tp
 
@@ -151,18 +166,81 @@ namespace Unital
 
 variable {M : MatrixMap A B R}
 
-omit [Fintype A] [Fintype B]
-
+omit [Fintype A] [Fintype B] in
 @[simp]
 theorem map_1 (h : M.Unital) : M 1 = 1 :=
   h
 
+omit [Fintype A] in
 /-- The identity `MatrixMap` is `Unital`. -/
 @[simp]
 theorem id : (id A R).Unital := by
   simp [Unital, MatrixMap.id]
 
---TODO: Closed under composition, kronecker products, it's iff M.choi_matrix.traceLeft = 1...
+omit [Fintype B] in
+/-- A map is unital iff the right partial trace of the Choi matrix is the identity. -/
+theorem iff_traceRight_choi (M : MatrixMap A B R) :
+    M.Unital ↔ M.choi_matrix.traceRight = 1 := by
+  have h_one : (∑ a, Matrix.single a a (1 : R)) = (1 : Matrix A A R) := by
+    ext i j
+    by_cases hij : i = j
+    · subst hij
+      simp only [Matrix.sum_apply]
+      rw [Finset.sum_eq_single i]
+      · simp [Matrix.single]
+      · intro b _ hb
+        simp [Matrix.single, hb]
+      · simp
+    · simp only [Matrix.sum_apply]
+      rw [Finset.sum_eq_zero]
+      · simp [hij]
+      · intro b _
+        by_cases hbi : b = i
+        · subst hbi
+          simp [Matrix.single, hij]
+        · simp [Matrix.single, hbi]
+  constructor
+  · intro h
+    ext b₁ b₂
+    calc
+      M.choi_matrix.traceRight b₁ b₂
+          = ∑ a, M (Matrix.single a a 1) b₁ b₂ := by
+            simp [Matrix.traceRight, MatrixMap.choi_matrix]
+      _ = M (∑ a, Matrix.single a a 1) b₁ b₂ := by
+            rw [map_sum]
+            simp [Matrix.sum_apply]
+      _ = M 1 b₁ b₂ := by rw [h_one]
+      _ = (1 : Matrix B B R) b₁ b₂ := congrFun₂ h b₁ b₂
+  · intro h
+    ext b₁ b₂
+    calc
+      M 1 b₁ b₂ = M (∑ a, Matrix.single a a 1) b₁ b₂ := by rw [h_one]
+      _ = ∑ a, M (Matrix.single a a 1) b₁ b₂ := by
+            rw [map_sum]
+            simp [Matrix.sum_apply]
+      _ = M.choi_matrix.traceRight b₁ b₂ := by
+            simp [Matrix.traceRight, MatrixMap.choi_matrix]
+      _ = (1 : Matrix B B R) b₁ b₂ := congrFun₂ h b₁ b₂
+
+omit [Fintype A] [Fintype B] [Fintype C] in
+/-- The composition of unital maps is unital. -/
+theorem comp [DecidableEq C] {M₁ : MatrixMap A B R} {M₂ : MatrixMap B C R}
+    (h₁ : M₁.Unital) (h₂ : M₂.Unital) :
+    MatrixMap.Unital (M₂ ∘ₗ M₁ : MatrixMap A C R) := by
+  change M₂ (M₁ 1) = 1
+  rw [h₁, h₂]
+
+variable {R : Type*} [CommRing R] in
+/-- The Kronecker product of unital maps is unital. -/
+theorem kron [DecidableEq C] [DecidableEq D] {M₁ : MatrixMap A B R} {M₂ : MatrixMap C D R}
+    (h₁ : M₁.Unital) (h₂ : M₂.Unital) : (M₁ ⊗ₖₘ M₂).Unital := by
+  rw [Unital]
+  calc
+    (M₁ ⊗ₖₘ M₂) (1 : Matrix (A × C) (A × C) R)
+        = (M₁ ⊗ₖₘ M₂) ((1 : Matrix A A R) ⊗ₖ (1 : Matrix C C R)) := by
+          rw [Matrix.one_kronecker_one]
+    _ = M₁ 1 ⊗ₖ M₂ 1 := MatrixMap.kron_map_of_kron_state M₁ M₂ 1 1
+    _ = 1 := by rw [h₁, h₂, Matrix.one_kronecker_one]
 
 end Unital
 end unital
@@ -284,21 +362,12 @@ theorem IsPositive {M : MatrixMap A B R}
     (Equiv.prodCongrRight (fun _ ↦ finOneEquiv)).trans (Equiv.prodPUnit B)
   specialize @hM 1 (x.submatrix eqA eqA) (Matrix.PosSemidef.submatrix hx _)
   convert Matrix.PosSemidef.submatrix hM eqB.symm; clear hM
-  --TODO Cleanup
   ext i j
   simp only [Matrix.submatrix, Matrix.of_apply]
   rw [MatrixMap.kron_def]
-  suffices h : M x = ∑ a₁, ∑ a₂, x a₁ a₂ • M (Matrix.single a₁ a₂ 1) by
-    simp [h, Matrix.sum_apply, Matrix.single, eqA, eqB]
-    ac_rfl
-  simp only [← M.map_smul, ← map_sum]
-  congr
-  ext k l
-  simp [Matrix.sum_apply, Matrix.single]
-  rw [Finset.sum_eq_single k]
-  · simp
-  · simp +contextual
-  · simp +contextual
+  rw [map_eq_sum_single M x]
+  simp [Matrix.sum_apply, Matrix.single, eqA, eqB]
+  ac_rfl
 
 /-- The composition of IsCompletelyPositive maps is also completely positive. -/
 theorem comp [DecidableEq B] {M₁ : MatrixMap A B R} {M₂ : MatrixMap B C R} (h₁ : M₁.IsCompletelyPositive)
@@ -350,24 +419,13 @@ variable {d : Type*} [Fintype d]
 theorem kron_kronecker_const {C : Matrix d d R} (h : C.PosSemidef) {h₁ h₂ : _} : IsCompletelyPositive
     (⟨⟨fun M => M ⊗ₖ C, h₁⟩, h₂⟩ : MatrixMap A (A × d) R) := by
   intros n x hx
-  have h_kronecker_pos : (x ⊗ₖ C).PosSemidef := by
-    -- Since $x$ and $C$ are positive semidefinite, there exist matrices $U$ and $V$ such that $x = U^*U$ and $C = V^*V$.
-    obtain ⟨U, hU⟩ : ∃ U : Matrix (A × Fin n) (A × Fin n) R, x = star U * U := by
-      classical
-      open MatrixOrder in exact CStarAlgebra.nonneg_iff_eq_star_mul_self.mp hx.nonneg
-    obtain ⟨V, hV⟩ : ∃ V : Matrix d d R, C = star V * V := by
-      classical
-      open MatrixOrder in exact CStarAlgebra.nonneg_iff_eq_star_mul_self.mp h.nonneg
-    -- $W = (U \otimes V)^* (U \otimes V)$ is positive semidefinite.
-    have hW_pos : (U ⊗ₖ V).conjTranspose * (U ⊗ₖ V) = x ⊗ₖ C := by
-      rw [Matrix.kroneckerMap_conjTranspose, ← Matrix.mul_kronecker_mul]
-      rw [hU, hV, Matrix.star_eq_conjTranspose, Matrix.star_eq_conjTranspose]
-    rw [ ← hW_pos ]
-    exact Matrix.posSemidef_conjTranspose_mul_self (U ⊗ₖ V)
-  --TODO clean up this mess (but, thanks Aristotle)
-  convert h_kronecker_pos.submatrix (fun (⟨ ⟨ a, d' ⟩, n' ⟩ : (A × d) × Fin n) => ⟨ ⟨ a, n' ⟩, d' ⟩) using 1;
+  classical
+  have h_kronecker_pos : (x ⊗ₖ C).PosSemidef := hx.PosSemidef_kronecker h
+  let e : (A × d) × Fin n → (A × Fin n) × d :=
+    fun ⟨⟨a, d'⟩, n'⟩ => ⟨⟨a, n'⟩, d'⟩
+  convert h_kronecker_pos.submatrix e using 1
   ext ⟨⟨a, d⟩, n⟩ ⟨⟨a', d'⟩, n'⟩
-  simp [Matrix.kroneckerMap_apply, Matrix.submatrix_apply]
+  simp [e, Matrix.kroneckerMap_apply, Matrix.submatrix_apply]
   erw [MatrixMap.kron_def]
   simp [Matrix.single, Matrix.kroneckerMap_apply]
   simp [Finset.sum_ite, Finset.filter_eq', Finset.filter_and]
@@ -482,14 +540,18 @@ theorem congruence_one_eq_id : conj (1 : Matrix A A ℂ) = MatrixMap.id A ℂ :=
   ext x
   simp [conj]
 
-theorem congruence_CP {A B : Type*} [Fintype A] [Fintype B] [DecidableEq A] [DecidableEq B] (M : Matrix B A 𝕜) : (conj M).IsCompletelyPositive := by
+private theorem conj_isCompletelyPositive_of_conj_kron {A B R : Type*} [Fintype A]
+    [Fintype B] [DecidableEq A] [DecidableEq B] [RCLike R] (M : Matrix B A R) :
+    (conj M).IsCompletelyPositive := by
   intro n;
-  -- The tensor product of congruence maps is a congruence map.
-  have h_tensor_congruence : conj M ⊗ₖₘ LinearMap.id = conj (M ⊗ₖ (1 : Matrix (Fin n) (Fin n) 𝕜)) := by
-    convert conj_kron M ( 1 : Matrix ( Fin n ) ( Fin n ) 𝕜 );
+  have h_tensor_congruence : conj M ⊗ₖₘ LinearMap.id = conj (M ⊗ₖ (1 : Matrix (Fin n) (Fin n) R)) := by
+    convert conj_kron M ( 1 : Matrix ( Fin n ) ( Fin n ) R );
     ext M
     simp
-  convert conj_isPositive ( M ⊗ₖ ( 1 : Matrix ( Fin n ) ( Fin n ) 𝕜 ) ) using 1
+  convert conj_isPositive ( M ⊗ₖ ( 1 : Matrix ( Fin n ) ( Fin n ) R ) ) using 1
+
+theorem congruence_CP {A B : Type*} [Fintype A] [Fintype B] [DecidableEq A] [DecidableEq B] (M : Matrix B A 𝕜) : (conj M).IsCompletelyPositive :=
+  conj_isCompletelyPositive_of_conj_kron M
 
 theorem IsCompletelyPositive_sum {ι : Type*} [Fintype ι] (f : ι → MatrixMap A B ℂ) (h : ∀ i, (f i).IsCompletelyPositive) :
     (∑ i, f i).IsCompletelyPositive := by
@@ -559,57 +621,8 @@ theorem conj_eq_mulRightLinearMap_comp_mulRightLinearMap (y : Matrix B A R) :
 
 /-- The act of conjugating (not necessarily by a unitary, just by any matrix at all) is completely positive. -/
 theorem conj_isCompletelyPositive (M : Matrix B A R) : (conj M).IsCompletelyPositive := by
-  --TODO: This is identical to congruence_CP
-  intro n m h
   classical
-  open ComplexOrder in
-  open Kronecker in
-  suffices ((M ⊗ₖ 1 : Matrix (B × Fin n) (A × Fin n) R) * m * (M.conjTranspose ⊗ₖ 1)).PosSemidef by
-    convert this
-    --TODO cleanup. Thanks Aristotle
-    ext ⟨ b₁, c₁ ⟩ ⟨ b₂, c₂ ⟩
-    rw [ MatrixMap.kron_def ];
-    simp [Matrix.mul_apply, Matrix.single];
-    have h_split : ∑ x, ∑ x_1, ∑ x_2, ∑ x_3, (if x_2 = c₁ ∧ x_3 = c₂ then (∑ x_4, (∑ x_5, if x = x_5 ∧ x_1 = x_4 then M b₁ x_5 else 0) * (starRingEnd R) (M b₂ x_4)) * m (x, x_2) (x_1, x_3) else 0) = ∑ x, ∑ x_1, (∑ x_4, (∑ x_5, if x = x_5 ∧ x_1 = x_4 then M b₁ x_5 else 0) * (starRingEnd R) (M b₂ x_4)) * m (x, c₁) (x_1, c₂) := by
-      refine Finset.sum_congr rfl fun _ _ => Finset.sum_congr rfl fun _ _ => ?_
-      rw [ Finset.sum_eq_single c₁ ]
-      · simp_all only [Finset.mem_univ, true_and, Finset.sum_ite_eq', ↓reduceIte]
-      · intro b a a_1
-        simp_all only [Finset.mem_univ, ne_eq, false_and, ↓reduceIte, Finset.sum_const_zero]
-      · intro a
-        simp_all only [Finset.mem_univ, not_true_eq_false]
-    convert h_split using 1;
-    rw [ Matrix.mul_assoc ];
-    simp only [Matrix.mul_apply, Matrix.kroneckerMap_apply, Matrix.conjTranspose_apply,
-      RCLike.star_def, Finset.mul_sum _ _ _, Finset.sum_mul, ite_mul, zero_mul];
-    simp [ Matrix.one_apply, Finset.sum_ite, Finset.filter_eq, Finset.filter_and ];
-    have h_reindex : ∑ x ∈ {x | c₁ = x.2}, ∑ x_1 ∈ {x | x.2 = c₂}, M b₁ x.1 * (m x x_1 * (starRingEnd R) (M b₂ x_1.1)) = ∑ x ∈ Finset.univ, ∑ x_1 ∈ Finset.univ, M b₁ x * (m (x, c₁) (x_1, c₂) * (starRingEnd R) (M b₂ x_1)) := by
-      rw [ show ( Finset.univ.filter fun x : A × Fin n => c₁ = x.2 ) = Finset.image ( fun x : A => ( x, c₁ ) ) Finset.univ from ?_, show ( Finset.univ.filter fun x : A × Fin n => x.2 = c₂ ) = Finset.image ( fun x : A => ( x, c₂ ) ) Finset.univ from ?_ ];
-      · simp [Finset.sum_image, Set.InjOn]
-      · ext ⟨ x, y ⟩
-        simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_image, Prod.mk.injEq,
-          exists_eq_left]
-        exact eq_comm;
-      · ext ⟨ x, y ⟩
-        simp [ eq_comm ];
-    have h_inner : ∀ x x_1, ∑ x_2, ∑ x_3 ∈ {x} ∩ if x_1 = x_2 then Finset.univ else ∅, M b₁ x_3 * (starRingEnd R) (M b₂ x_2) * m (x, c₁) (x_1, c₂) = M b₁ x * (starRingEnd R) (M b₂ x_1) * m (x, c₁) (x_1, c₂) := by
-      intro x x_1
-      rw [ Finset.sum_eq_single x_1 ] <;> simp +contextual;
-      simp +contextual [ eq_comm ];
-    simp only [ h_inner ];
-    simpa only [ mul_assoc, mul_comm, mul_left_comm ] using h_reindex
-  obtain ⟨m', rfl⟩ := by
-    classical
-    open MatrixOrder in exact CStarAlgebra.nonneg_iff_eq_star_mul_self.mp h.nonneg
-  convert Matrix.posSemidef_conjTranspose_mul_self (m' * (M ⊗ₖ 1 : Matrix (B × Fin n) (A × Fin n) R).conjTranspose) using 1
-  simp only [Matrix.conjTranspose_mul, Matrix.conjTranspose_conjTranspose, Matrix.mul_assoc]
-  rw [Matrix.mul_assoc, Matrix.mul_assoc]
-  congr
-  ext
-  simp +contextual only [Matrix.kroneckerMap_apply, Matrix.conjTranspose_apply, RCLike.star_def,
-    Matrix.one_apply, apply_ite, mul_one, mul_zero, star_zero, ↓reduceIte, ite_eq_right_iff,
-    map_eq_zero, if_true_left]
-  tauto
+  exact conj_isCompletelyPositive_of_conj_kron M
 
 /-- `MatrixMap.submatrix` is completely positive -/
 theorem IsCompletelyPositive.submatrix (f : B → A) : (MatrixMap.submatrix R f).IsCompletelyPositive := by

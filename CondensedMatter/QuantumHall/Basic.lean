@@ -94,15 +94,26 @@ def vonKlitzingConstant : ℝ := qhe.h / qhe.e ^ 2
 def integerHallConductance (ν : ℤ) : ℝ := ν * qhe.e ^ 2 / qhe.h
 
 /-- Fractional quantum Hall effect: σ_xy = (p/q) e²/h -/
-def fractionalHallConductance (p : ℤ) (q : ℕ) (hq : 0 < q) : ℝ :=
+def fractionalHallConductance (p : ℤ) (q : ℕ) (_hq : 0 < q) : ℝ :=
   (p : ℝ) / (q : ℝ) * qhe.e ^ 2 / qhe.h
 
 /-- The Hall resistance is quantized: R_H = h/(νe²) -/
-def hallResistance (ν : ℤ) (hν : ν ≠ 0) : ℝ :=
+def hallResistance (ν : ℤ) (_hν : ν ≠ 0) : ℝ :=
   qhe.h / (ν * qhe.e ^ 2)
 
+/-- The ideal longitudinal resistance on an integer quantum Hall plateau. -/
+def integerPlateauLongitudinalResistance : ℝ := 0
+
+@[simp]
+theorem integerPlateauLongitudinalResistance_eq_zero :
+    integerPlateauLongitudinalResistance = 0 := rfl
+
 /-- The longitudinal resistance vanishes at integer filling -/
-def longitudinalResistance_at_integer : ℝ := 0
+def longitudinalResistance_at_integer : ℝ := integerPlateauLongitudinalResistance
+
+@[simp]
+theorem longitudinalResistance_at_integer_eq_zero :
+    longitudinalResistance_at_integer = 0 := rfl
 
 /-- The Hall conductance is a topological invariant (Chern number) -/
 theorem hall_conductance_topological (ν : ℤ) :

@@ -644,9 +644,10 @@ lemma contrPCoeff_update_fst_add {n : ℕ} [inst : DecidableEq (Fin n)] {c : Fin
     (p : Pure S c) (x y : S.FD.obj (Discrete.mk (c i))) :
     contrPCoeff i j hij (p.update i (x + y)) =
     contrPCoeff i j hij (p.update i x) + contrPCoeff i j hij (p.update i y) := by
-  change ((S.contr.app { as := c i })).hom.hom' _ = ((S.contr.app { as := c i })).hom.hom' _
-    + ((S.contr.app { as := c i })).hom.hom' _
-  simp [Function.update_of_ne (Ne.symm hij.1), update, TensorProduct.add_tmul, map_add]
+  simp only [contrPCoeff, update, Function.update_self,
+    Function.update_of_ne (Ne.symm hij.1)]
+  rw [TensorProduct.add_tmul]
+  exact map_add _ _ _
 
 @[simp]
 lemma contrPCoeff_update_snd_add {n : ℕ} [inst : DecidableEq (Fin n)] {c : Fin n → C}
@@ -657,15 +658,25 @@ lemma contrPCoeff_update_snd_add {n : ℕ} [inst : DecidableEq (Fin n)] {c : Fin
   simp only [contrPCoeff, Monoidal.tensorUnit_obj, Equivalence.symm_inverse,
     Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,
     Functor.comp_obj, Discrete.functor_obj_eq_as, Function.comp_apply, update, Function.update_self]
-  change ((S.contr.app { as := c i })).hom.hom' _ = ((S.contr.app { as := c i })).hom.hom' _
-    + ((S.contr.app { as := c i })).hom.hom' _
+  change (S.contr.app { as := c i }) _ = (S.contr.app { as := c i }) _
+    + (S.contr.app { as := c i }) _
   rw [Function.update_of_ne hij.1, Function.update_of_ne hij.1,
     Function.update_of_ne hij.1]
   conv_lhs =>
     enter [2, 3]
-    change ((S.FD.map (eqToHom _))).hom.hom' (x + y)
-  simp only [Monoidal.tensorUnit_obj, map_add, TensorProduct.tmul_add]
-  rfl
+    change (S.FD.map (eqToHom _)).hom (x + y)
+  rw [map_add]
+  let e : { as := c j } = (Discrete.functor (Discrete.mk ∘ S.τ)).obj { as := c i } := by
+    simp [hij]
+  let x' := (S.FD.map (eqToHom e)).hom x
+  let y' := (S.FD.map (eqToHom e)).hom y
+  change (S.contr.app { as := c i }).hom (p i ⊗ₜ[k] (x' + y')) =
+    (S.contr.app { as := c i }).hom (p i ⊗ₜ[k] x') +
+      (S.contr.app { as := c i }).hom (p i ⊗ₜ[k] y')
+  have ht : p i ⊗ₜ[k] (x' + y') = p i ⊗ₜ[k] x' + p i ⊗ₜ[k] y' :=
+    TensorProduct.tmul_add (R := k) (p i) x' y'
+  exact (congrArg (S.contr.app { as := c i }).hom ht).trans
+    (map_add (S.contr.app { as := c i }).hom (p i ⊗ₜ[k] x') (p i ⊗ₜ[k] y'))
 
 @[simp]
 lemma contrPCoeff_update_fst_smul {n : ℕ} [inst : DecidableEq (Fin n)] {c : Fin n → C}
@@ -673,15 +684,17 @@ lemma contrPCoeff_update_fst_smul {n : ℕ} [inst : DecidableEq (Fin n)] {c : Fi
     (p : Pure S c) (r : k) (x : S.FD.obj (Discrete.mk (c i))) :
     contrPCoeff i j hij (p.update i (r • x)) =
     r * contrPCoeff i j hij (p.update i x) := by
-  simp only [contrPCoeff, Monoidal.tensorUnit_obj, Equivalence.symm_inverse,
-    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,
-    Functor.comp_obj, Discrete.functor_obj_eq_as, Function.comp_apply, update, Function.update_self,
-    TensorProduct.smul_tmul, TensorProduct.tmul_smul]
-  change ((S.contr.app { as := c i })).hom.hom' _ = r * _
-  simp only [Monoidal.tensorUnit_obj, map_smul, smul_eq_mul]
-  congr 1
-  change ((S.contr.app { as := c i })).hom.hom' _ = ((S.contr.app { as := c i })).hom.hom' _
-  rw [Function.update_of_ne (Ne.symm hij.1), Function.update_of_ne (Ne.symm hij.1)]
+  simp only [contrPCoeff, update, Function.update_self,
+    Function.update_of_ne (Ne.symm hij.1)]
+  let e : { as := c j } = (Discrete.functor (Discrete.mk ∘ S.τ)).obj { as := c i } := by
+    simp [hij]
+  let y' := (S.FD.map (eqToHom e)).hom (p j)
+  change (S.contr.app { as := c i }).hom ((r • x) ⊗ₜ[k] y') =
+    r • (S.contr.app { as := c i }).hom (x ⊗ₜ[k] y')
+  have ht : (r • x) ⊗ₜ[k] y' = r • (x ⊗ₜ[k] y') :=
+    (TensorProduct.smul_tmul' (R := k) r x y').symm
+  exact (congrArg (S.contr.app { as := c i }).hom ht).trans
+    (map_smul (S.contr.app { as := c i }).hom r (x ⊗ₜ[k] y'))
 
 @[simp]
 lemma contrPCoeff_update_snd_smul {n : ℕ} [inst : DecidableEq (Fin n)] {c : Fin n → C}
@@ -692,13 +705,21 @@ lemma contrPCoeff_update_snd_smul {n : ℕ} [inst : DecidableEq (Fin n)] {c : Fi
   simp only [contrPCoeff, Monoidal.tensorUnit_obj, Equivalence.symm_inverse,
     Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,
     Functor.comp_obj, Discrete.functor_obj_eq_as, Function.comp_apply, update, Function.update_self]
-  change ((S.contr.app { as := c i })).hom.hom' _ = r * _
+  change (S.contr.app { as := c i }) _ = r * _
   rw [Function.update_of_ne hij.1, Function.update_of_ne hij.1]
   conv_lhs =>
     enter [2, 3]
-    change ((S.FD.map (eqToHom _))).hom.hom' (r • _)
-  simp only [Monoidal.tensorUnit_obj, map_smul, TensorProduct.tmul_smul, smul_eq_mul]
-  rfl
+    change (S.FD.map (eqToHom _)).hom (r • _)
+  rw [map_smul]
+  let e : { as := c j } = (Discrete.functor (Discrete.mk ∘ S.τ)).obj { as := c i } := by
+    simp [hij]
+  let x' := (S.FD.map (eqToHom e)).hom x
+  change (S.contr.app { as := c i }).hom (p i ⊗ₜ[k] (r • x')) =
+    r • (S.contr.app { as := c i }).hom (p i ⊗ₜ[k] x')
+  have ht : p i ⊗ₜ[k] (r • x') = r • (p i ⊗ₜ[k] x') :=
+    TensorProduct.tmul_smul (R := k) r (p i) x'
+  exact (congrArg (S.contr.app { as := c i }).hom ht).trans
+    (map_smul (S.contr.app { as := c i }).hom r (p i ⊗ₜ[k] x'))
 
 lemma contrPCoeff_dropPair {n : ℕ} {c : Fin (n + 1 + 1) → C}
     (a b : Fin (n + 1 + 1)) (hab : a ≠ b)
@@ -716,7 +737,7 @@ lemma contrPCoeff_symm {n : ℕ} {c : Fin n → C} {i j : Fin n} {hij : i ≠ j 
   simp only [Monoidal.tensorUnit_obj, Equivalence.symm_inverse,
     Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj,
     Functor.comp_obj, Discrete.functor_obj_eq_as, Function.comp_apply]
-  change _ = (ConcreteCategory.hom (S.contr.app { as := c j }).hom) _
+  change _ = (S.contr.app { as := c j }) _
   congr 2
   · change ((S.FD.map (eqToHom _) ≫ S.FD.map (eqToHom _)).hom) _ = _
     rw [← S.FD.map_comp]
@@ -748,31 +769,35 @@ lemma contrPCoeff_mul_dropPair {n : ℕ} {c : Fin (n + 1 + 1 + 1 + 1) → C}
 lemma contrPCoeff_invariant {n : ℕ} {c : Fin n → C} {i j : Fin n}
     {hij : i ≠ j ∧ S.τ (c i) = c j} {p : Pure S c}
     (g : G) : (g • p).contrPCoeff i j hij = p.contrPCoeff i j hij := by
+  change (g • p).contrPCoeff i j hij =
+    (S.contr.app (Discrete.mk (c i)))
+      ((p i) ⊗ₜ ((S.FD.map (eqToHom (by simp [hij]))) (p j)))
   calc (g • p).contrPCoeff i j hij
     _ = (S.contr.app (Discrete.mk (c i)))
-          ((S.FD.obj _).ρ g (p i) ⊗ₜ ((S.FD.map (eqToHom (by simp [hij])))
-          ((S.FD.obj _).ρ g (p j)))) := rfl
+      ((S.FD.obj _).ρ g (p i) ⊗ₜ ((S.FD.map (eqToHom (by simp [hij])))
+      ((S.FD.obj _).ρ g (p j)))) := rfl
     _ = (S.contr.app (Discrete.mk (c i)))
-          ((S.FD.obj _).ρ g (p i) ⊗ₜ (S.FD.obj _).ρ g ((S.FD.map (eqToHom (by simp [hij])))
-          (p j))) := by
+      ((S.FD.obj _).ρ g (p i) ⊗ₜ (S.FD.obj _).ρ g ((S.FD.map (eqToHom (by simp [hij])))
+      (p j))) := by
         congr 2
         simp only [Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,
           Functor.comp_obj, Discrete.functor_obj_eq_as, Function.comp_apply,
           Action.FunctorCategoryEquivalence.functor_obj_obj]
         have h1 := (S.FD.map (eqToHom (by simp [hij] : { as := c j } =
-          (Discrete.functor (Discrete.mk ∘ S.τ)).obj { as := c i }))).comm g
-        have h2 := congrFun (congrArg (fun x => x.hom) h1) (p j)
-        simp only [Discrete.functor_obj_eq_as, Function.comp_apply, ModuleCat.hom_comp, Rep.ρ_hom,
-          LinearMap.coe_comp] at h2
+          (Discrete.functor (Discrete.mk ∘ S.τ)).obj { as := c i }))).hom.2 g
+        have h2 := LinearMap.congr_fun h1 (p j)
+        simp only [Discrete.functor_obj_eq_as, Function.comp_apply, LinearMap.coe_comp] at h2
         exact h2
-  have h1 := (S.contr.app (Discrete.mk (c i))).comm g
-  have h2 := congrFun (congrArg (fun x => x.hom) h1) ((p i) ⊗ₜ
-    ((S.FD.map (eqToHom (by simp [hij]))) (p j)))
-  simp only [Monoidal.tensorUnit_obj, ModuleCat.hom_comp, Rep.ρ_hom, Equivalence.symm_inverse,
-    Action.functorCategoryEquivalence_functor, Functor.comp_obj, Discrete.functor_obj_eq_as,
-    Function.comp_apply, Action.FunctorCategoryEquivalence.functor_obj_obj,
-    LinearMap.coe_comp] at h2
-  exact h2
+    _ = (S.contr.app (Discrete.mk (c i)))
+      ((p i) ⊗ₜ ((S.FD.map (eqToHom (by simp [hij]))) (p j))) := by
+      have h1 := (S.contr.app (Discrete.mk (c i))).hom.2 g
+      have h2 := LinearMap.congr_fun h1 ((p i) ⊗ₜ
+        ((S.FD.map (eqToHom (by simp [hij]))) (p j)))
+      simp only [Monoidal.tensorUnit_obj, Equivalence.symm_inverse,
+        Action.functorCategoryEquivalence_functor, Functor.comp_obj, Discrete.functor_obj_eq_as,
+        Function.comp_apply, Action.FunctorCategoryEquivalence.functor_obj_obj,
+        LinearMap.coe_comp] at h2
+      exact h2
 
 /-!
 
@@ -798,7 +823,16 @@ lemma contrP_update_add {n : ℕ} [inst : DecidableEq (Fin (n + 1 +1))] {c : Fin
   rcases eq_or_exists_dropPairEmb i j hij.1 m with rfl | rfl | ⟨m', rfl⟩
   · simp [contrP, add_smul]
   · simp [contrP, add_smul]
-  · simp [contrP]
+  · simp only [contrP, contrPCoeff_update_dropPairEmb]
+    simp only [dropPair_update_dropPairEmb]
+    have h := Pure.toTensor_update_add (S := S) (p.dropPair i j hij.1) m' x y
+    calc
+      contrPCoeff i j hij p • ((dropPair i j hij.1 p).update m' (x + y)).toTensor
+          = contrPCoeff i j hij p •
+              (((dropPair i j hij.1 p).update m' x).toTensor +
+                ((dropPair i j hij.1 p).update m' y).toTensor) := congrArg _ h
+      _ = contrPCoeff i j hij p • ((dropPair i j hij.1 p).update m' x).toTensor +
+          contrPCoeff i j hij p • ((dropPair i j hij.1 p).update m' y).toTensor := smul_add _ _ _
 
 @[simp]
 lemma contrP_update_smul {n : ℕ} [inst : DecidableEq (Fin (n + 1 +1))] {c : Fin (n + 1 + 1) → C}
@@ -809,7 +843,15 @@ lemma contrP_update_smul {n : ℕ} [inst : DecidableEq (Fin (n + 1 +1))] {c : Fi
   rcases eq_or_exists_dropPairEmb i j hij.1 m with rfl | rfl | ⟨m', rfl⟩
   · simp [contrP, smul_smul]
   · simp [contrP, smul_smul]
-  · simp [contrP, smul_smul, mul_comm]
+  · simp only [contrP, contrPCoeff_update_dropPairEmb]
+    simp only [dropPair_update_dropPairEmb]
+    have h := Pure.toTensor_update_smul (S := S) (p.dropPair i j hij.1) m' r x
+    calc
+      contrPCoeff i j hij p • ((dropPair i j hij.1 p).update m' (r • x)).toTensor
+          = contrPCoeff i j hij p • (r • ((dropPair i j hij.1 p).update m' x).toTensor) :=
+            congrArg _ h
+      _ = r • contrPCoeff i j hij p • ((dropPair i j hij.1 p).update m' x).toTensor := by
+        simp [smul_smul, mul_comm]
 
 @[simp]
 lemma contrP_equivariant {n : ℕ} {c : Fin (n + 1 + 1) → C}

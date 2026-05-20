@@ -175,7 +175,13 @@ lemma contr_basis {d : ℕ} {c : realLorentzTensor.Color}
     simp [Lorentz.contrBasisFin]
     rw [Pi.single_apply]
     refine ite_congr ?h₁ (congrFun rfl) (congrFun rfl)
-    simp only [eq_comm, EmbeddingLike.apply_eq_iff_eq, Fin.ext_iff, repDim_up]
+    apply propext
+    constructor
+    · intro h
+      have hji : j = i := finSumFinEquiv.symm.injective h
+      exact congrArg Fin.val hji.symm
+    · intro h
+      exact congrArg finSumFinEquiv.symm (Fin.ext h).symm
   | .down =>
     change Lorentz.coContrContract.hom
       (Lorentz.coBasisFin d i ⊗ₜ Lorentz.contrBasisFin d j) = _
@@ -184,7 +190,13 @@ lemma contr_basis {d : ℕ} {c : realLorentzTensor.Color}
       mul_one]
     rw [Pi.single_apply]
     refine ite_congr ?_ (congrFun rfl) (congrFun rfl)
-    simp only [eq_comm, EmbeddingLike.apply_eq_iff_eq, Fin.ext_iff]
+    apply propext
+    constructor
+    · intro h
+      have hji : j = i := finSumFinEquiv.symm.injective h
+      exact congrArg Fin.val hji.symm
+    · intro h
+      exact congrArg finSumFinEquiv.symm (Fin.ext h).symm
 
 open Tensor
 

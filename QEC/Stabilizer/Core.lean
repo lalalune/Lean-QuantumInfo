@@ -2,6 +2,12 @@ import QEC.Stabilizer.Core.StabilizerGroup
 import QEC.Stabilizer.Core.SubgroupLemmas
 import QEC.Stabilizer.Core.CSS
 import QEC.Stabilizer.Core.CSSNoNegI
+import QEC.Stabilizer.Core.CSSCommutationLemmas
+import QEC.Stabilizer.Core.CSSDistance
+import QEC.Stabilizer.Core.CentralizerLemmas
 import QEC.Stabilizer.Core.StabilizerCode
 import QEC.Stabilizer.Core.CodeDistance
+import QEC.Stabilizer.Core.Codespace
+import QEC.Stabilizer.Core.GeneratorListLemmas
 import QEC.Stabilizer.Core.Gauging
+import QEC.Stabilizer.Core.LogicalCliffordAction

@@ -72,7 +72,14 @@ lemma evalP_update_add [inst : DecidableEq (Fin (n + 1))] (i j : Fin (n + 1))
   simp only [evalP]
   rcases Fin.eq_self_or_eq_succAbove i j with rfl | ⟨j, rfl⟩
   · simp [add_smul]
-  · simp
+  · simp only [evalPCoeff_update_succAbove, Pure.update_succAbove_drop]
+    have h := Pure.toTensor_update_add (S := S) (p.drop i) j x y
+    calc
+      evalPCoeff i b p • ((p.drop i).update j (x + y)).toTensor =
+          evalPCoeff i b p • (((p.drop i).update j x).toTensor +
+            ((p.drop i).update j y).toTensor) := congrArg (fun t => evalPCoeff i b p • t) h
+      _ = evalPCoeff i b p • ((p.drop i).update j x).toTensor +
+          evalPCoeff i b p • ((p.drop i).update j y).toTensor := smul_add _ _ _
 
 @[simp]
 lemma evalP_update_smul [inst : DecidableEq (Fin (n + 1))] (i j : Fin (n + 1))
@@ -84,7 +91,14 @@ lemma evalP_update_smul [inst : DecidableEq (Fin (n + 1))] (i j : Fin (n + 1))
   simp only [evalP]
   rcases Fin.eq_self_or_eq_succAbove i j with rfl | ⟨j, rfl⟩
   · simp [smul_smul]
-  · simp [smul_smul, mul_comm]
+  · simp only [evalPCoeff_update_succAbove, Pure.update_succAbove_drop]
+    have h := Pure.toTensor_update_smul (S := S) (p.drop i) j r x
+    calc
+      evalPCoeff i b p • ((p.drop i).update j (r • x)).toTensor =
+          evalPCoeff i b p • (r • ((p.drop i).update j x).toTensor) :=
+            congrArg (fun t => evalPCoeff i b p • t) h
+      _ = r • evalPCoeff i b p • ((p.drop i).update j x).toTensor := by
+        simp [smul_smul, mul_comm]
 
 /-!
 

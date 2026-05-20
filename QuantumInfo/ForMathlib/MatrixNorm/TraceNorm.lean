@@ -79,7 +79,7 @@ theorem traceNorm_zero_iff (A : Matrix m n R) : A.traceNorm = 0 ↔ A = 0 := by
     let S : Matrix n n R := CFC.sqrt (Aᴴ * A)
     have hpsd : S.PosSemidef := by
       refine Matrix.nonneg_iff_posSemidef.mp ?_
-      simpa [S] using (CFC.sqrt_nonneg (Aᴴ * A))
+      simp [S]
     have htrace : S.trace = 0 := by
       refine RCLike.ext ?_ ?_
       · simpa [traceNorm, S] using h
@@ -171,7 +171,7 @@ theorem traceNorm_eq_max_tr_U {A : Matrix n n ℂ} (hA : A.IsHermitian) :
   have hspec : A = (V : Matrix n n ℂ) * D * star (V : Matrix n n ℂ) := by
     simpa [V, D] using hA.spectral_theorem
   have hV : star (V : Matrix n n ℂ) * (V : Matrix n n ℂ) = 1 := by
-    simpa using unitary.coe_star_mul_self V
+    simp
   refine ⟨?_, ?_⟩
   · refine ⟨V * S * star V, ?_⟩
     calc

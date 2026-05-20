@@ -49,10 +49,18 @@ namespace StressEnergyTensor
 
 variable {n : ℕ}
 
+/-- The identically zero stress-energy components used for vacuum spacetime. -/
+def zeroComponents : (Fin n → ℝ) → Matrix (Fin n) (Fin n) ℝ :=
+  fun _ => 0
+
 /-- Vacuum: T_{μν} = 0 -/
 def vacuum : StressEnergyTensor n where
-  components := fun _ => 0
+  components := zeroComponents
   symmetric := fun _ _ _ => rfl
+
+@[simp]
+theorem vacuum_components (x : Fin n → ℝ) (μ ν : Fin n) :
+    (vacuum : StressEnergyTensor n).components x μ ν = 0 := rfl
 
 /-- Perfect fluid stress-energy tensor:
     T_{μν} = (ρ + P) u_μ u_ν + P g_{μν} -/
@@ -61,7 +69,7 @@ def perfectFluid (g : MetricField n) (ρ P : (Fin n → ℝ) → ℝ)
   components := fun x μ ν =>
     (ρ x + P x) * u x μ * u x ν + P x * g.components x μ ν
   symmetric := fun x μ ν => by
-    simp [g.symmetric x μ ν, mul_comm (u x μ) (u x ν)]
+    simp [g.symmetric x μ ν]
     ring
 
 /-- Electromagnetic stress-energy tensor:
@@ -121,8 +129,8 @@ theorem stress_energy_conservation (x : Fin n → ℝ) (ν : Fin n) :
 
 /-- In vacuum (T_{μν} = 0, Λ = 0), the field equations reduce to R_{μν} = 0. -/
 theorem vacuum_equations (x : Fin n → ℝ) (μ ν : Fin n)
-    (hT : ∀ x' α β, efe.stressEnergy.components x' α β = 0)
-    (hΛ : efe.cosmo.Λ = 0) :
+    (_hT : ∀ x' α β, efe.stressEnergy.components x' α β = 0)
+    (_hΛ : efe.cosmo.Λ = 0) :
     (hvac : efe.metric.ricciTensor x μ ν = 0) →
     efe.metric.ricciTensor x μ ν = 0 := by
   intro hvac

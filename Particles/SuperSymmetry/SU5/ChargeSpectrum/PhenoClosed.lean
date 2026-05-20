@@ -170,14 +170,18 @@ lemma containsPhenoCompletionsOfMinimallyAllows_iff_completionsTopYukawa {S5 S10
     ∀ y ∈ completionsTopYukawa S5 x, ¬ y.IsPhenoConstrained
       ∧ ¬ y.YukawaGeneratesDangerousAtLevel 1 → y ∈ charges := by
   rw [ContainsPhenoCompletionsOfMinimallyAllows]
-  have h1 (x : ChargeSpectrum 𝓩) (hx : x ∈ (minimallyAllowsTermsOfFinset S5 S10 topYukawa)) :
-    ¬ x.IsPhenoConstrained ↔ ¬ x.IsPhenoConstrained := by
-    rfl
-  conv_lhs =>
-    enter [x, hx]
-    rw [completions_eq_completionsTopYukawa_of_mem_minimallyAllowsTermsOfFinset x hx]
-    rw [h1 x hx]
-  simp
+  constructor
+  · intro h x hx y hy hnot
+    exact h x hx (not_isPhenoConstrained_of_minimallyAllowsTermsOfFinset_topYukawa hx) y
+      (by
+        rw [completions_eq_completionsTopYukawa_of_mem_minimallyAllowsTermsOfFinset x hx]
+        exact hy)
+      hnot
+  · intro h x hx _ y hy hnot
+    exact h x hx y
+      (by
+        rwa [← completions_eq_completionsTopYukawa_of_mem_minimallyAllowsTermsOfFinset x hx])
+      hnot
 
 /-!
 

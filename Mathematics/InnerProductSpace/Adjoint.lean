@@ -95,19 +95,32 @@ lemma HasAdjoint.comp {f : F → G} {g : E → F} {f' g'}
 lemma HasAdjoint.prodMk {f : E → F} {g : E → G} {f' g'}
     (hf : HasAdjoint 𝕜 f f') (hg : HasAdjoint 𝕜 g g') :
     HasAdjoint 𝕜 (fun x : E => (f x, g x)) (fun yz => f' yz.1 + g' yz.2) := by
-  constructor; intros
-  simp [inner_add_left',
-      hf.adjoint_inner_left, hg.adjoint_inner_left]
+  constructor
+  intro x y
+  rw [inner_add_left', hf.adjoint_inner_left, hg.adjoint_inner_left]
+  exact (prod_inner_apply' (𝕜 := 𝕜) y (f x, g x)).symm
 
 lemma HasAdjoint.fst {f : E → F×G} {f'} (hf : HasAdjoint 𝕜 f f') :
     HasAdjoint 𝕜 (fun x : E => (f x).1) (fun y => f' (y, 0)) := by
-  constructor; intros
-  simp[hf.adjoint_inner_left]
+  constructor
+  intro x y
+  rw [hf.adjoint_inner_left]
+  calc
+    inner 𝕜 (y, 0) (f x) =
+        inner 𝕜 y (f x).1 + inner 𝕜 (0 : G) (f x).2 :=
+      prod_inner_apply' (𝕜 := 𝕜) (E := F) (F := G) (y, 0) (f x)
+    _ = inner 𝕜 y (f x).1 := by simp
 
 lemma HasAdjoint.snd {f : E → F×G} {f'} (hf : HasAdjoint 𝕜 f f') :
     HasAdjoint 𝕜 (fun x : E => (f x).2) (fun z => f' (0, z)) := by
-  constructor; intros
-  simp[hf.adjoint_inner_left]
+  constructor
+  intro x y
+  rw [hf.adjoint_inner_left]
+  calc
+    inner 𝕜 (0, y) (f x) =
+        inner 𝕜 (0 : F) (f x).1 + inner 𝕜 y (f x).2 :=
+      prod_inner_apply' (𝕜 := 𝕜) (E := F) (F := G) (0, y) (f x)
+    _ = inner 𝕜 y (f x).2 := by simp
 
 lemma HasAdjoint.neg {f : E → F} {f'} (hf : HasAdjoint 𝕜 f f') :
     HasAdjoint 𝕜 (fun x : E => -f x) (fun y => -f' y) := by

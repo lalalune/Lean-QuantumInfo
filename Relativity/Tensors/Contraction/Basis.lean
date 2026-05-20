@@ -144,7 +144,7 @@ lemma Pure.dropPair_basisVector {n : ℕ} {c : Fin (n + 1 + 1) → C}
     Pure.dropPair i j hij (basisVector c b) =
     basisVector (S := S) (c ∘ Pure.dropPairEmb i j) fun m => b (dropPairEmb i j m) := by
   funext l
-  simp [dropPair, basisVector]
+  rfl
 
 lemma contrT_basis_repr_apply {n : ℕ} {c : Fin (n + 1 + 1) → C} {i j : Fin (n + 1 + 1)}
     (h : i ≠ j ∧ S.τ (c i) = c j) (t : Tensor S c)

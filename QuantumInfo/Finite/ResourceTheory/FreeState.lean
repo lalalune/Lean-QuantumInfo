@@ -28,11 +28,11 @@ class ResourcePretheory (ι : Type*) extends Semigroup ι where
   /-- The indexing of each Hilbert space -/
   H : ι → Type*
   /-- Each space is finite -/
-  [FinH : ∀ i, Fintype (H i)]
+  FinH : ∀ i, Fintype (H i)
   /-- Each object has decidable equality -/
-  [DecEqH : ∀ i, DecidableEq (H i)]
+  DecEqH : ∀ i, DecidableEq (H i)
   /-- Each space is nonempty (dimension at least 1) -/
-  [NonemptyH : ∀ i, Nonempty (H i)]
+  NonemptyH : ∀ i, Nonempty (H i)
   /-- The product structure induces an isomorphism of Hilbert spaces -/
   prodEquiv i j : H (i * j) ≃ (H i) × (H j)
   --Possible we want some fact like the associativity of `prod` or the existence of an identity space,
@@ -50,9 +50,19 @@ class ResourcePretheory (ι : Type*) extends Semigroup ι where
     )
      = Equiv.cast (congrArg H <| mul_assoc i j k)
 
-attribute [instance] ResourcePretheory.FinH
-attribute [instance] ResourcePretheory.DecEqH
-attribute [instance] ResourcePretheory.NonemptyH
+@[reducible, instance]
+def ResourcePretheory.instFinH {ι : Type*} [self : ResourcePretheory ι] (i : ι) :
+    Fintype (self.H i) :=
+  self.FinH i
+
+@[reducible, instance]
+def ResourcePretheory.instDecEqH {ι : Type*} [self : ResourcePretheory ι] (i : ι) :
+    DecidableEq (self.H i) :=
+  self.DecEqH i
+
+instance ResourcePretheory.instNonemptyH {ι : Type*} [self : ResourcePretheory ι] (i : ι) :
+    Nonempty (self.H i) :=
+  self.NonemptyH i
 
 namespace ResourcePretheory
 
@@ -91,6 +101,18 @@ theorem prodRelabel_relabel_cast_prod
   subst hik
   subst hlj
   rfl
+
+/-- Heterogeneous equality is preserved by `prodRelabel` when the resource labels agree. -/
+theorem prodRelabel_heq_of_eq_labels
+    {ρ₁ : MState (H i)} {ρ₂ : MState (H j)}
+    {σ₁ : MState (H k)} {σ₂ : MState (H l)}
+    (hik : k = i) (hlj : l = j)
+    (h₁ : ρ₁ ≍ σ₁) (h₂ : ρ₂ ≍ σ₂) :
+    ρ₁ ⊗ᵣ ρ₂ ≍ σ₁ ⊗ᵣ σ₂ := by
+  subst hik
+  subst hlj
+  rw [heq_eq_eq] at h₁ h₂
+  rw [h₁, h₂]
 
 /-- The `prod` operation of `ResourcePretheory` gives the natural product operation on `CPTPMap`s. Accessible
 by the notation `M₁ ⊗ᶜᵖᵣ M₂`. -/
@@ -234,28 +256,21 @@ theorem statePow_add_relabel (ρ : MState (H i)) (m n : ℕ) :
   obtain ⟨h, h₂⟩ := h
   rw [h₂, MState.relabel_cast]
 
+theorem statePow_mul_one (ρ : MState (H i)) (m : ℕ) :
+    ρ ⊗ᵣ^[m * 1] ≍ ρ ⊗ᵣ^[m] := by
+  rw [mul_one]
+
 theorem statePow_mul (ρ : MState (H i)) (m n : ℕ) : ρ ⊗ᵣ^[m * n] ≍ (ρ ⊗ᵣ^[m]) ⊗ᵣ^[n] := by
   rw [← eq_cast_iff_heq]; swap
   · rw [spacePow_mul]
   rw [eq_cast_iff_heq]
   induction n
-  · simp
+  · rfl
   · rename_i n ih
     rw [statePow_succ, mul_add]
-    --This is TERRIBLE. There has to be a better way. TODO Cleanup
     trans ρ ⊗ᵣ^[m * n] ⊗ᵣ ρ ⊗ᵣ^[m * 1]
     · apply statePow_add
-    · rw [← eq_cast_iff_heq] at ih; swap
-      · congr 2 <;> simp [pow_mul]
-      rw [← eq_cast_iff_heq]; swap
-      · congr 2 <;> simp [pow_mul]
-      rw [← MState.relabel_cast _ (by simp [pow_mul])]
-      rw [prodRelabel_relabel_cast_prod]
-      · congr
-        · rw [ih, MState.relabel_cast]
-        · rw [MState.relabel_cast]
-          rw [eq_cast_iff_heq]
-          · rw [mul_one]
+    · refine prodRelabel_heq_of_eq_labels ?_ ?_ ih (statePow_mul_one ρ m)
       · rw [pow_mul]
       · rw [mul_one]
 
@@ -294,7 +309,9 @@ lemma sInf_spectrum_spacePow (σ : MState (H i)) (n : ℕ) :
         simp [default, MState.uniform, MState.ofClassical, MState.m, HermitianMat.diagonal]
     rw [spectrum.one_eq, csInf_singleton]
   · rename_i n ih
-    rw [statePow_succ, sInf_spectrum_rprod, ih, pow_succ]
+    rw [statePow_succ]
+    change sInf (spectrum ℝ ((σ ⊗ᵣ^[n]) ⊗ᵣ σ).m) = sInf (spectrum ℝ σ.m) ^ (n + 1)
+    rw [sInf_spectrum_rprod (ρ := σ ⊗ᵣ^[n]) (σ := σ), ih, pow_succ]
 
 end UnitalPretheory
 

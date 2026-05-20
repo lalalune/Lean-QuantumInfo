@@ -357,10 +357,16 @@ structure KMSGeometricContent where
 /-- The singlet correlation function: E(θ) = -cos(θ) -/
 noncomputable def singletCorrelation (θ : ℝ) : ℝ := -Real.cos θ
 
+/-- Alice's reference direction for the optimal CHSH measurement configuration. -/
+def measurementAliceReferenceAngle : ℝ := 0
+
+@[simp]
+theorem measurementAliceReferenceAngle_eq_zero : measurementAliceReferenceAngle = 0 := rfl
+
 /-- The optimal angles for CHSH with sign convention E₀₁ - E₀₀ + E₁₀ + E₁₁ -/
 structure OptimalCHSHAngles where
   /-- Alice's first setting (reference direction) -/
-  a₀ : ℝ := 0
+  a₀ : ℝ := measurementAliceReferenceAngle
   /-- Alice's second setting -/
   a₁ : ℝ := -Real.pi / 2  -- Changed from π/2 to -π/2
   /-- Bob's first setting -/
@@ -382,12 +388,8 @@ lemma optimal_angles_check :
     config.b₁ - config.a₀ = 3 * Real.pi / 4 ∧
     config.b₀ - config.a₀ = Real.pi / 4 ∧
     config.b₀ - config.a₁ = 3 * Real.pi / 4 ∧
-    config.b₁ - config.a₁ = 5 * Real.pi / 4 := by
-  simp only
-  constructor
-  · ring
-  constructor
-  · ring
+  config.b₁ - config.a₁ = 5 * Real.pi / 4 := by
+  simp [measurementAliceReferenceAngle]
   constructor
   · ring
   · ring
@@ -416,6 +418,7 @@ lemma quantum_chsh_optimal :
   -- Goal should simplify to showing:
   -- -cos(3π/4) - (-cos(π/4)) + (-cos(3π/4)) + (-cos(5π/4)) = 2√2
   -- = √2/2 + √2/2 + √2/2 + √2/2 = 2√2
+  simp only [measurementAliceReferenceAngle_eq_zero]
   rw [show (3 : ℝ) * Real.pi / 4 - 0 = 3 * Real.pi / 4 by ring]
   rw [show Real.pi / 4 - 0 = Real.pi / 4 by ring]
   rw [show Real.pi / 4 - -Real.pi / 2 = 3 * Real.pi / 4 by ring]

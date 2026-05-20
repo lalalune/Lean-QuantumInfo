@@ -58,7 +58,7 @@ lemma mem_iff_self_mul_dual : Λ ∈ LorentzGroup d ↔ Λ * dual Λ = 1 := by
 
 lemma mem_iff_dual_mul_self : Λ ∈ LorentzGroup d ↔ dual Λ * Λ = 1 := by
   rw [mem_iff_self_mul_dual]
-  exact Matrix.mul_eq_one_comm
+  exact mul_eq_one_comm
 
 lemma mem_iff_transpose : Λ ∈ LorentzGroup d ↔ Λᵀ ∈ LorentzGroup d := by
   refine Iff.intro (fun h ↦ ?_) (fun h ↦ ?_)
@@ -75,7 +75,12 @@ lemma mem_iff_transpose : Λ ∈ LorentzGroup d ↔ Λᵀ ∈ LorentzGroup d := 
 
 lemma mem_iff_neg_mem : Λ ∈ LorentzGroup d ↔ -Λ ∈ LorentzGroup d := by
   rw [mem_iff_self_mul_dual, mem_iff_self_mul_dual]
-  simp [dual]
+  have hdual : dual (-Λ) = -dual Λ := by
+    simp [dual]
+  rw [hdual]
+  rw [neg_mul, mul_neg]
+  have hneg : - -(Λ * dual Λ) = Λ * dual Λ := neg_neg _
+  rw [hneg]
 
 lemma mem_mul (hΛ : Λ ∈ LorentzGroup d) (hΛ' : Λ' ∈ LorentzGroup d) : Λ * Λ' ∈ LorentzGroup d := by
   rw [mem_iff_dual_mul_self, dual_mul]
@@ -247,7 +252,7 @@ embedding.
 
 /-- The homomorphism of the Lorentz group into `GL (Fin 4) ℝ`. -/
 def toGL : LorentzGroup d →* GL (Fin 1 ⊕ Fin d) ℝ where
-  toFun A := ⟨A.1, (A⁻¹).1, Matrix.mul_eq_one_comm.mpr $ mem_iff_dual_mul_self.mp A.2,
+  toFun A := ⟨A.1, (A⁻¹).1, mul_eq_one_comm.mpr $ mem_iff_dual_mul_self.mp A.2,
     mem_iff_dual_mul_self.mp A.2⟩
   map_one' :=
     (GeneralLinearGroup.ext_iff _ 1).mpr fun _ => congrFun rfl

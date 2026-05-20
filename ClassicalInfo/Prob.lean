@@ -90,6 +90,7 @@ instance : LinearOrderedCommMonoidWithZero Prob where
     rw [← Subtype.coe_lt_coe]
     exact mul_lt_mul_of_pos_left hb ha
   zero_le a := a.2.1
+  bot_le a := a.2.1
 
 @[simp]
 theorem zero_le_coe {p : Prob} : 0 ≤ (p : ℝ) :=
@@ -179,14 +180,34 @@ theorem one_minus_inv (p : Prob) : 1 - (1 - p) = p := by
   simp
 
 instance : OrderTopology Prob :=
-  orderTopology_of_ordConnected (ht := Set.ordConnected_Icc)
+  orderTopology_of_ordConnected (t := Set.Icc (0 : ℝ) 1)
 
 @[simp, norm_cast]
 theorem coe_iInf {ι : Type*} [Nonempty ι] (f : ι → Prob) : ↑(⨅ t, f t) = (⨅ t, f t : ℝ) := by
-  apply Monotone.map_ciInf_of_continuousAt
-  · fun_prop
-  · exact fun _ _ ↦ id
-  · exact OrderBot.bddBelow _
+  let r : ℝ := ⨅ t, (f t : ℝ)
+  have hbdr : BddBelow (Set.range fun t ↦ (f t : ℝ)) := by
+    refine ⟨0, ?_⟩
+    rintro _ ⟨i, rfl⟩
+    exact (f i).2.1
+  have hr0 : 0 ≤ r := by
+    rw [le_ciInf_iff hbdr]
+    intro i
+    exact (f i).2.1
+  have hr1 : r ≤ 1 := by
+    obtain ⟨i⟩ := ‹Nonempty ι›
+    exact (ciInf_le hbdr i).trans (f i).2.2
+  let q : Prob := ⟨r, hr0, hr1⟩
+  apply le_antisymm
+  · rw [le_ciInf_iff hbdr]
+    intro i
+    exact_mod_cast (ciInf_le (OrderBot.bddBelow _) i : (⨅ t, f t) ≤ f i)
+  · change r ≤ ((⨅ t, f t : Prob) : ℝ)
+    have hq : q ≤ ⨅ t, f t := by
+      apply le_iInf
+      intro i
+      change r ≤ (f i : ℝ)
+      exact ciInf_le hbdr i
+    exact_mod_cast hq
 
 instance : Nontrivial Prob where
   exists_pair_ne := ⟨0, 1, by simp [← Prob.ne_iff]⟩
@@ -320,6 +341,7 @@ end pi
 
 /-- Mixable instances on subtypes (of other mixable types), assuming that they
  have the correct closure properties. -/
+@[reducible]
 def instSubtype {T : Type*} {P : T → Prop} (inst : Mixable U T)
     (h : ∀{x y:T},
       ∀⦃a b : ℝ⦄, (ha : 0 ≤ a) → (hb : 0 ≤ b) → (hab : a + b = 1) →
@@ -377,7 +399,7 @@ section negLog
 open ENNReal
 
 /-- Map a probability [0,1] to [0,+∞] with -log p. Special case that 0 maps to +∞ (not 0, as Real.log
-does). This makes it `Antitone`.
+does). This makes it `StrictAnti`.
 -/
 noncomputable def negLog : Prob → ENNReal :=
   fun p ↦ if p = 0 then ∞ else .ofNNReal ⟨-Real.log p,
@@ -386,22 +408,23 @@ noncomputable def negLog : Prob → ENNReal :=
 --Note that this is an em-dash `—` and not a minus `-`, to make the notation work.
 scoped notation "—log " => negLog
 
---TODO: Upgrade to `StrictAnti`. Even better: bundle negLog as `Prob ≃o ENNRealᵒᵈ`.
-theorem negLog_Antitone : Antitone negLog := by
+theorem negLog_StrictAnti : StrictAnti negLog := by
   intro x y h
   dsimp [negLog]
   split_ifs with h₁ h₂ h₂
-  · rfl
+  · exact (h.ne (h₂.trans h₁.symm)).elim
   · subst y
     exfalso
-    change x.1 ≤ 0 at h
-    have : ¬(x.1 = 0) := unitInterval.coe_ne_zero.mpr (by assumption)
-    have : 0 ≤ x.1 := zero_le
-    linarith +splitNe
-  · exact OrderTop.le_top _
-  · rw [ENNReal.coe_le_coe, ← NNReal.coe_le_coe, coe_mk, coe_mk, neg_le_neg_iff]
-    apply (Real.log_le_log_iff _ _).mpr h
-    <;> exact lt_of_le_of_ne zero_le (unitInterval.coe_ne_zero.mpr (by assumption)).symm
+    change x.1 < 0 at h
+    exact not_lt_of_ge x.2.1 h
+  · exact ENNReal.coe_lt_top
+  · rw [ENNReal.coe_lt_coe, ← NNReal.coe_lt_coe, coe_mk, coe_mk, neg_lt_neg_iff]
+    apply Real.log_lt_log
+    · exact lt_of_le_of_ne zero_le (unitInterval.coe_ne_zero.mpr h₂).symm
+    · exact h
+
+theorem negLog_Antitone : Antitone negLog := by
+  exact negLog_StrictAnti.antitone
 
 @[simp]
 theorem negLog_zero : —log (0 : Prob) = ⊤ := by
@@ -409,7 +432,11 @@ theorem negLog_zero : —log (0 : Prob) = ⊤ := by
 
 @[simp]
 theorem negLog_one : —log 1 = 0 := by
-  simp [negLog]
+  rw [negLog, if_neg one_ne_zero]
+  apply ENNReal.coe_eq_zero.mpr
+  apply NNReal.eq
+  change -Real.log (1 : ℝ) = 0
+  simp [Real.log_one]
 
 @[simp]
 theorem negLog_eq_top_iff {p : Prob} : —log p = ⊤ ↔ p = 0 := by
@@ -476,14 +503,19 @@ theorem zero_lt_negLog {p : Prob} : 0 < —log p ↔ p ≠ 1 := by
   split_ifs with h
   · simp [h]
   constructor <;> intro h₂ <;> contrapose! h₂
-  · simp [h₂]
+  · subst p
+    apply le_of_eq
+    apply ENNReal.coe_eq_zero.mpr
+    apply NNReal.eq
+    change -Real.log (1 : ℝ) = 0
+    simp [Real.log_one]
   simp only [nonpos_iff_eq_zero, ENNReal.coe_eq_zero] at h₂
-  rw [Subtype.ext_iff] at h₂
-  simp only [NNReal.val_eq_coe, NNReal.coe_zero, neg_eq_zero, Real.log_eq_zero,
-    Set.Icc.coe_eq_zero, Set.Icc.coe_eq_one] at h₂
+  replace h₂ := congr_arg (fun x : ℝ≥0 ↦ (x : ℝ)) h₂
+  simp only [NNReal.coe_mk, NNReal.coe_zero, neg_eq_zero,
+    Real.log_eq_zero, Set.Icc.coe_eq_zero, Set.Icc.coe_eq_one] at h₂
   rcases h₂ with h₂|h₂|h₂
   · contradiction
-  · assumption
+  · exact h₂
   · linarith [p.zero_le_coe]
 
 @[fun_prop]
@@ -496,11 +528,13 @@ theorem Continuous_negLog : Continuous negLog := by
     rw [Metric.eventually_nhds_iff]
     use Real.exp (-x), by positivity
     rintro ⟨a, ha0, ha1⟩ ha'
-    rw [Subtype.dist_eq, Set.Icc.coe_zero, dist_zero_right, Real.norm_eq_abs] at ha'
+    have ha'' : |a| < Real.exp (-↑x) := by
+      simpa [Subtype.dist_eq, dist_zero_right, Real.norm_eq_abs] using ha'
     split_ifs with h; · simp
-    rw [Subtype.mk_eq_mk, Set.Icc.coe_zero] at h
+    rw [Subtype.ext_iff] at h
     simp only [ENNReal.coe_lt_coe, ← NNReal.coe_lt_coe, NNReal.coe_mk]
-    replace ha' := Real.log_lt_log (by positivity) ((le_abs_self _).trans_lt ha')
+    have ha_pos : 0 < a := lt_of_le_of_ne ha0 (Ne.symm h)
+    replace ha' := Real.log_lt_log ha_pos ((le_abs_self _).trans_lt ha'')
     simp only [Real.log_exp] at ha'
     linarith
   have h_cont_on_pos : ContinuousOn —log (Set.Ioi 0) := by

@@ -102,18 +102,28 @@ parameters being zero, and therefore the potential itself being zero.
 
 -/
 
+/-- The zero real-valued 2HDM potential coefficient. -/
+def zeroRealCoefficient : ℝ := 0
+
+/-- The zero complex-valued 2HDM potential coefficient. -/
+def zeroComplexCoefficient : ℂ := 0
+
+@[simp] lemma zeroRealCoefficient_eq_zero : zeroRealCoefficient = 0 := rfl
+
+@[simp] lemma zeroComplexCoefficient_eq_zero : zeroComplexCoefficient = 0 := rfl
+
 instance : Zero PotentialParameters where
   zero :=
-    { m₁₁2 := 0
-      m₂₂2 := 0
-      m₁₂2 := 0
-      𝓵₁ := 0
-      𝓵₂ := 0
-      𝓵₃ := 0
-      𝓵₄ := 0
-      𝓵₅ := 0
-      𝓵₆ := 0
-      𝓵₇ := 0 }
+    { m₁₁2 := zeroRealCoefficient
+      m₂₂2 := zeroRealCoefficient
+      m₁₂2 := zeroComplexCoefficient
+      𝓵₁ := zeroRealCoefficient
+      𝓵₂ := zeroRealCoefficient
+      𝓵₃ := zeroRealCoefficient
+      𝓵₄ := zeroRealCoefficient
+      𝓵₅ := zeroComplexCoefficient
+      𝓵₆ := zeroComplexCoefficient
+      𝓵₇ := zeroComplexCoefficient }
 
 @[simp] lemma zero_m₁₁2 : (0 : PotentialParameters).m₁₁2 = 0 := rfl
 

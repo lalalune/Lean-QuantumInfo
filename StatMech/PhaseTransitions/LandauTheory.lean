@@ -63,7 +63,7 @@ def dF_dη (η T : ℝ) : ℝ := 2 * L.a T * η + 4 * L.b * η ^ 3
 def isEquilibrium (η T : ℝ) : Prop := L.dF_dη η T = 0
 
 /-- Above T_c, the only equilibrium is η = 0 (disordered phase) -/
-theorem disordered_above_Tc (T : ℝ) (hT : L.T_c < T) :
+theorem disordered_above_Tc (T : ℝ) (_hT : L.T_c < T) :
     L.isEquilibrium 0 T := by
   unfold isEquilibrium dF_dη
   ring
@@ -115,16 +115,22 @@ structure CriticalExponents where
   /-- Critical isotherm exponent: η ∝ |h|^(1/δ) at T = T_c -/
   δ : ℝ
 
+/-- The Landau mean-field specific-heat exponent. -/
+def meanFieldSpecificHeatExponent : ℝ := 0
+
+@[simp]
+theorem meanFieldSpecificHeatExponent_eq_zero : meanFieldSpecificHeatExponent = 0 := rfl
+
 /-- Mean-field (Landau) critical exponents -/
 def meanFieldExponents : CriticalExponents where
-  α := 0
+  α := meanFieldSpecificHeatExponent
   β := 1 / 2
   γ := 1
   δ := 3
 
 /-- Rushbrooke's inequality: α + 2β + γ ≥ 2 -/
 theorem rushbrooke_inequality (e : CriticalExponents)
-    (hα : 0 ≤ e.α) (hβ : 0 < e.β) (hγ : 0 < e.γ)
+    (_hα : 0 ≤ e.α) (_hβ : 0 < e.β) (_hγ : 0 < e.γ)
     (h : e.α + 2 * e.β + e.γ ≥ 2) :
     e.α + 2 * e.β + e.γ ≥ 2 := h
 

@@ -183,17 +183,15 @@ instance (C : Type) : MonoidalCategoryStruct (OverColor C) where
   whiskerLeft X Y1 Y2 m := ⟨Over.isoMk (Equiv.sumCongr (Equiv.refl X.left) (Hom.toEquiv m)).toIso
     (by
       ext x
-      simp only [Functor.id_obj, mk, Functor.const_obj_obj, Over.mk_left, Equiv.toIso_hom,
-        Over.mk_hom, types_comp_apply, Equiv.sumCongr_apply, Equiv.coe_refl]
-      rw [Sum.elim_map, Hom.toEquiv_comp_hom]
-      rfl)⟩
+      cases x with
+      | inl x => rfl
+      | inr x => exact (Hom.toEquiv_comp_apply m x).symm)⟩
   whiskerRight m X := ⟨Over.isoMk (Equiv.sumCongr (Hom.toEquiv m) (Equiv.refl X.left)).toIso
     (by
       ext x
-      simp only [Functor.id_obj, mk, Functor.const_obj_obj, Over.mk_left, Equiv.toIso_hom,
-        Over.mk_hom, types_comp_apply, Equiv.sumCongr_apply, Equiv.coe_refl]
-      rw [Sum.elim_map, Hom.toEquiv_comp_hom]
-      rfl)⟩
+      cases x with
+      | inl x => exact (Hom.toEquiv_comp_apply m x).symm
+      | inr x => rfl)⟩
   associator X Y Z := {
     hom := ⟨Over.isoMk (Equiv.sumAssoc X.left Y.left Z.left).toIso (by
       ext x

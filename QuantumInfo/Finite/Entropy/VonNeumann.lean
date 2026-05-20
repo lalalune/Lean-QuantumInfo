@@ -18,37 +18,6 @@ We start with quantities of _entropy_, namely the von Neumann entropy and its de
 and then prove facts about them.
 -/
 
-/- # TODO / Goals:
-
---QConditionalEnt chain rule
-
---Quantum discord
-
---Entanglement:
--- * Entanglement entropy
--- * Entanglement of formation
--- * Relative entropy of entanglement
--- * Squashed entanglement
--- * Negativity (+ facts here: https://www.quantiki.org/wiki/strong-sub-additivity)
--- * Distillable entanglement (One way, Two way, --> Coherent Information)
--- * Entanglement cost (!= EoF, prove; asymptotically == EoF.)
--- Bound entanglement (Prop)
-
--- https://arxiv.org/pdf/quant-ph/0406162
-
---https://en.wikipedia.org/wiki/Von_Neumann_entropy#Properties
---  in particular https://www.quantiki.org/wiki/strong-sub-additivity
-
---https://en.wikipedia.org/wiki/Quantum_relative_entropy#Relation_to_other_quantum_information_quantities
-
---QMutualInfo is symmetric
-
---TODO:
--- * Classical conditional entropy is nonnegative
--- * Not true of qConditionalEnt
--- * These measures track their classical values on `MState.ofClassical` states
--/
-
 noncomputable section
 
 variable {d d₁ d₂ d₃ : Type*}
@@ -87,6 +56,12 @@ def coherentInfo (ρ : MState d₁) (Λ : CPTPMap d₁ d₂) : ℝ :=
 def qcmi (ρ : MState (dA × dB × dC)) : ℝ :=
   qConditionalEnt ρ.assoc'.traceRight - qConditionalEnt ρ
 
+/-- Mutual information as entropy minus conditional entropy: `I(A:B) = S(A) - S(A|B)`. -/
+theorem qMutualInfo_eq_Sᵥₙ_traceRight_sub_qConditionalEnt (ρ : MState (dA × dB)) :
+    qMutualInfo ρ = Sᵥₙ ρ.traceRight - qConditionalEnt ρ := by
+  rw [qMutualInfo, qConditionalEnt]
+  ring
+
 /-- von Neumman entropy is nonnegative. -/
 theorem Sᵥₙ_nonneg (ρ : MState d) : 0 ≤ Sᵥₙ ρ :=
   Hₛ_nonneg _
@@ -109,8 +84,10 @@ theorem Sᵥₙ_eq_neg_trace_log (ρ : MState d) : Sᵥₙ ρ = -⟪ρ.M.log, ρ
   simp only [Sᵥₙ, Hₛ, H₁, Real.negMulLog, neg_mul, Finset.sum_neg_distrib, neg_inj]
   rw [← trace_eq_re_trace, ← sum_eigenvalues_eq_trace]
   obtain ⟨e, he⟩ := ρ.M.cfc_eigenvalues (Real.log * id)
-  apply Finset.sum_equiv e.symm (by simp)
-  simp [MState.spectrum, ProbDistribution.mk', he, mul_comm]
+  refine Finset.sum_equiv e.symm (by simp) ?_
+  intro i _
+  have h := congrFun he (e.symm i)
+  simpa [MState.spectrum, ProbDistribution.mk', Function.comp_def, mul_comm] using h.symm
 
 /-- Von Neumann entropy is the trace of the matrix function `x ↦ -x log x`. -/
 theorem Sᵥₙ_eq_trace_cfc_negMulLog (ρ : MState d) :
@@ -129,28 +106,49 @@ theorem Sᵥₙ_unit_zero [Unique d] (ρ : MState d) : Sᵥₙ ρ = 0 := by
   refine le_antisymm ?_ (Sᵥₙ_nonneg ρ)
   simpa using Sᵥₙ_le_log_d ρ
 
+/-- Von Neumann entropy is invariant under unitary conjugation. -/
+@[simp]
+theorem Sᵥₙ_U_conj (ρ : MState d) (U : 𝐔[d]) : Sᵥₙ (ρ.U_conj U) = Sᵥₙ ρ := by
+  simp [Sᵥₙ]
+
+/-- Von Neumann entropy is invariant under unitary channels. -/
+@[simp]
+theorem Sᵥₙ_ofUnitary (ρ : MState d) (U : 𝐔[d]) :
+    Sᵥₙ (CPTPMap.ofUnitary U ρ) = Sᵥₙ ρ := by
+  rw [CPTPMap.ofUnitary_eq_conj]
+  exact Sᵥₙ_U_conj ρ U
+
 /-- Von Neumann entropy is invariant under relabeling of the basis. -/
 @[simp]
 theorem Sᵥₙ_relabel (ρ : MState d₁) (e : d₂ ≃ d₁) :
     Sᵥₙ (ρ.relabel e) = Sᵥₙ ρ := by
   simp [Sᵥₙ_eq_neg_trace_log]
 
-/-- Von Neumann entropy is unchanged under SWAP. TODO: All unitaries-/
+/-- Von Neumann entropy is unchanged under SWAP. -/
 @[simp]
 theorem Sᵥₙ_of_SWAP_eq (ρ : MState (d₁ × d₂)) : Sᵥₙ ρ.SWAP = Sᵥₙ ρ := by
-  apply Hₛ_eq_of_multiset_map_eq
-  exact ρ.multiset_spectrum_relabel_eq (Equiv.prodComm d₁ d₂).symm
+  simp [MState.SWAP]
 
 /-- Von Neumann entropy is unchanged under assoc. -/
 @[simp]
 theorem Sᵥₙ_of_assoc_eq (ρ : MState ((d₁ × d₂) × d₃)) : Sᵥₙ ρ.assoc = Sᵥₙ ρ := by
-  apply Hₛ_eq_of_multiset_map_eq
-  apply ρ.multiset_spectrum_relabel_eq
+  simp [MState.assoc]
 
 /-- Von Neumann entropy is unchanged under assoc'. -/
 @[simp]
 theorem Sᵥₙ_of_assoc'_eq (ρ : MState (d₁ × (d₂ × d₃))) : Sᵥₙ ρ.assoc' = Sᵥₙ ρ := by
   rw [← Sᵥₙ_of_assoc_eq, ρ.assoc_assoc']
+
+/-- Conditional entropy after swapping subsystem order: `S(B|A) = S(AB) - S(A)`. -/
+@[simp]
+theorem qConditionalEnt_SWAP (ρ : MState (d₁ × d₂)) :
+    qConditionalEnt ρ.SWAP = Sᵥₙ ρ - Sᵥₙ ρ.traceRight := by
+  simp [qConditionalEnt]
+
+/-- Quantum conditional entropy chain rule: `S(AB|C) = S(A|BC) + S(B|C)`. -/
+theorem qConditionalEnt_chain_rule (ρ : MState (dA × dB × dC)) :
+    qConditionalEnt ρ.assoc' = qConditionalEnt ρ + qConditionalEnt ρ.traceLeft := by
+  simp [qConditionalEnt]
 
 @[fun_prop]
 theorem selfAdjointMap_Continuous {𝕜 : Type*} [RCLike 𝕜] :
@@ -170,7 +168,8 @@ theorem Sᵥₙ_continuous : Continuous (Sᵥₙ (d := d)) := by
   fun_prop
 
 section partial_trace_pure
---TODO Cleanup
+
+-- Linear algebra lemmas for pure-state partial traces.
 
 /--
 Convert a vector on a product space to a matrix.
@@ -313,6 +312,23 @@ theorem Sᵥₙ_of_partial_eq (ψ : Ket (d₁ × d₂)) :
     ← Matrix.charpoly_transpose]
   exact nonzero_eigenvalues_eq_of_mul_comm _ _
 
+/-- For a pure bipartite state, `S(A|B) = -S(B)`. -/
+@[simp]
+theorem qConditionalEnt_of_pure (ψ : Ket (d₁ × d₂)) :
+    qConditionalEnt (MState.pure ψ) = - Sᵥₙ (MState.pure ψ).traceLeft := by
+  simp [qConditionalEnt]
+
+/-- For a pure bipartite state, `S(A|B) = -S(A)`. -/
+theorem qConditionalEnt_of_pure_eq_neg_traceRight (ψ : Ket (d₁ × d₂)) :
+    qConditionalEnt (MState.pure ψ) = - Sᵥₙ (MState.pure ψ).traceRight := by
+  rw [qConditionalEnt_of_pure, Sᵥₙ_of_partial_eq]
+
+/-- For a pure bipartite state, mutual information is twice either marginal entropy. -/
+theorem qMutualInfo_of_pure (ψ : Ket (d₁ × d₂)) :
+    qMutualInfo (MState.pure ψ) = 2 * Sᵥₙ (MState.pure ψ).traceLeft := by
+  rw [qMutualInfo, Sᵥₙ_of_pure_zero, Sᵥₙ_of_partial_eq]
+  ring
+
 /-- Quantum conditional entropy is symmetric for pure states. -/
 @[simp]
 theorem qConditionalEnt_of_pure_symm (ψ : Ket (d₁ × d₂)) :
@@ -324,6 +340,16 @@ theorem qConditionalEnt_of_pure_symm (ψ : Ket (d₁ × d₂)) :
 theorem qMutualInfo_symm (ρ : MState (d₁ × d₂)) :
     qMutualInfo ρ.SWAP = qMutualInfo ρ := by
   simp [qMutualInfo, add_comm]
+
+/-- Mutual information symmetry in the reverse rewrite direction. -/
+theorem qMutualInfo_comm (ρ : MState (d₁ × d₂)) :
+    qMutualInfo ρ = qMutualInfo ρ.SWAP :=
+  (qMutualInfo_symm ρ).symm
+
+/-- Mutual information as `I(A:B) = S(B) - S(B|A)`. -/
+theorem qMutualInfo_eq_Sᵥₙ_traceLeft_sub_qConditionalEnt_SWAP (ρ : MState (d₁ × d₂)) :
+    qMutualInfo ρ = Sᵥₙ ρ.traceLeft - qConditionalEnt ρ.SWAP := by
+  simpa using (qMutualInfo_eq_Sᵥₙ_traceRight_sub_qConditionalEnt (ρ := ρ.SWAP))
 
 /-- For a pure state, the entropy of one subsystem equals the entropy of its complement,
 even after relabeling. -/

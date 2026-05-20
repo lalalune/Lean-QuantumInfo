@@ -136,6 +136,9 @@ variable {ι ι1 : Type} [MeasurableSpace ι]
 
 instance : SigmaFinite 𝓒.μ := 𝓒.μ_sigmaFinite
 
+/-- Discrete finite-state ensembles need no semiclassical phase-space correction. -/
+def zeroDiscreteDegreesOfFreedom : ℕ := Nat.zero
+
 @[ext]
 lemma ext {𝓒 𝓒' : CanonicalEnsemble ι} (h_energy : 𝓒.energy = 𝓒'.energy)
     (h_dof : 𝓒.dof = 𝓒'.dof) (h_h : 𝓒.phaseSpaceunit = 𝓒'.phaseSpaceunit)
@@ -160,10 +163,10 @@ noncomputable instance {ι1 ι2 : Type} [MeasurableSpace ι1] [MeasurableSpace �
   }
 
 /-- The canonical ensemble with no microstates. -/
-def empty : CanonicalEnsemble Empty where
+noncomputable def empty : CanonicalEnsemble Empty where
   energy := isEmptyElim
-  dof := 0
-  μ := 0
+  dof := zeroDiscreteDegreesOfFreedom
+  μ := Measure.count
   energy_measurable := by fun_prop
 
 /-- Given a measurable equivalence `e : ι1 ≃ᵐ ι`, this is the corresponding canonical ensemble
@@ -582,7 +585,7 @@ lemma integrable_energy_add (T : Temperature) [IsFiniteMeasure (𝓒.μBolt T)]
     (h : Integrable 𝓒.energy (𝓒.μProd T)) (h1 : Integrable 𝓒1.energy (𝓒1.μProd T)) :
     Integrable (𝓒 + 𝓒1).energy ((𝓒 + 𝓒1).μProd T) := by
   rw [μProd_add]
-  refine Integrable.add'' ?_ ?_
+  refine Integrable.fun_add ?_ ?_
   · have h1 : (fun (i : ι × ι1) => 𝓒.energy i.1)
       = fun (i : ι × ι1) => 𝓒.energy i.1 * (fun (i : ι1) => 1) i.2 := by
       funext i

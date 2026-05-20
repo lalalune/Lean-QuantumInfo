@@ -107,6 +107,19 @@ theorem toMatrix_comp [Fintype B] [Fintype C] [DecidableEq B] (M₁ : MatrixMap 
 
 end matrix
 
+private theorem map_eq_sum_single_smul [Semiring R] (M : MatrixMap A B R)
+    (x : Matrix A A R) :
+    M x = ∑ a₁, ∑ a₂, x a₁ a₂ • M (Matrix.single a₁ a₂ 1) := by
+  conv_lhs =>
+    rw [show x = ∑ a₁, ∑ a₂, x a₁ a₂ • Matrix.single a₁ a₂ (1 : R) by
+      ext i j
+      simp only [Matrix.sum_apply, Matrix.smul_apply, Matrix.single]
+      rw [Finset.sum_eq_single i]
+      · rw [Finset.sum_eq_single j] <;> simp +contextual
+      · simp +contextual
+      · simp]
+  simp only [map_sum, LinearMap.map_smulₛₗ, RingHom.id_apply]
+
 section kraus
 
 variable [Star R] [CommSemiring R]
@@ -128,6 +141,7 @@ section exists_kraus
 variable [CommSemiring R] [StarRing R] [Fintype B]
 variable {κ : Type*} [Fintype κ]
 
+omit [DecidableEq A] [Fintype B] in
 private theorem of_kraus_reindex {κ' : Type*} [Fintype κ']
     (e : κ ≃ κ') (M N : κ' → Matrix B A R) :
     of_kraus (κ := κ) (fun k => M (e k)) (fun k => N (e k)) = of_kraus M N := by
@@ -139,6 +153,7 @@ private theorem of_kraus_reindex {κ' : Type*} [Fintype κ']
     (fun c : κ' => (M c * X * (N c).conjTranspose) i j)
     (by intro c; rfl)
 
+omit [StarRing R] [Fintype B] in
 private theorem of_choi_matrix_eq_of_kraus_matrixUnits [Fintype B] [DecidableEq B] [StarRing R]
     (C : Matrix (B × A) (B × A) R) :
     of_choi_matrix C =
@@ -160,6 +175,7 @@ private theorem of_choi_matrix_eq_of_kraus_matrixUnits [Fintype B] [DecidableEq 
     simp [Matrix.single, hb]
   · simp [Matrix.single]
 
+omit [StarRing R] [Fintype B] in
 theorem exists_kraus [Fintype B] [StarRing R] (Φ : MatrixMap A B R) :
     ∃ r : ℕ, ∃ (M N : Fin r → Matrix B A R), Φ = of_kraus M N := by
   classical
@@ -359,28 +375,8 @@ theorem kron_map_of_kron_state [CommRing R] (M₁ : MatrixMap A B R) (M₂ : Mat
   simp_rw [mul_comm (M₂ _ _ _), mul_assoc, ← Finset.mul_sum, ← mul_assoc]
   simp_rw [← Finset.sum_mul]
   congr
-  --TODO: Cleanup, these two branches are nearly identical (separate lemma?)
-  · have h_linear : M₁ MA = ∑ i : A, ∑ i_1 : A, MA i i_1 • M₁ (Matrix.single i i_1 1) := by
-      have h_linear : M₁ MA = M₁ (∑ i : A, ∑ i_1 : A, Matrix.single i i_1 (MA i i_1)) := by
-        congr;
-        exact Matrix.matrix_eq_sum_single MA
-      simp [ h_linear, Matrix.single]
-      congr! 2 with i _ j _
-      convert M₁.map_smul (MA i j) (Matrix.of fun i' j' ↦ if i = i' ∧ j = j' then 1 else 0) using 2
-      ext
-      simp
-    simp [h_linear, mul_comm, Matrix.sum_apply]
-  · have h_expand : M₂ MC = ∑ i : C, ∑ j : C, MC i j • M₂ (Matrix.single i j 1) := by
-      have h_expand : MC = ∑ i : C, ∑ j : C, MC i j • Matrix.single i j 1 := by
-        ext i j
-        simp [Matrix.sum_apply, Matrix.single]
-        rw [ Finset.sum_eq_single i ] <;> aesop
-      conv_lhs => rw [ h_expand ];
-      simp [map_sum]
-      congr! 2 with i _ j _
-      rw [← M₂.map_smul (MC i j) (Matrix.single i j 1)]
-      exact congr_arg _ (by ext; simp [Matrix.single])
-    simp [h_expand, Matrix.sum_apply]
+  · simp [map_eq_sum_single_smul (M := M₁) (x := MA), mul_comm, Matrix.sum_apply]
+  · simp [map_eq_sum_single_smul (M := M₂) (x := MC), Matrix.sum_apply]
 
 theorem choi_matrix_state_rep {B : Type*} [Fintype B] [Nonempty A] (M : MatrixMap A B ℂ) :
     M.choi_matrix = (↑(Fintype.card (α := A)) : ℂ) • (M ⊗ₖₘ (LinearMap.id : MatrixMap A A ℂ)) (MState.pure (Ket.MES A)).m := by
@@ -530,11 +526,13 @@ private noncomputable def piTensorProductLc
     (((i : ι) → L i) →₀ R) →ₗ[R] PiTensorProduct R s :=
   Finsupp.linearCombination R (fun l ↦ ⨂ₜ[R] i, b i (l i))
 
+omit [DecidableEq ι] [(i : ι) → DecidableEq (L i)] in
 private lemma piTensorProduct_repr_tprod_aux
     (b : (i : ι) → Module.Basis (L i) R (s i)) (v : ∀ i, s i) (l : (i : ι) → L i) :
     piTensorProductRepr b (⨂ₜ[R] i, v i) l = ∏ i, (b i).repr (v i) (l i) := by
   simp [piTensorProductRepr, piTensorProductMultilinearRepr]
 
+omit [DecidableEq ι] in
 private lemma piTensorProduct_repr_tprod_basis
     (b : (i : ι) → Module.Basis (L i) R (s i)) (l l' : (i : ι) → L i) :
     piTensorProductRepr b (⨂ₜ[R] i, b i (l i)) l' = if l' = l then (1 : R) else 0 := by
@@ -551,11 +549,13 @@ private lemma piTensorProduct_repr_tprod_basis
       exact Finset.prod_eq_zero (s := Finset.univ) (i := i) (by simp) hz
     simpa [h] using hprod
 
+omit [DecidableEq ι] [Fintype ι] [(i : ι) → Fintype (L i)] [(i : ι) → DecidableEq (L i)] in
 private lemma piTensorProduct_lc_single
     (b : (i : ι) → Module.Basis (L i) R (s i)) (l : (i : ι) → L i) (r : R) :
     piTensorProductLc b (Finsupp.single l r) = r • (⨂ₜ[R] i, b i (l i)) := by
   simp [piTensorProductLc, Finsupp.linearCombination_single]
 
+omit [DecidableEq ι] in
 private lemma piTensorProduct_repr_lc_single
     (b : (i : ι) → Module.Basis (L i) R (s i)) (l l' : (i : ι) → L i) (r : R) :
     piTensorProductRepr b (piTensorProductLc b (Finsupp.single l r)) l' =
@@ -566,6 +566,7 @@ private lemma piTensorProduct_repr_lc_single
     simp [piTensorProduct_repr_tprod_basis]
   · simp [piTensorProduct_repr_tprod_basis, h]
 
+omit [DecidableEq ι] in
 private lemma piTensorProduct_repr_lc
     (b : (i : ι) → Module.Basis (L i) R (s i)) (f : ((i : ι) → L i) →₀ R) :
     piTensorProductRepr b (piTensorProductLc b f) = f := by
@@ -580,6 +581,7 @@ private lemma piTensorProduct_repr_lc
       ext l
       simp [piTensorProduct_repr_lc_single, Finsupp.add_apply]
 
+omit [(i : ι) → DecidableEq (L i)] in
 private lemma piTensorProduct_lc_repr_tprod
     (b : (i : ι) → Module.Basis (L i) R (s i)) (v : ∀ i, s i) :
     piTensorProductLc b (piTensorProductRepr b (⨂ₜ[R] i, v i)) = ⨂ₜ[R] i, v i := by
@@ -608,6 +610,7 @@ private lemma piTensorProduct_lc_repr_tprod
                 (fun i ↦ b i (l i)))
   simpa [Module.Basis.sum_repr] using h_expand
 
+omit [(i : ι) → DecidableEq (L i)] in
 private lemma piTensorProduct_lc_repr
     (b : (i : ι) → Module.Basis (L i) R (s i)) :
     piTensorProductLc b ∘ₗ piTensorProductRepr b = LinearMap.id := by
@@ -615,6 +618,7 @@ private lemma piTensorProduct_lc_repr
   ext v
   exact piTensorProduct_lc_repr_tprod b v
 
+omit [DecidableEq ι] in
 private lemma piTensorProduct_repr_lc_map
     (b : (i : ι) → Module.Basis (L i) R (s i)) :
     piTensorProductRepr b ∘ₗ piTensorProductLc b = LinearMap.id := by

@@ -51,16 +51,16 @@ lemma preContrMetricVal_expand_tmul_minkowskiMatrix {d : ℕ} : preContrMetricVa
 
 /-- The metric `ηᵃᵃ` as a morphism `𝟙_ (Rep ℝ (LorentzGroup d)) ⟶ Contr d ⊗ Contr d`,
   making its invariance under the action of `LorentzGroup d`. -/
-def preContrMetric (d : ℕ := 3) : 𝟙_ (Rep ℝ (LorentzGroup d)) ⟶ Contr d ⊗ Contr d where
-  hom := ModuleCat.ofHom {
+def preContrMetric (d : ℕ := 3) : 𝟙_ (Rep ℝ (LorentzGroup d)) ⟶ Contr d ⊗ Contr d :=
+  Rep.ofHom {
+  toLinearMap := {
     toFun := fun a => a • (preContrMetricVal d),
     map_add' := fun x y => by
       simp only [add_smul],
     map_smul' := fun m x => by
       simp only [smul_smul]
       rfl}
-  comm M := by
-    refine ModuleCat.hom_ext ?_
+  isIntertwining' M := by
     refine LinearMap.ext fun x : ℝ => ?_
     simp only [Action.tensorObj_V, Action.tensorUnit_V, Action.tensorUnit_ρ,
       CategoryTheory.Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,
@@ -75,7 +75,7 @@ def preContrMetric (d : ℕ := 3) : 𝟙_ (Rep ℝ (LorentzGroup d)) ⟶ Contr d
     conv_rhs =>
       rw [contrContrToMatrixRe_ρ_symm]
     apply congrArg
-    simp
+    simp }
 
 lemma preContrMetric_apply_one {d : ℕ} : (preContrMetric d).hom (1 : ℝ) = preContrMetricVal d:= by
   change (1 : ℝ) • preContrMetricVal d = preContrMetricVal d
@@ -115,16 +115,16 @@ lemma preCoMetricVal_expand_tmul_minkowskiMatrix {d : ℕ} : preCoMetricVal d =
 
 /-- The metric `ηᵢᵢ` as a morphism `𝟙_ (Rep ℂ (LorentzGroup d))) ⟶ Co d ⊗ Co d`,
   making its invariance under the action of `LorentzGroup d`. -/
-def preCoMetric (d : ℕ := 3) : 𝟙_ (Rep ℝ (LorentzGroup d)) ⟶ Co d ⊗ Co d where
-  hom := ModuleCat.ofHom {
+def preCoMetric (d : ℕ := 3) : 𝟙_ (Rep ℝ (LorentzGroup d)) ⟶ Co d ⊗ Co d :=
+  Rep.ofHom {
+  toLinearMap := {
     toFun := fun a => a • preCoMetricVal d,
     map_add' := fun x y => by
       simp only [add_smul],
     map_smul' := fun m x => by
       simp only [smul_smul]
       rfl}
-  comm M := by
-    refine ModuleCat.hom_ext ?_
+  isIntertwining' M := by
     refine LinearMap.ext fun x : ℝ => ?_
     simp only [CategoryTheory.Equivalence.symm_inverse, Action.functorCategoryEquivalence_functor,
       Action.FunctorCategoryEquivalence.functor_obj_obj, ModuleCat.hom_comp, ModuleCat.hom_ofHom,
@@ -136,7 +136,7 @@ def preCoMetric (d : ℕ := 3) : 𝟙_ (Rep ℝ (LorentzGroup d)) ⟶ Co d ⊗ C
     simp only [preCoMetricVal]
     rw [coCoToMatrixRe_ρ_symm]
     apply congrArg
-    rw [← LorentzGroup.coe_inv, LorentzGroup.transpose_mul_minkowskiMatrix_mul_self]
+    rw [← LorentzGroup.coe_inv, LorentzGroup.transpose_mul_minkowskiMatrix_mul_self] }
 
 lemma preCoMetric_apply_one {d : ℕ} : (preCoMetric d).hom (1 : ℝ) = preCoMetricVal d := by
   change (1 : ℝ) • preCoMetricVal d = preCoMetricVal d
@@ -149,10 +149,10 @@ lemma preCoMetric_apply_one {d : ℕ} : (preCoMetric d).hom (1 : ℝ) = preCoMet
 -/
 
 lemma contrCoContract_apply_metric {d : ℕ} : (β_ (Contr d) (Co d)).hom.hom
-    (((Contr d).V ◁ (λ_ (Co d).V).hom)
-    (((Contr d).V ◁ contrCoContract.hom ▷ (Co d).V)
-    (((Contr d).V ◁ (α_ (Contr d).V (Co d).V (Co d).V).inv)
-    ((α_ (Contr d).V (Contr d).V ((Co d).V ⊗ (Co d).V)).hom
+    ((Contr d ◁ (λ_ (Co d)).hom).hom
+    ((Contr d ◁ contrCoContract ▷ Co d).hom
+    ((Contr d ◁ (α_ (Contr d) (Co d) (Co d)).inv).hom
+    ((α_ (Contr d) (Contr d) (Co d ⊗ Co d)).hom.hom
     ((preContrMetric d).hom (1 : ℝ) ⊗ₜ[ℝ] (preCoMetric d).hom (1 : ℝ)))))) =
     (preCoContrUnit d).hom (1 : ℝ) := by
   have h1 : ((preContrMetric d).hom (1 : ℝ) ⊗ₜ[ℝ] (preCoMetric d).hom (1 : ℝ)) =
@@ -169,30 +169,32 @@ lemma contrCoContract_apply_metric {d : ℕ} : (β_ (Contr d) (Co d)).hom.hom
     simp [smul_tmul, smul_smul]
     rw [mul_comm]
   rw [h1]
-  have h2 : (α_ (Contr d).V (Contr d).V ((Co d).V ⊗ (Co d).V)).hom
+  have h2 : (α_ (Contr d) (Contr d) (Co d ⊗ Co d)).hom.hom
       (∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (contrBasis d i ⊗ₜ[ℝ] contrBasis d i) ⊗ₜ[ℝ] (coBasis d j ⊗ₜ[ℝ] coBasis d j)) =
       ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (contrBasis d i ⊗ₜ[ℝ] (contrBasis d i ⊗ₜ[ℝ] (coBasis d j ⊗ₜ[ℝ] coBasis d j))) := by
     simp [map_sum, - Fintype.sum_sum_type]
-    rfl
   rw [h2]
-  have h3 : ((Contr d).V ◁ (α_ (Contr d).V (Co d).V (Co d).V).inv)
+  have h3 : (Contr d ◁ (α_ (Contr d) (Co d) (Co d)).inv).hom
       (∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (contrBasis d i ⊗ₜ[ℝ] (contrBasis d i ⊗ₜ[ℝ] (coBasis d j ⊗ₜ[ℝ] coBasis d j)))) =
       ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (contrBasis d i ⊗ₜ[ℝ] ((contrBasis d i ⊗ₜ[ℝ] coBasis d j) ⊗ₜ[ℝ] coBasis d j)) := by
-    simp [- Fintype.sum_sum_type]
+    simp only [map_sum, map_smul, TensorProduct.map_tmul, Rep.hom_inv_associator]
+    change (∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
+      (contrBasis d i ⊗ₜ[ℝ] ((contrBasis d i ⊗ₜ[ℝ] coBasis d j) ⊗ₜ[ℝ] coBasis d j))) =
+      ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
+      (contrBasis d i ⊗ₜ[ℝ] ((contrBasis d i ⊗ₜ[ℝ] coBasis d j) ⊗ₜ[ℝ] coBasis d j))
     rfl
   rw [h3]
-  have h4 : ((Contr d).V ◁ contrCoContract.hom ▷ (Co d).V)
+  have h4 : (Contr d ◁ contrCoContract ▷ Co d).hom
       (∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (contrBasis d i ⊗ₜ[ℝ] ((contrBasis d i ⊗ₜ[ℝ] coBasis d j) ⊗ₜ[ℝ] coBasis d j))) =
       ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (contrBasis d i ⊗ₜ[ℝ]
       (contrCoContract.hom (contrBasis d i ⊗ₜ[ℝ] coBasis d j) ⊗ₜ[ℝ] coBasis d j)) := by
     simp [- Fintype.sum_sum_type]
-    rfl
   rw [h4]
   have h5 : ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (contrBasis d i ⊗ₜ[ℝ]
@@ -211,7 +213,7 @@ lemma contrCoContract_apply_metric {d : ℕ} : (β_ (Contr d) (Co d)).hom.hom
       · exact id (Ne.symm hb)
     · simp
   rw [h5]
-  have h6 : ((Contr d).V ◁ (λ_ (Co d).V).hom)
+  have h6 : (Contr d ◁ (λ_ (Co d)).hom).hom
       (∑ i, contrBasis d i ⊗ₜ[ℝ] ((1 : ℝ) ⊗ₜ[ℝ] coBasis d i)) =
       ∑ i, contrBasis d i ⊗ₜ[ℝ] coBasis d i := by
     simp [- Fintype.sum_sum_type]
@@ -220,10 +222,10 @@ lemma contrCoContract_apply_metric {d : ℕ} : (β_ (Contr d) (Co d)).hom.hom
   simp
 
 lemma coContrContract_apply_metric {d : ℕ} : (β_ (Co d) (Contr d)).hom.hom
-    (((Co d).V ◁ (λ_ (Contr d).V).hom)
-    (((Co d).V ◁ coContrContract.hom ▷ (Contr d).V)
-    (((Co d).V ◁ (α_ (Co d).V (Contr d).V (Contr d).V).inv)
-    ((α_ (Co d).V (Co d).V ((Contr d).V ⊗ (Contr d).V)).hom
+    ((Co d ◁ (λ_ (Contr d)).hom).hom
+    ((Co d ◁ coContrContract ▷ Contr d).hom
+    ((Co d ◁ (α_ (Co d) (Contr d) (Contr d)).inv).hom
+    ((α_ (Co d) (Co d) (Contr d ⊗ Contr d)).hom.hom
     ((preCoMetric d).hom (1 : ℝ) ⊗ₜ[ℝ] (preContrMetric d).hom (1 : ℝ)))))) =
     (preContrCoUnit d).hom (1 : ℝ) := by
   have h1 : ((preCoMetric d).hom (1 : ℝ) ⊗ₜ[ℝ] (preContrMetric d).hom (1 : ℝ)) =
@@ -240,30 +242,32 @@ lemma coContrContract_apply_metric {d : ℕ} : (β_ (Co d) (Contr d)).hom.hom
     simp [smul_tmul, smul_smul]
     rw [mul_comm]
   rw [h1]
-  have h2 : (α_ (Co d).V (Co d).V ((Contr d).V ⊗ (Contr d).V)).hom
+  have h2 : (α_ (Co d) (Co d) (Contr d ⊗ Contr d)).hom.hom
       (∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (coBasis d i ⊗ₜ[ℝ] coBasis d i) ⊗ₜ[ℝ] (contrBasis d j ⊗ₜ[ℝ] contrBasis d j)) =
       ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (coBasis d i ⊗ₜ[ℝ] (coBasis d i ⊗ₜ[ℝ] (contrBasis d j ⊗ₜ[ℝ] contrBasis d j))) := by
     simp [map_sum, - Fintype.sum_sum_type]
-    rfl
   rw [h2]
-  have h3 : ((Co d).V ◁ (α_ (Co d).V (Contr d).V (Contr d).V).inv)
+  have h3 : (Co d ◁ (α_ (Co d) (Contr d) (Contr d)).inv).hom
       (∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (coBasis d i ⊗ₜ[ℝ] (coBasis d i ⊗ₜ[ℝ] (contrBasis d j ⊗ₜ[ℝ] contrBasis d j)))) =
       ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (coBasis d i ⊗ₜ[ℝ] ((coBasis d i ⊗ₜ[ℝ] contrBasis d j) ⊗ₜ[ℝ] contrBasis d j)) := by
-    simp [- Fintype.sum_sum_type]
+    simp only [map_sum, map_smul, TensorProduct.map_tmul, Rep.hom_inv_associator]
+    change (∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
+      (coBasis d i ⊗ₜ[ℝ] ((coBasis d i ⊗ₜ[ℝ] contrBasis d j) ⊗ₜ[ℝ] contrBasis d j))) =
+      ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
+      (coBasis d i ⊗ₜ[ℝ] ((coBasis d i ⊗ₜ[ℝ] contrBasis d j) ⊗ₜ[ℝ] contrBasis d j))
     rfl
   rw [h3]
-  have h4 : ((Co d).V ◁ coContrContract.hom ▷ (Contr d).V)
+  have h4 : (Co d ◁ coContrContract ▷ Contr d).hom
       (∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (coBasis d i ⊗ₜ[ℝ] ((coBasis d i ⊗ₜ[ℝ] contrBasis d j) ⊗ₜ[ℝ] contrBasis d j))) =
       ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (coBasis d i ⊗ₜ[ℝ] (coContrContract.hom
       (coBasis d i ⊗ₜ[ℝ] contrBasis d j) ⊗ₜ[ℝ] contrBasis d j)) := by
     simp [- Fintype.sum_sum_type]
-    rfl
   rw [h4]
   have h5 : ∑ i, ∑ j, (minkowskiMatrix i i * minkowskiMatrix j j) •
       (coBasis d i ⊗ₜ[ℝ]
@@ -282,7 +286,7 @@ lemma coContrContract_apply_metric {d : ℕ} : (β_ (Co d) (Contr d)).hom.hom
       · exact id (Ne.symm hb)
     · simp
   rw [h5]
-  have h6 : ((Co d).V ◁ (λ_ (Contr d).V).hom)
+  have h6 : (Co d ◁ (λ_ (Contr d)).hom).hom
       (∑ i, coBasis d i ⊗ₜ[ℝ] ((1 : ℝ) ⊗ₜ[ℝ] contrBasis d i)) =
       ∑ i, coBasis d i ⊗ₜ[ℝ] contrBasis d i := by
     simp [- Fintype.sum_sum_type]

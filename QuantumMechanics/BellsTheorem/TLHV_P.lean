@@ -141,7 +141,7 @@ lemma ThermalHVModel.effectiveMeasure_isProbability
   · -- Compute the integral
     rw [integral_add (integrable_const 1) hε_integrable]
     rw [integral_const, hε_normalized]
-    simp only [measureReal_univ_eq_one, smul_eq_mul, mul_one, add_zero, ENNReal.ofReal_one]
+    simp only [probReal_univ, smul_eq_mul, mul_one, add_zero, ENNReal.ofReal_one]
   · -- Integrability
     exact (integrable_const 1).add hε_integrable
   · -- Almost everywhere nonnegativity
@@ -381,7 +381,7 @@ lemma CHSH_classical_bound (M : ThermalHVModel Λ) :
           · exact h_pointwise
     _ = 2 * ((M.μ₀ : Measure Λ) Set.univ).toReal := by
           rw [integral_const]
-          simp only [measureReal_univ_eq_one, smul_eq_mul, one_mul, measure_univ,
+          simp only [probReal_univ, smul_eq_mul, one_mul, measure_univ,
             ENNReal.toReal_one, mul_one]
     _ = 2 := by simp [measure_univ]
 
@@ -478,7 +478,7 @@ lemma CHSH_thermal_bound (M : ThermalHVModel Λ) (ε_max : ℝ) --(hε_max : 0 �
           · exact h_pointwise
     _ = 4 * ε_max * ((M.μ₀ : Measure Λ) Set.univ).toReal := by
           rw [integral_const]
-          simp only [measureReal_univ_eq_one, smul_eq_mul, one_mul, measure_univ,
+          simp only [probReal_univ, smul_eq_mul, one_mul, measure_univ,
             ENNReal.toReal_one, mul_one]
     _ = 4 * ε_max := by simp [measure_univ]
 
@@ -1167,10 +1167,16 @@ This gives correlations involving cos(π/4) = 1/√2, which is the source of 2�
 /-- The singlet correlation function: E(θ) = -cos(θ) -/
 noncomputable def singletCorrelation (θ : ℝ) : ℝ := -Real.cos θ
 
+/-- Alice's reference direction for the parameterized optimal CHSH configuration. -/
+def parameterizedAliceReferenceAngle : ℝ := 0
+
+@[simp]
+theorem parameterizedAliceReferenceAngle_eq_zero : parameterizedAliceReferenceAngle = 0 := rfl
+
 /-- The optimal angles for CHSH with sign convention E₀₁ - E₀₀ + E₁₀ + E₁₁ -/
 structure OptimalCHSHAngles where
   /-- Alice's first setting (reference direction) -/
-  a₀ : ℝ := 0
+  a₀ : ℝ := parameterizedAliceReferenceAngle
   /-- Alice's second setting -/
   a₁ : ℝ := -Real.pi / 2  -- Changed from π/2 to -π/2
   /-- Bob's first setting -/
@@ -1194,12 +1200,8 @@ lemma optimal_angles_check :
     config.b₁ - config.a₀ = 3 * Real.pi / 4 ∧
     config.b₀ - config.a₀ = Real.pi / 4 ∧
     config.b₀ - config.a₁ = 3 * Real.pi / 4 ∧
-    config.b₁ - config.a₁ = 5 * Real.pi / 4 := by
-  simp only
-  constructor
-  · ring
-  constructor
-  · ring
+  config.b₁ - config.a₁ = 5 * Real.pi / 4 := by
+  simp [parameterizedAliceReferenceAngle]
   constructor
   · ring
   · ring
@@ -1228,6 +1230,7 @@ lemma quantum_chsh_optimal :
   -- Goal should simplify to showing:
   -- -cos(3π/4) - (-cos(π/4)) + (-cos(3π/4)) + (-cos(5π/4)) = 2√2
   -- = √2/2 + √2/2 + √2/2 + √2/2 = 2√2
+  simp only [parameterizedAliceReferenceAngle_eq_zero]
   rw [show (3 : ℝ) * Real.pi / 4 - 0 = 3 * Real.pi / 4 by ring]
   rw [show Real.pi / 4 - 0 = Real.pi / 4 by ring]
   rw [show Real.pi / 4 - -Real.pi / 2 = 3 * Real.pi / 4 by ring]
@@ -1453,10 +1456,19 @@ a standard LHV model. This shows:
 -/
 
 open BellTheorem in
+/-- The pointwise-zero correlation deviation field. -/
+def zeroDeviationField (Λ : Type*) [MeasurableSpace Λ] : Fin 2 → Fin 2 → Λ → ℝ :=
+  fun _ _ _ => 0
+
+@[simp]
+theorem zeroDeviationField_apply (i j : Fin 2) (ω : Λ) :
+    zeroDeviationField Λ i j ω = 0 := rfl
+
+open BellTheorem in
 /-- A "zero deviation" correlation structure -/
 def zeroDeviation (Λ : Type*) [MeasurableSpace Λ] (μ₀ : Measure Λ)
     [IsProbabilityMeasure μ₀] : CorrelationDeviation Λ μ₀ where
-  ε := fun _ _ _ => 0
+  ε := zeroDeviationField Λ
   measurable := fun _ _ => measurable_const
   bounded := fun _ _ _ => by simp
   normalized := fun _ _ => by simp
@@ -1725,7 +1737,7 @@ theorem thermal_bound_tight (ε : ℝ) (_hε : |ε| < 1) :
       rw [abs_of_nonneg hpos]
       ring
   · -- ε < 0: use ε₀₀ = ε, rest = -ε
-    push_neg at hpos
+    push Not at hpos
     use fun i j => if i = 0 ∧ j = 0 then ε else -ε
     constructor
     · intro i j
@@ -1779,7 +1791,7 @@ lemma classical_correlation_range (E : ℝ)
           apply integral_congr_ae
           filter_upwards [h_abs_one] with ω hω
           exact hω
-      _ = 1 := by simp [measureReal_univ_eq_one]
+      _ = 1 := by simp
   -- From |x| ≤ 1 we get -1 ≤ x ≤ 1
   exact abs_le.mp h_abs_int
 
@@ -1856,7 +1868,7 @@ lemma realization_epsilon (Λ : Type*) [MeasurableSpace Λ] (R : QuantumThermalR
   -- If all thermal contributions are non-negative and ε_max < ε_tsirelson,
   -- then S ≤ 2 + 4*ε_max < 2√2, contradicting R.achieves_quantum
   by_contra h
-  push_neg at h
+  push Not at h
   obtain ⟨hε_small, hε_pos⟩ := h
   -- Get bound on |ε i j ω|
   have hε_bound : ∀ i j ω, |R.M.deviation.ε i j ω| ≤ R.S.ε_max := by

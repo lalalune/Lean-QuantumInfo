@@ -122,8 +122,13 @@ theorem pauli_exclusion {d : ℕ} [NeZero d] (W : WightmanQFTWithSpin d)
       ∀ y ∈ W.testSpace.support f, SpacelikeSeparated d x y) :
     W.field j f (W.field j f v) = 0 := by
   have h := halfinteger_spin_anticommutes W j hFermi f f v hSelfSpacelike
-  -- h : φ(f)φ(f)v = -φ(f)φ(f)v
-  -- This means 2 * φ(f)φ(f)v = 0
-  linarith [eq_neg_iff_add_eq_zero.mp h]
+  let x := W.field j f (W.field j f v)
+  change x = 0
+  have hx : x = -x := by
+    simpa [x] using h
+  have hsum : x + x = 0 := eq_neg_iff_add_eq_zero.mp hx
+  have htwo : (2 : ℂ) • x = 0 := by
+    simpa [two_smul] using hsum
+  exact (smul_eq_zero.mp htwo).resolve_left (by norm_num)
 
 end QFT

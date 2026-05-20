@@ -3,6 +3,7 @@ import Mathematics.Calculus.AdjFDeriv
 import Mathematics.Calculus.Divergence
 import Mathematics.DataStructures.FourTree.Basic
 import Mathematics.DataStructures.FourTree.UniqueMap
+import Mathematics.DataStructures.Matrix.LieTrace
 import Mathematics.Distribution.Basic
 import Mathematics.Distribution.PowMul
 import Mathematics.FDerivCurry
@@ -14,6 +15,7 @@ import Mathematics.Geometry.Metric.Riemannian.Defs
 import Mathematics.InnerProductSpace.Adjoint
 import Mathematics.InnerProductSpace.Basic
 import Mathematics.InnerProductSpace.Calculus
+import Mathematics.InnerProductSpace.Submodule
 import Mathematics.KroneckerDelta
 import Mathematics.LinearMaps
 import Mathematics.List

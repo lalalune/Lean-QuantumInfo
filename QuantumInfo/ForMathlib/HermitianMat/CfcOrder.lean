@@ -45,36 +45,89 @@ theorem cfc_le_cfc_of_PosDef (hfg : ∀ i, 0 < i → f i ≤ g i) (hA : A.mat.Po
   apply hfg
   apply hA
 
-/- TODO: Write a version of this that holds more broadly for some sets. Esp closed intervals of reals,
-which correspond nicely to closed intervals of matrices. Write the specialization to Set.univ (Monotone
-instead of MonotoneOn). Also a version that works for StrictMonoOn. -/
+/-- Each scalar value used by the CFC is in the spectrum of the resulting matrix. -/
+theorem spectrum_cfc_eigenvalue_mem (A : HermitianMat d 𝕜) (f : ℝ → ℝ) (i : d) :
+    f (A.H.eigenvalues i) ∈ spectrum ℝ (A.cfc f).mat := by
+  rw [A.spectrum_cfc_eq_image f]
+  exact ⟨A.H.eigenvalues i, by
+    rw [A.H.spectrum_real_eq_range_eigenvalues]
+    exact Set.mem_range_self i, rfl⟩
+
+/--
+Monotonicity of the CFC for commuting Hermitian matrices, assuming `f` is monotone on a
+set containing both spectra.
+-/
+theorem cfc_le_cfc_of_commute_monoOn_of_spectrum_subset {s : Set ℝ}
+    (hf : MonotoneOn f s) (hA : spectrum ℝ A.mat ⊆ s) (hB : spectrum ℝ B.mat ⊆ s)
+    (hAB₁ : Commute A.mat B.mat) (hAB₂ : A ≤ B) :
+    A.cfc f ≤ B.cfc f := by
+  obtain ⟨C, ⟨g₁, rfl⟩, ⟨g₂, rfl⟩⟩ := hAB₁.exists_HermitianMat_cfc
+  rw [← C.cfc_comp, ← C.cfc_comp]
+  rw [← sub_nonneg, ← C.cfc_sub, C.zero_le_cfc] at hAB₂ ⊢
+  intro i
+  simp only [Pi.sub_apply, Function.comp_apply, sub_nonneg]
+  exact hf (hA (C.spectrum_cfc_eigenvalue_mem g₁ i))
+    (hB (C.spectrum_cfc_eigenvalue_mem g₂ i)) (by simpa using hAB₂ i)
+
+/--
+Closed-interval specialization of `cfc_le_cfc_of_commute_monoOn_of_spectrum_subset`.
+The spectral hypotheses are explicit so this can be used with any interval-bounding API.
+-/
+theorem cfc_le_cfc_of_commute_monoOn_Icc {a b : ℝ} (hf : MonotoneOn f (Set.Icc a b))
+    (hA : spectrum ℝ A.mat ⊆ Set.Icc a b) (hB : spectrum ℝ B.mat ⊆ Set.Icc a b)
+    (hAB₁ : Commute A.mat B.mat) (hAB₂ : A ≤ B) :
+    A.cfc f ≤ B.cfc f :=
+  cfc_le_cfc_of_commute_monoOn_of_spectrum_subset hf hA hB hAB₁ hAB₂
+
+/-- Strictly monotone functions give the same commuting CFC order theorem. -/
+theorem cfc_le_cfc_of_commute_strictMonoOn_of_spectrum_subset {s : Set ℝ}
+    (hf : StrictMonoOn f s) (hA : spectrum ℝ A.mat ⊆ s) (hB : spectrum ℝ B.mat ⊆ s)
+    (hAB₁ : Commute A.mat B.mat) (hAB₂ : A ≤ B) :
+    A.cfc f ≤ B.cfc f :=
+  cfc_le_cfc_of_commute_monoOn_of_spectrum_subset hf.monotoneOn hA hB hAB₁ hAB₂
+
+/-- Closed-interval specialization for strictly monotone scalar functions. -/
+theorem cfc_le_cfc_of_commute_strictMonoOn_Icc {a b : ℝ}
+    (hf : StrictMonoOn f (Set.Icc a b)) (hA : spectrum ℝ A.mat ⊆ Set.Icc a b)
+    (hB : spectrum ℝ B.mat ⊆ Set.Icc a b) (hAB₁ : Commute A.mat B.mat)
+    (hAB₂ : A ≤ B) :
+    A.cfc f ≤ B.cfc f :=
+  cfc_le_cfc_of_commute_strictMonoOn_of_spectrum_subset hf hA hB hAB₁ hAB₂
+
+/-- Positive-definite specialization on `(0, ∞)`. -/
 theorem cfc_le_cfc_of_commute_monoOn (hf : MonotoneOn f (Set.Ioi 0))
   (hAB₁ : Commute A.mat B.mat) (hAB₂ : A ≤ B) (hA : A.mat.PosDef) (hB : B.mat.PosDef) :
-    A.cfc f ≤ B.cfc f := by
-  obtain ⟨C, ⟨g₁, rfl⟩, ⟨g₂, rfl⟩⟩ := hAB₁.exists_HermitianMat_cfc
-  -- Need to show that g₁ ≤ g₂ on spectrum ℝ C
-  rw [← C.cfc_comp, ← C.cfc_comp]
-  rw [← sub_nonneg, ← C.cfc_sub, C.zero_le_cfc] at hAB₂ ⊢
-  intro i
-  simp only [Pi.sub_apply, Function.comp_apply, sub_nonneg]
-  apply hf
-  · rw [HermitianMat.cfc_PosDef] at hA
-    exact hA i
-  · rw [HermitianMat.cfc_PosDef] at hB
-    exact hB i
-  · simpa using hAB₂ i
+    A.cfc f ≤ B.cfc f :=
+  cfc_le_cfc_of_commute_monoOn_of_spectrum_subset hf (Matrix.PosDef.spectrum_subset_Ioi hA)
+    (Matrix.PosDef.spectrum_subset_Ioi hB) hAB₁ hAB₂
 
-/-- TODO: See above -/
+/-- Positive-definite specialization on `(0, ∞)` for strictly monotone scalar functions. -/
+theorem cfc_le_cfc_of_commute_strictMonoOn (hf : StrictMonoOn f (Set.Ioi 0))
+    (hAB₁ : Commute A.mat B.mat) (hAB₂ : A ≤ B) (hA : A.mat.PosDef)
+    (hB : B.mat.PosDef) :
+    A.cfc f ≤ B.cfc f :=
+  cfc_le_cfc_of_commute_monoOn hf.monotoneOn hAB₁ hAB₂ hA hB
+
+/-- Specialization of the commuting CFC order theorem to globally monotone scalar functions. -/
 theorem cfc_le_cfc_of_commute (hf : Monotone f) (hAB₁ : Commute A.mat B.mat) (hAB₂ : A ≤ B) :
-    A.cfc f ≤ B.cfc f := by
-  obtain ⟨C, ⟨g₁, rfl⟩, ⟨g₂, rfl⟩⟩ := hAB₁.exists_HermitianMat_cfc
-  -- Need to show that g₁ ≤ g₂ on spectrum ℝ C
-  rw [← C.cfc_comp, ← C.cfc_comp]
-  rw [← sub_nonneg, ← C.cfc_sub, C.zero_le_cfc] at hAB₂ ⊢
-  intro i
-  simp only [Pi.sub_apply, Function.comp_apply, sub_nonneg]
-  apply hf
-  simpa using hAB₂ i
+    A.cfc f ≤ B.cfc f :=
+  cfc_le_cfc_of_commute_monoOn_of_spectrum_subset (s := Set.univ) (hf.monotoneOn _)
+    (Set.subset_univ _) (Set.subset_univ _) hAB₁ hAB₂
+
+/-- Specialization of the commuting CFC order theorem to globally strictly monotone functions. -/
+theorem cfc_le_cfc_of_commute_strictMono (hf : StrictMono f)
+    (hAB₁ : Commute A.mat B.mat) (hAB₂ : A ≤ B) :
+    A.cfc f ≤ B.cfc f :=
+  cfc_le_cfc_of_commute hf.monotone hAB₁ hAB₂
+
+omit [Fintype d] [DecidableEq d] in
+/-- Positive definiteness is preserved when increasing in the Loewner order. -/
+theorem posDef_of_posDef_le (hA : A.mat.PosDef) (hAB : A ≤ B) : B.mat.PosDef := by
+  have hdiff : (B - A).mat.PosSemidef := HermitianMat.le_iff.mp hAB
+  have hsum : (A.mat + (B - A).mat).PosDef := Matrix.PosDef.add_posSemidef hA hdiff
+  convert hsum using 1
+  ext i j
+  simp [sub_eq_add_neg]
 
 -- The noncommutative monotonicity statement belongs here, but the right hypothesis is
 -- operator monotonicity/operator concavity on positive operators, not the placeholder `False`
@@ -86,7 +139,7 @@ theorem log_le_log_of_commute (hAB₁ : Commute A.mat B.mat) (hAB₂ : A ≤ B) 
     A.log ≤ B.log := by
   refine HermitianMat.cfc_le_cfc_of_commute_monoOn ?_ hAB₁ hAB₂ hA ?_
   · exact Real.strictMonoOn_log.monotoneOn
-  · simpa using Matrix.PosDef.add_posSemidef hA hAB₂ --ew. abuse. TODO Cleanup
+  · exact HermitianMat.posDef_of_posDef_le hA hAB₂
 
 /-- Monotonicity of exp on commuting operators. -/
 theorem le_of_exp_commute (hAB₁ : Commute A.mat B.mat) (hAB₂ : A.exp ≤ B.exp) :
@@ -103,146 +156,8 @@ theorem le_of_exp_commute (hAB₁ : Commute A.mat B.mat) (hAB₂ : A.exp ≤ B.e
     positivity
 
 /-
-The real-power and sandwich lemmas were moved to `HermitianMat.Rpow`, where
-the `Pow (HermitianMat _ _) ℝ` instance is defined. Keeping copies here creates
-an import cycle and leaves this module depending on an instance it cannot import.
-
-section uncategorized_cleanup
-
-theorem rpow_nonneg (hA : 0 ≤ A) {p : ℝ} : 0 ≤ A ^ p := by
-  convert zero_le_cfc_of_zero_le hA _
-  exact fun i hi => Real.rpow_nonneg hi p
-
-theorem inv_eq_rpow_neg_one (hA : A.mat.PosDef) : A⁻¹ = A ^ (-1 : ℝ) := by
-  have := nonSingular_of_posDef hA
-  rw [← cfc_inv, pow_eq_cfc, show ( fun x : ℝ => x⁻¹ ) = fun x : ℝ => x ^ ( -1 : ℝ ) by ext; norm_num [ Real.rpow_neg_one ] ]
-
-theorem inv_ge_one_of_le_one (hA : A.mat.PosDef) (h : A ≤ 1) : 1 ≤ A⁻¹ := by
-  --TODO Cleanup
-  have := nonSingular_of_posDef hA
-  have h_inv_ge_one : ∀ i, 1 ≤ 1 / A.H.eigenvalues i := by
-    intro i
-    have h_eigenvalue : 0 < A.H.eigenvalues i := by
-      exact hA.eigenvalues_pos i
-    have h_eigenvalue_le_one : A.H.eigenvalues i ≤ 1 := by
-      have h_eigenvalue_le_one : ∀ x : d → 𝕜, x ≠ 0 → (star x ⬝ᵥ A.mat.mulVec x) / (star x ⬝ᵥ x) ≤ 1 := by
-        intro x hx_nonzero
-        have h_eigenvalue_le_one : (star x ⬝ᵥ A.mat.mulVec x) ≤ (star x ⬝ᵥ x) := by
-          have h_eigenvalue_le_one : ∀ x : d → 𝕜, x ≠ 0 → (star x ⬝ᵥ A.mat.mulVec x) ≤ (star x ⬝ᵥ x) := by
-            intro x hx_nonzero
-            have h_eigenvalue_le_one : (star x ⬝ᵥ (1 - A.mat).mulVec x) ≥ 0 := by
-              exact h.2 x
-            simp_all +decide [ Matrix.sub_mulVec, dotProduct_sub ];
-          exact h_eigenvalue_le_one x hx_nonzero
-        generalize_proofs at *;
-        convert div_le_one_of_le₀ h_eigenvalue_le_one _ using 1
-        generalize_proofs at *;
-        · exact PosMulReflectLT.toMulPosReflectLT;
-        · exact dotProduct_star_self_nonneg x
-      generalize_proofs at *;
-      convert h_eigenvalue_le_one ( A.H.eigenvectorBasis i ) ( by intro h; simpa [ h ] using A.H.eigenvectorBasis.orthonormal.1 i ) using 1 ; simp [ Matrix.mulVec, dotProduct ];
-      rw [ show ( ∑ x, ( starRingEnd 𝕜 ) ( A.H.eigenvectorBasis i x ) * ∑ x_1, A x x_1 * A.H.eigenvectorBasis i x_1 ) = ( A.H.eigenvalues i ) * ( ∑ x, ( starRingEnd 𝕜 ) ( A.H.eigenvectorBasis i x ) * A.H.eigenvectorBasis i x ) from ?_ ];
-      · rw [ mul_div_cancel_right₀ ];
-        · norm_cast;
-        · have := A.H.eigenvectorBasis.orthonormal; simp_all +decide [ orthonormal_iff_ite ] ;
-          specialize this i i ; simp_all +decide [ Inner.inner ];
-          simp_all [ mul_comm ];
-      · have := A.H.mulVec_eigenvectorBasis i; simp_all [ Matrix.mulVec, dotProduct ] ;
-        replace this := congr_arg ( fun x => ∑ j, ( starRingEnd 𝕜 ) ( A.H.eigenvectorBasis i j ) * x j ) this ; simp_all [ Matrix.mulVec, dotProduct, Finset.mul_sum _ _ _ ] ;
-        norm_num [ Algebra.smul_def ]
-    exact one_le_one_div h_eigenvalue h_eigenvalue_le_one;
-  have h_inv_ge_one : 0 ≤ A.cfc (fun x => x⁻¹ - 1) := by
-    rw [ zero_le_cfc ];
-    aesop;
-  convert add_le_add_right h_inv_ge_one 1 using 1;
-  · norm_num;
-  · rw [ ← cfc_inv, ← sub_eq_zero ];
-    rw [ ← sub_sub, ← cfc_sub ];
-    simp [ Pi.sub_def ]
-
-theorem sandwich_self (hB : B.mat.PosDef) :
-    (B.conj (B ^ (-1/2 : ℝ)).mat) = 1 := by
-  have hB_inv_sqrt : (B ^ (-1 / 2 : ℝ)).mat * (B ^ (-1 / 2 : ℝ)).mat = (B ^ (-1 : ℝ)).mat := by
-    rw [ ← mat_rpow_add ] <;> norm_num
-    rw [zero_le_iff]
-    exact hB.posSemidef
-  have hB_inv : (B ^ (-1 : ℝ)).mat = B.mat⁻¹ := by
-    rw [← inv_eq_rpow_neg_one hB, mat_inv]
-  rw [ hB_inv ] at hB_inv_sqrt;
-  ext1
-  simp [mul_assoc];
-  rw [ ← Matrix.mul_assoc, Matrix.mul_eq_one_comm.mp ];
-  rw [ ← Matrix.mul_assoc, hB_inv_sqrt, Matrix.nonsing_inv_mul _ ];
-  exact isUnit_iff_ne_zero.mpr hB.det_pos.ne'
-
-lemma rpow_inv_eq_neg_rpow (hA : A.mat.PosDef) (p : ℝ) : (A ^ p)⁻¹ = A ^ (-p) := by
-  --TODO cleanup
-  ext i j;
-  have h_inv : (A ^ p).mat * (A ^ (-p)).mat = 1 := by
-    have h_inv : (A ^ p).mat * (A ^ (-p)).mat = 1 := by
-      have h_pow : (A ^ p).mat = cfc A (fun x => x ^ p) := by
-        exact rfl
-      have h_pow_neg : (A ^ (-p)).mat = cfc A (fun x => x ^ (-p)) := by
-        exact rfl
-      have h_inv : (A ^ p).mat * (A ^ (-p)).mat = cfc A (fun x => x ^ p * x ^ (-p)) := by
-        rw [ h_pow, h_pow_neg, ← mat_cfc_mul ];
-        rfl;
-      have h_inv : (A ^ p).mat * (A ^ (-p)).mat = cfc A (fun x => 1) := by
-        rw [ h_inv ];
-        refine' congr_arg _ ( cfc_congr_of_posDef hA _ );
-        exact fun x hx => by simp [ ← Real.rpow_add hx ] ;
-      rw [ h_inv, cfc_const ] ; norm_num;
-    exact h_inv;
-  -- By definition of matrix inverse, if $(A^p) * (A^{-p}) = 1$, then $(A^{-p})$ is the inverse of $(A^p)$.
-  have h_inv_def : (A ^ p).mat⁻¹ = (A ^ (-p)).mat := by
-    exact Matrix.inv_eq_right_inv h_inv;
-  convert congr_fun ( congr_fun h_inv_def i ) j using 1
-
-lemma sandwich_le_one (hB : B.mat.PosDef) (h : A ≤ B) :
-    (A.conj (B ^ (-1/2 : ℝ)).mat) ≤ 1 := by
-  convert ← conj_mono h using 1
-  exact sandwich_self hB
-
-lemma rpow_neg_mul_rpow_self (hA : A.mat.PosDef) (p : ℝ) :
-    (A ^ (-p)).mat * (A ^ p).mat = 1 := by
-  have := rpow_inv_eq_neg_rpow hA p;
-  rw [ ← this ];
-  -- Since $A$ is positive definite, $A^p$ is also positive definite.
-  have h_pos_def : (A ^ p).mat.PosDef := by
-    have h_pos_def : ∀ p : ℝ, A.mat.PosDef → (A ^ p).mat.PosDef := by
-      intro p hA_pos_def
-      have h_eigenvalues_pos : ∀ i, 0 < (A.H.eigenvalues i) ^ p := by
-        exact fun i => Real.rpow_pos_of_pos ( by exact Matrix.PosDef.eigenvalues_pos hA i ) _;
-      have h_eigenvalues_pos : (A ^ p).mat.PosDef ↔ ∀ i, 0 < (A ^ p).H.eigenvalues i := by
-        exact Matrix.IsHermitian.posDef_iff_eigenvalues_pos (H (A ^ p));
-      have h_eigenvalues_pos : ∃ e : d ≃ d, (A ^ p).H.eigenvalues = fun i => (A.H.eigenvalues (e i)) ^ p := by
-        exact Matrix.IsHermitian.cfc_eigenvalues (H A) fun x => x.rpow p;
-      aesop;
-    exact h_pos_def p hA;
-  convert Matrix.nonsing_inv_mul _ _;
-  exact isUnit_iff_ne_zero.mpr h_pos_def.det_pos.ne'
-
-lemma isUnit_rpow_toMat (hA : A.mat.PosDef) (p : ℝ) : IsUnit (A ^ p).mat := by
-  have hA_inv : IsUnit (A ^ (-p)).mat := by
-    have hA_inv : (A ^ (-p)).mat * (A ^ p).mat = 1 := by
-      exact rpow_neg_mul_rpow_self hA p
-    exact Matrix.isUnit_of_right_inverse hA_inv;
-  -- Since $(A^{-p}) (A^p) = 1$, we have that $(A^p)$ is the inverse of $(A^{-p})$.
-  have hA_inv : (A ^ p).mat = (A ^ (-p)).mat⁻¹ := by
-    have hA_inv : (A ^ (-p)).mat * (A ^ p).mat = 1 := by
-      exact rpow_neg_mul_rpow_self hA p;
-    exact Eq.symm (Matrix.inv_eq_right_inv hA_inv);
-  aesop
-
-lemma sandwich_inv (hB : B.mat.PosDef) :
-    (A.conj (B ^ (-1/2 : ℝ)).mat)⁻¹ = A⁻¹.conj (B ^ (1/2 : ℝ)).mat := by
-  rw [inv_conj]
-  · have h_inv : (B ^ (-1 / 2 : ℝ)).mat⁻¹ = (B ^ (1 / 2 : ℝ)).mat := by
-      have h_inv : (B ^ (-1 / 2 : ℝ)).mat * (B ^ (1 / 2 : ℝ)).mat = 1 := by
-        convert rpow_neg_mul_rpow_self hB ( 1 / 2 ) using 1 ; norm_num;
-      exact Matrix.inv_eq_right_inv h_inv;
-    aesop;
-  · apply isUnit_rpow_toMat hB
-
+The real-power and sandwich lemmas live in `HermitianMat.Rpow`, where the
+`Pow (HermitianMat _ _) ℝ` instance is defined. Keeping copies here would create
+an import cycle and force this module to depend on an instance it cannot import.
 -/
 end HermitianMat

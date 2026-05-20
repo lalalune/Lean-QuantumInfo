@@ -49,7 +49,7 @@ def SchwingerFunction (d n : ℕ) := (Fin n → EuclideanSpace' d) → ℝ
 
 /-- The Osterwalder-Schrader data: a collection of Schwinger functions
     satisfying the OS axioms with real mathematical content. -/
-structure OsterwalderSchraderData (d : ℕ) where
+structure OsterwalderSchraderData (d : ℕ) [NeZero d] where
   /-- The n-point Schwinger functions for each n. -/
   schwinger : (n : ℕ) → SchwingerFunction d n
 
@@ -102,7 +102,7 @@ structure OsterwalderSchraderData (d : ℕ) where
     product is positive-definite. This is the heart of OS reconstruction:
     the inner product ⟨f, g⟩ := ∫ S(θx, y) f̄(x) g(y) is non-negative
     because of OS2. -/
-theorem reflection_positivity_implies_hilbert {d : ℕ}
+theorem reflection_positivity_implies_hilbert {d : ℕ} [NeZero d]
     (osData : OsterwalderSchraderData d)
     (pts : Fin 2 → EuclideanSpace' d)
     (h0 : (pts 0) 0 > 0) (h1 : (pts 1) 0 > 0) :

@@ -93,7 +93,7 @@ def generators : Set (NQubitPauliGroupElement 7) :=
   ZGenerators ∪ XGenerators
 
 /-- The Steane stabilizer subgroup: closure of the six generators. -/
-def subgroup : Subgroup (NQubitPauliGroupElement 7) :=
+noncomputable def subgroup : Subgroup (NQubitPauliGroupElement 7) :=
   Subgroup.closure generators
 
 /-!
@@ -359,6 +359,21 @@ def logicalX : NQubitPauliGroupElement 7 :=
 /-- Logical Z: Z on all seven qubits. -/
 def logicalZ : NQubitPauliGroupElement 7 :=
   ⟨0, NQubitPauliOperator.Z 7⟩
+
+/-- Logical Y, using the convention `Ȳ = i X̄ Z̄`. -/
+noncomputable def logicalY : NQubitPauliGroupElement 7 :=
+  NQubitPauliGroupElement.phaseI 7 * (logicalX * logicalZ)
+
+lemma logicalY_eq_phase2_allY :
+    logicalY = ({ phasePower := (2 : Fin 4), operators := NQubitPauliOperator.Y 7 } :
+      NQubitPauliGroupElement 7) := by
+  apply NQubitPauliGroupElement.ext
+  · decide
+  · ext i
+    fin_cases i <;>
+    simp [logicalY, logicalX, logicalZ, NQubitPauliGroupElement.mul, NQubitPauliGroupElement.mulOp,
+      NQubitPauliOperator.identity, NQubitPauliOperator.X, NQubitPauliOperator.Z,
+      NQubitPauliOperator.Y, PauliOperator.mulOp]
 
 /-- Logical X and logical Z anticommute (symplectic inner product 1 mod 2). -/
 theorem logicalX_anticommutes_logicalZ : NQubitPauliGroupElement.Anticommute logicalX logicalZ :=

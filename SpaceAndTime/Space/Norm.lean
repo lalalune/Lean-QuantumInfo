@@ -113,15 +113,16 @@ lemma normPowerSeries_differentiable {d} (n : ℕ) :
 -/
 open InnerProductSpace
 
-open scoped Topology BigOperators FourierTransform
+open scoped Topology BigOperators
 
 lemma normPowerSeries_tendsto {d} (x : Space d) (hx : x ≠ 0) :
     Filter.Tendsto (fun n => normPowerSeries n x) Filter.atTop (𝓝 (‖x‖)) := by
-  rw [normPowerSeries_eq]
+  change Filter.Tendsto (fun n : ℕ => √(‖x‖ ^ 2 + 1 / (n + 1 : ℝ))) Filter.atTop (𝓝 ‖x‖)
   have h_arg : Filter.Tendsto (fun n : ℕ => ‖x‖ ^ 2 + (1 / (n + 1 : ℝ))) Filter.atTop
       (𝓝 (‖x‖ ^ 2)) := by
     simpa [add_assoc] using
-      (tendsto_const_nhds.add tendsto_one_div_add_atTop_nhds_zero_nat)
+      ((tendsto_const_nhds (x := ‖x‖ ^ 2) (f := Filter.atTop)).add
+        (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)))
   refine (Real.continuous_sqrt.tendsto (‖x‖ ^ 2)).comp h_arg |>.trans ?_
   simp [Real.sqrt_sq_eq_abs, abs_of_nonneg (norm_nonneg x)]
 

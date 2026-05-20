@@ -35,7 +35,7 @@ namespace QFT
     - Ghost fields c^a have ghost number +1
     - Antighost fields c̄_a have ghost number -1
     - The Lagrange multiplier B_a (Nakanishi-Lautrup) has ghost number 0 -/
-def GhostNumber := ℤ
+abbrev GhostNumber := ℤ
 
 /-- A field in the BRST-extended field space, labeled by its ghost number. -/
 structure BRSTField (𝔤 : LieAlgebraData) (d : ℕ) where
@@ -47,26 +47,48 @@ structure BRSTField (𝔤 : LieAlgebraData) (d : ℕ) where
   /-- Field value (abstract). -/
   value : MinkowskiSpace d → Fin 𝔤.dim → ℝ
 
+/-- The identically vanishing component function on BRST fields. -/
+def BRSTField.zeroValue (𝔤 : LieAlgebraData) (d : ℕ) :
+    MinkowskiSpace d → Fin 𝔤.dim → ℝ :=
+  fun _ _ => 0
+
+@[simp]
+theorem BRSTField.zeroValue_apply (𝔤 : LieAlgebraData) (d : ℕ)
+    (x : MinkowskiSpace d) (a : Fin 𝔤.dim) :
+    BRSTField.zeroValue 𝔤 d x a = 0 := rfl
+
+/-- A BRST field whose component function vanishes identically. -/
+def BRSTField.vacuum (𝔤 : LieAlgebraData) (d : ℕ)
+    (ghostNumber : GhostNumber) (isGrassmannOdd : Bool) : BRSTField 𝔤 d where
+  ghostNumber := ghostNumber
+  isGrassmannOdd := isGrassmannOdd
+  value := BRSTField.zeroValue 𝔤 d
+
+@[simp]
+theorem BRSTField.vacuum_value (𝔤 : LieAlgebraData) (d : ℕ)
+    (n : GhostNumber) (odd : Bool) :
+    (BRSTField.vacuum 𝔤 d n odd).value = BRSTField.zeroValue 𝔤 d := rfl
+
 /-- The ghost field c^a: a Grassmann-odd scalar field with ghost number +1.
     Under BRST: s(c^a) = -½ f^a_{bc} c^b c^c. -/
 def ghostField (𝔤 : LieAlgebraData) (d : ℕ) : BRSTField 𝔤 d where
   ghostNumber := (1 : ℤ)
   isGrassmannOdd := true
-  value := fun _ _ => 0
+  value := BRSTField.zeroValue 𝔤 d
 
 /-- The antighost field c̄_a: Grassmann-odd with ghost number -1.
     Under BRST: s(c̄_a) = B_a. -/
 def antighostField (𝔤 : LieAlgebraData) (d : ℕ) : BRSTField 𝔤 d where
   ghostNumber := (-1 : ℤ)
   isGrassmannOdd := true
-  value := fun _ _ => 0
+  value := BRSTField.zeroValue 𝔤 d
 
 /-- The Nakanishi-Lautrup auxiliary field B_a: Grassmann-even, ghost number 0.
     Under BRST: s(B_a) = 0. -/
 def nakanishiLautrupField (𝔤 : LieAlgebraData) (d : ℕ) : BRSTField 𝔤 d where
   ghostNumber := (0 : ℤ)
   isGrassmannOdd := false
-  value := fun _ _ => 0
+  value := BRSTField.zeroValue 𝔤 d
 
 /-- The BRST operator s acting on fields.
     The BRST charge increases ghost number by 1 and is nilpotent (s² = 0). -/
@@ -81,26 +103,25 @@ structure BRSTOperator (𝔤 : LieAlgebraData) (d : ℕ) where
   onAuxiliary : BRSTField 𝔤 d → BRSTField 𝔤 d
   /-- Nilpotency on ghosts: s(s(c)) = 0. This is the defining property of BRST. -/
   nilpotent_ghost : ∀ c : BRSTField 𝔤 d,
-    onGhost (onGhost c) = ⟨c.ghostNumber + 2, c.isGrassmannOdd,
-      fun _ _ => 0⟩
-  /-- Nilpotency on antighosts: s(s(c̄)) = s(B) = 0. -/
-  nilpotent_antighost : ∀ c̄ : BRSTField 𝔤 d,
-    onAuxiliary (onAntighost c̄) = ⟨c̄.ghostNumber + 2, c̄.isGrassmannOdd,
-      fun _ _ => 0⟩
+    onGhost (onGhost c) = BRSTField.vacuum 𝔤 d (c.ghostNumber + (2 : ℤ)) c.isGrassmannOdd
+  /-- Nilpotency on antighosts: applying `s` after the antighost transform gives zero. -/
+  nilpotent_antighost : ∀ antighost : BRSTField 𝔤 d,
+    onAuxiliary (onAntighost antighost) =
+      BRSTField.vacuum 𝔤 d (antighost.ghostNumber + (2 : ℤ)) antighost.isGrassmannOdd
 
 /-- A state is BRST-closed if it is in the kernel of the BRST operator:
     s(Ψ) has zero value everywhere. -/
 def IsBRSTClosed {𝔤 : LieAlgebraData} {d : ℕ} (s : BRSTOperator 𝔤 d)
     (state : BRSTField 𝔤 d) : Prop :=
   state.ghostNumber = 0 ∧
-  (s.onGhost state).value = fun _ _ => 0
+  (s.onGhost state).value = BRSTField.zeroValue 𝔤 d
 
 /-- A state is BRST-exact if it is in the image of the BRST operator:
     there exists Ψ such that state = s(Ψ). -/
 def IsBRSTExact {𝔤 : LieAlgebraData} {d : ℕ} (s : BRSTOperator 𝔤 d)
     (state : BRSTField 𝔤 d) : Prop :=
   ∃ preimage : BRSTField 𝔤 d,
-    preimage.ghostNumber = state.ghostNumber - 1 ∧
+    preimage.ghostNumber = state.ghostNumber - (1 : ℤ) ∧
     state = s.onGhost preimage
 
 /-- BRST-exact states are BRST-closed (s-exact ⊆ s-closed, i.e., im(s) ⊆ ker(s)).
@@ -135,7 +156,7 @@ noncomputable def gaugeFixedAction (𝔤 : LieAlgebraData) (d : ℕ) (g_coupling
 
 /-- Faddeev-Popov ghost determinant operator. -/
 noncomputable def faddeevPopovOperator (𝔤 : LieAlgebraData) (d : ℕ)
-    (_ : GaugeConnection 𝔤 d) :
-    Fin 𝔤.dim → Fin 𝔤.dim → ℝ := fun _ _ => 0
+    (_A : GaugeConnection 𝔤 d) :
+    Fin 𝔤.dim → Fin 𝔤.dim → ℝ := fun a b => if a = b then 1 else 0
 
 end QFT

@@ -86,8 +86,8 @@ def conj_unitary_eigenvalue_equiv (U : unitary (E →ₗ[𝕜] E)) (hT : T.IsSym
       Finset.card {i | (hR.eigenvalues hn i : 𝕜) = ↑a} from by
     rw [this _ hS, this _ hT]
     by_cases ha : HasEigenvalue T (↑a : 𝕜)
-    · rw [hS.card_filter_eigenvalues_eq hn (heigen _|>.mpr ha),
-          hT.card_filter_eigenvalues_eq hn ha,
+    · rw [hS.card_filter_eigenvalues_eq hn ↑a,
+          hT.card_filter_eigenvalues_eq hn ↑a,
           (conj_unitary_eigenspace_equiv T U ↑a).finrank_eq]
     · have h1 : ∀ i, hT.eigenvalues hn i ≠ a :=
         fun i h => ha (h ▸ hT.hasEigenvalue_eigenvalues hn i)

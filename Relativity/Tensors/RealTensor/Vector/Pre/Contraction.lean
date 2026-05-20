@@ -75,15 +75,16 @@ def coModContrModBi (d : ℕ) : CoMod d →ₗ[ℝ] ContrMod d →ₗ[ℝ] ℝ w
     covariant Lorentz vector in the
     standard basis (i.e. the dot product).
     In terms of index notation this is the contraction is ψⁱ φᵢ. -/
-def contrCoContract : Contr d ⊗ Co d ⟶ 𝟙_ (Rep ℝ (LorentzGroup d)) where
-  hom := ModuleCat.ofHom <| TensorProduct.lift (contrModCoModBi d)
-  comm M := ModuleCat.hom_ext <| TensorProduct.ext' fun ψ φ => by
+def contrCoContract : Contr d ⊗ Co d ⟶ 𝟙_ (Rep ℝ (LorentzGroup d)) :=
+  Rep.ofHom {
+  toLinearMap := TensorProduct.lift (contrModCoModBi d)
+  isIntertwining' M := TensorProduct.ext' fun ψ φ => by
     change (M.1 *ᵥ ψ.toFin1dℝ) ⬝ᵥ ((LorentzGroup.transpose M⁻¹).1 *ᵥ φ.toFin1dℝ) = _
     rw [dotProduct_mulVec, LorentzGroup.transpose_val,
       vecMul_transpose, mulVec_mulVec, LorentzGroup.coe_inv, inv_mul_of_invertible M.1]
     simp only [one_mulVec, CategoryTheory.Equivalence.symm_inverse,
       Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj]
-    rfl
+    rfl }
 
 /-- Notation for `contrCoContract` acting on a tmul. -/
 local notation "⟪" ψ "," φ "⟫ₘ" => contrCoContract.hom (ψ ⊗ₜ φ)
@@ -96,15 +97,16 @@ lemma contrCoContract_hom_tmul (ψ : Contr d) (φ : Co d) : ⟪ψ, φ⟫ₘ = ψ
     covariant Lorentz vector in the
     standard basis (i.e. the dot product).
     In terms of index notation this is the contraction is ψⁱ φᵢ. -/
-def coContrContract : Co d ⊗ Contr d ⟶ 𝟙_ (Rep ℝ (LorentzGroup d)) where
-  hom := ModuleCat.ofHom <| TensorProduct.lift (coModContrModBi d)
-  comm M := ModuleCat.hom_ext <| TensorProduct.ext' fun ψ φ => by
+def coContrContract : Co d ⊗ Contr d ⟶ 𝟙_ (Rep ℝ (LorentzGroup d)) :=
+  Rep.ofHom {
+  toLinearMap := TensorProduct.lift (coModContrModBi d)
+  isIntertwining' M := TensorProduct.ext' fun ψ φ => by
     change ((LorentzGroup.transpose M⁻¹).1 *ᵥ ψ.toFin1dℝ) ⬝ᵥ (M.1 *ᵥ φ.toFin1dℝ) = _
     rw [dotProduct_mulVec, LorentzGroup.transpose_val, mulVec_transpose, vecMul_vecMul,
       LorentzGroup.coe_inv, inv_mul_of_invertible M.1]
     simp only [vecMul_one, CategoryTheory.Equivalence.symm_inverse,
       Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj]
-    rfl
+    rfl }
 
 /-- Notation for `coContrContract` acting on a tmul. -/
 local notation "⟪" φ "," ψ "⟫ₘ" => coContrContract.hom (φ ⊗ₜ ψ)
@@ -140,7 +142,7 @@ def contrContrContract : Contr d ⊗ Contr d ⟶ 𝟙_ (Rep ℝ (LorentzGroup d)
 /-- The linear map from Contr d ⊗ Contr d to ℝ induced by the homomorphism
   `Contr.toCo` and the contraction `contrCoContract`. -/
 def contrContrContractField : (Contr d).V ⊗[ℝ] (Contr d).V →ₗ[ℝ] ℝ :=
-  contrContrContract.hom.hom
+  contrContrContract.hom.toLinearMap
 
 /-- Notation for `contrContrContractField` acting on a tmul. -/
 local notation "⟪" ψ "," φ "⟫ₘ" => contrContrContractField (ψ ⊗ₜ φ)
@@ -161,8 +163,6 @@ local notation "⟪" ψ "," φ "⟫ₘ" => coCoContract.hom (ψ ⊗ₜ φ)
 
 lemma coCoContract_hom_tmul (φ : Co d) (ψ : Co d) :
     ⟪φ, ψ⟫ₘ = φ.toFin1dℝ ⬝ᵥ η *ᵥ ψ.toFin1dℝ:= by
-  simp only [Action.tensorUnit_V, Action.tensorObj_V, Equivalence.symm_inverse,
-    Action.functorCategoryEquivalence_functor, Action.FunctorCategoryEquivalence.functor_obj_obj]
   erw [coContrContract_hom_tmul]
   rfl
 
@@ -179,7 +179,7 @@ variable (x y : Contr d)
 
 @[simp]
 lemma action_tmul (g : LorentzGroup d) : ⟪(Contr d).ρ g x, (Contr d).ρ g y⟫ₘ = ⟪x, y⟫ₘ :=
-  congrFun (congrArg (DFunLike.coe ∘ ModuleCat.Hom.hom) (contrContrContract.comm g)) (x ⊗ₜ[ℝ] y)
+  congrFun (congrArg DFunLike.coe (contrContrContract.hom.isIntertwining' g)) (x ⊗ₜ[ℝ] y)
 
 lemma as_sum : ⟪x, y⟫ₘ = x.val (Sum.inl 0) * y.val (Sum.inl 0) -
     ∑ i, x.val (Sum.inr i) * y.val (Sum.inr i) := by
@@ -218,6 +218,18 @@ lemma symm : ⟪x, y⟫ₘ = ⟪y, x⟫ₘ := by
   congr
   funext i
   rw [mul_comm]
+
+lemma add_left (x y z : Contr d) : ⟪x + y, z⟫ₘ = ⟪x, z⟫ₘ + ⟪y, z⟫ₘ := by
+  simp only [contrContrContractField, TensorProduct.add_tmul, map_add]
+
+lemma add_right (x y z : Contr d) : ⟪x, y + z⟫ₘ = ⟪x, y⟫ₘ + ⟪x, z⟫ₘ := by
+  rw [symm, add_left, symm y x, symm z x]
+
+lemma sub_left (x y z : Contr d) : ⟪x - y, z⟫ₘ = ⟪x, z⟫ₘ - ⟪y, z⟫ₘ := by
+  simp only [contrContrContractField, TensorProduct.sub_tmul, map_sub]
+
+lemma sub_right (x y z : Contr d) : ⟪x, y - z⟫ₘ = ⟪x, y⟫ₘ - ⟪x, z⟫ₘ := by
+  rw [symm, sub_left, symm y x, symm z x]
 
 lemma dual_mulVec_right : ⟪x, dual Λ *ᵥ y⟫ₘ = ⟪Λ *ᵥ x, y⟫ₘ := by
   rw [contrContrContract_hom_tmul, contrContrContract_hom_tmul]
@@ -266,7 +278,8 @@ lemma nondegenerate : (∀ (x : Contr d), ⟪x, y⟫ₘ = 0) ↔ y = 0 := by
   · simp [h]
 
 lemma matrix_apply_eq_iff_sub : ⟪x, Λ *ᵥ y⟫ₘ = ⟪x, Λ' *ᵥ y⟫ₘ ↔ ⟪x, (Λ - Λ') *ᵥ y⟫ₘ = 0 := by
-  rw [← sub_eq_zero, ← LinearMap.map_sub, ← tmul_sub, ← ContrMod.sub_mulVec Λ Λ' y]
+  rw [← sub_eq_zero, ← LinearMap.map_sub, ← tmul_sub, ContrMod.sub_mulVec Λ Λ' y]
+  rfl
 
 lemma matrix_eq_iff_eq_forall' : (∀ (v : Contr d), (Λ *ᵥ v) = Λ' *ᵥ v) ↔
     ∀ (w v : Contr d), ⟪v, Λ *ᵥ w⟫ₘ = ⟪v, Λ' *ᵥ w⟫ₘ := by
@@ -312,20 +325,88 @@ lemma _root_.LorentzGroup.mem_iff_norm : Λ ∈ LorentzGroup d ↔
   refine Iff.intro (fun h x => h x x) (fun h x y => ?_)
   have hp := h (x + y)
   have hn := h (x - y)
-  rw [ContrMod.mulVec_add, tmul_add, add_tmul, add_tmul, tmul_add, add_tmul, add_tmul] at hp
-  rw [ContrMod.mulVec_sub, tmul_sub, sub_tmul, sub_tmul, tmul_sub, sub_tmul, sub_tmul] at hn
-  simp only [map_add, map_sub] at hp hn
+  have hxy : Λ *ᵥ (x + y) = Λ *ᵥ x + Λ *ᵥ y := ContrMod.mulVec_add Λ x y
+  have hxsuby : Λ *ᵥ (x - y) = Λ *ᵥ x - Λ *ᵥ y := ContrMod.mulVec_sub Λ x y
+  rw [hxy] at hp
+  rw [hxsuby] at hn
+  have hpL :
+      contrContrContractField ((Λ *ᵥ x + Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ x + Λ *ᵥ y)) =
+        contrContrContractField ((Λ *ᵥ x) ⊗ₜ[ℝ] (Λ *ᵥ x)) +
+          (contrContrContractField ((Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ x)) +
+            (contrContrContractField ((Λ *ᵥ x) ⊗ₜ[ℝ] (Λ *ᵥ y)) +
+              contrContrContractField ((Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ y)))) := by
+    have hleft := add_left (Λ *ᵥ x) (Λ *ᵥ y) ((Λ *ᵥ x) + (Λ *ᵥ y))
+    have hxright := add_right (Λ *ᵥ x) (Λ *ᵥ x) (Λ *ᵥ y)
+    have hyright := add_right (Λ *ᵥ y) (Λ *ᵥ x) (Λ *ᵥ y)
+    calc
+      contrContrContractField ((Λ *ᵥ x + Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ x + Λ *ᵥ y))
+          = ⟪Λ *ᵥ x, (Λ *ᵥ x) + (Λ *ᵥ y)⟫ₘ +
+              ⟪Λ *ᵥ y, (Λ *ᵥ x) + (Λ *ᵥ y)⟫ₘ := by
+            simpa using hleft
+      _ = _ := by
+        have hsum := congrArg₂ (fun a b => a + b) hxright hyright
+        calc
+          ⟪Λ *ᵥ x, (Λ *ᵥ x) + (Λ *ᵥ y)⟫ₘ +
+              ⟪Λ *ᵥ y, (Λ *ᵥ x) + (Λ *ᵥ y)⟫ₘ =
+            (contrContrContractField ((Λ *ᵥ x) ⊗ₜ[ℝ] (Λ *ᵥ x)) +
+                contrContrContractField ((Λ *ᵥ x) ⊗ₜ[ℝ] (Λ *ᵥ y))) +
+              (contrContrContractField ((Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ x)) +
+                contrContrContractField ((Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ y))) := by
+                simpa only [] using hsum
+          _ = _ := by
+            abel
+  have hnL :
+      contrContrContractField ((Λ *ᵥ x - Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ x - Λ *ᵥ y)) =
+        contrContrContractField ((Λ *ᵥ x) ⊗ₜ[ℝ] (Λ *ᵥ x)) +
+          (-contrContrContractField ((Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ x)) +
+            (contrContrContractField ((Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ y)) +
+              -contrContrContractField ((Λ *ᵥ x) ⊗ₜ[ℝ] (Λ *ᵥ y)))) := by
+    have hleft := sub_left (Λ *ᵥ x) (Λ *ᵥ y) ((Λ *ᵥ x) - (Λ *ᵥ y))
+    have hxright := sub_right (Λ *ᵥ x) (Λ *ᵥ x) (Λ *ᵥ y)
+    have hyright := sub_right (Λ *ᵥ y) (Λ *ᵥ x) (Λ *ᵥ y)
+    calc
+      contrContrContractField ((Λ *ᵥ x - Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ x - Λ *ᵥ y))
+          = ⟪Λ *ᵥ x, (Λ *ᵥ x) - (Λ *ᵥ y)⟫ₘ -
+              ⟪Λ *ᵥ y, (Λ *ᵥ x) - (Λ *ᵥ y)⟫ₘ := by
+            simpa using hleft
+      _ = _ := by
+        have hsub := congrArg₂ (fun a b => a - b) hxright hyright
+        calc
+          ⟪Λ *ᵥ x, (Λ *ᵥ x) - (Λ *ᵥ y)⟫ₘ -
+              ⟪Λ *ᵥ y, (Λ *ᵥ x) - (Λ *ᵥ y)⟫ₘ =
+            (contrContrContractField ((Λ *ᵥ x) ⊗ₜ[ℝ] (Λ *ᵥ x)) -
+                contrContrContractField ((Λ *ᵥ x) ⊗ₜ[ℝ] (Λ *ᵥ y))) -
+              (contrContrContractField ((Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ x)) -
+                contrContrContractField ((Λ *ᵥ y) ⊗ₜ[ℝ] (Λ *ᵥ y))) := by
+                simpa only [] using hsub
+          _ = _ := by
+            abel
+  have hpR :
+      contrContrContractField ((x + y) ⊗ₜ[ℝ] (x + y)) =
+        contrContrContractField (x ⊗ₜ[ℝ] x) +
+          (contrContrContractField (y ⊗ₜ[ℝ] x) +
+            (contrContrContractField (x ⊗ₜ[ℝ] y) + contrContrContractField (y ⊗ₜ[ℝ] y))) := by
+    rw [add_left, add_right, add_right]
+    abel
+  have hnR :
+      contrContrContractField ((x - y) ⊗ₜ[ℝ] (x - y)) =
+        contrContrContractField (x ⊗ₜ[ℝ] x) +
+          (-contrContrContractField (y ⊗ₜ[ℝ] x) +
+            (contrContrContractField (y ⊗ₜ[ℝ] y) + -contrContrContractField (x ⊗ₜ[ℝ] y))) := by
+    rw [sub_left, sub_right, sub_right]
+    abel
+  rw [hpL, hpR] at hp
+  rw [hnL, hnR] at hn
   rw [symm (Λ *ᵥ y) (Λ *ᵥ x), symm y x] at hp hn
   let e : 𝟙_ (Rep ℝ ↑(LorentzGroup d)) ≃ₗ[ℝ] ℝ :=
     LinearEquiv.refl ℝ ((𝟙_ (Rep ℝ ↑(LorentzGroup d))))
   apply e.injective
   have hp' := e.injective.eq_iff.mpr hp
   have hn' := e.injective.eq_iff.mpr hn
-  simp only [Action.tensorUnit_V, map_add, map_sub] at hp' hn'
+  simp only [map_add, map_neg] at hp' hn'
   linear_combination (norm := ring_nf) (1 / 4) * hp' + (-1/ 4) * hn'
   rw [symm (Λ *ᵥ y) (Λ *ᵥ x), symm y x]
-  simp only [Action.tensorUnit_V]
-  ring
+  ring_nf
 
 /-!
 

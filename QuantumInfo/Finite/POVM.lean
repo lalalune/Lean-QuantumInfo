@@ -13,16 +13,49 @@ a collection of positive semidefinite (PSD) operators that sum to the identity. 
 but adds learned information.
 
 Developing this theory is important if one wants to discuss classical information across quantum channels, as POVMs
-are the route to get back to classical information (a `ProbDistribution` of outcomes).
-
-TODO: They can also evolve under CPTP maps themselves (the Heisenberg picture of quantum evolution), they might commute
-with each other or not, they might be projective or not.
+are the route to get back to classical information (a `ProbDistribution` of outcomes). Further refinements include
+Heisenberg-picture evolution under CPTP maps, commutativity properties, and projective measurements.
 -/
 noncomputable section
 open BigOperators
 open ComplexOrder
 open Matrix
 open scoped RealInnerProductSpace
+
+namespace Matrix
+
+theorem traceLeft_sum {ι d d₁ d₂ R : Type*} [Fintype ι] [Fintype d] [AddCommMonoid R]
+    (A : ι → Matrix (d × d₁) (d × d₂) R) :
+    Matrix.traceLeft (∑ x, A x) = ∑ x, Matrix.traceLeft (A x) := by
+  ext i j
+  calc
+    (Matrix.traceLeft (∑ x, A x)) i j = ∑ i₂, ∑ x, A x (i₂, i) (i₂, j) := by
+      simp only [Matrix.traceLeft, Matrix.of_apply, Matrix.sum_apply]
+    _ = ∑ x, ∑ i₂, A x (i₂, i) (i₂, j) := Finset.sum_comm
+    _ = (∑ x, Matrix.traceLeft (A x)) i j := by
+      simp only [Matrix.traceLeft, Matrix.of_apply, Matrix.sum_apply]
+
+end Matrix
+
+namespace HermitianMat
+
+variable {n 𝕜 : Type*} [RCLike 𝕜] [DecidableEq n]
+
+/-- A diagonal Hermitian matrix with one real entry. -/
+def single (i : n) (r : ℝ) : HermitianMat n 𝕜 :=
+  diagonal 𝕜 fun j ↦ if i = j then r else 0
+
+@[simp]
+theorem single_mat (i : n) (r : ℝ) :
+    (single (𝕜 := 𝕜) i r).mat = Matrix.single i i (r : 𝕜) := by
+  change (HermitianMat.diagonal 𝕜 (fun j ↦ if i = j then r else 0)).mat =
+    Matrix.single i i (r : 𝕜)
+  rw [HermitianMat.diagonal_mat]
+  ext j k
+  simp only [diagonal_apply, Matrix.single, of_apply]
+  split_ifs <;> grind
+
+end HermitianMat
 
 /-- A POVM is a (finite) collection of PSD matrices on the same Hilbert space
  that sum to the identity. Here `X` indexes the matrices, and `d` is the space
@@ -42,6 +75,27 @@ structure POVM (X : Type*) (d : Type*) [Fintype X] [Fintype d] [DecidableEq d] w
 namespace POVM
 
 variable {X : Type*} {d : Type*} [Fintype X] [Fintype d] [DecidableEq d] [DecidableEq X]
+
+/-- The projective measurement in the distinguished computational basis. -/
+def computationalBasis (d : Type*) [Fintype d] [DecidableEq d] : POVM d d where
+  mats i := HermitianMat.single (𝕜 := ℂ) i 1
+  zero_le i := by
+    rw [HermitianMat.zero_le_iff]
+    rw [HermitianMat.single_mat]
+    exact (Matrix.PosSemidef.stdBasisMatrix_iff_eq i i (zero_lt_one' ℂ)).2 rfl
+  normalized := by
+    ext1
+    rw [HermitianMat.mat_finset_sum]
+    ext i j
+    by_cases hij : i = j
+    · subst j
+      simp [HermitianMat.single_mat, Matrix.single, Matrix.sum_apply]
+    · simp [HermitianMat.single_mat, Matrix.single, Matrix.sum_apply, hij]
+
+@[simp]
+theorem computationalBasis_mats (i : d) :
+    (computationalBasis d).mats i = HermitianMat.single (𝕜 := ℂ) i 1 :=
+  rfl
 
 /-- The act of measuring is a quantum channel, that maps a `d`-dimensional quantum
 state to an `d × X`-dimensional quantum-classical state. -/
@@ -103,16 +157,12 @@ theorem measurementMap_apply_matrix (Λ : POVM X d) (m : Matrix d d ℂ) :
 open HermitianMat in
 theorem measurementMap_apply_hermitianMat (Λ : POVM X d) (m : HermitianMat d ℂ) :
   Λ.measurementMap.toHPMap m = ∑ x : X,
-    --TODO: Something like `HermitianMat.single` to make this better
-    ((m.conj ((Λ.mats x)^(1/2:ℝ)).mat : HermitianMat d ℂ) ⊗ₖ HermitianMat.diagonal ℂ (fun y ↦ ite (x = y) 1 0)) := by
+    ((m.conj ((Λ.mats x)^(1/2:ℝ)).mat : HermitianMat d ℂ) ⊗ₖ
+      HermitianMat.single (𝕜 := ℂ) x 1) := by
   ext1
   convert Λ.measurementMap_apply_matrix m.mat
-  simp only [conj_apply, conjTranspose_mat, HermitianMat.mat_finset_sum,
-    kronecker_mat, mat_mk]
-  congr!
-  ext i j
-  simp only [HermitianMat.diagonal, mat_mk, diagonal_apply, single, of_apply]
-  split_ifs <;> grind
+  simp [conj_apply, conjTranspose_mat, HermitianMat.mat_finset_sum,
+    kronecker_mat, mat_mk, HermitianMat.single_mat]
 
 /-- A POVM leads to a distribution of outcomes on any given mixed state ρ. -/
 def measure (Λ : POVM X d) (ρ : MState d) : ProbDistribution X := .mk'
@@ -122,6 +172,41 @@ def measure (Λ : POVM X d) (ρ : MState d) : ProbDistribution X := .mk'
       simp [HermitianMat.inner_eq_re_trace, ← Complex.re_sum, ← trace_sum, ← Finset.sum_mul,
         ← HermitianMat.mat_finset_sum, Λ.normalized])
 
+/-- Measuring a pure state in the computational basis gives the squared amplitude. -/
+theorem computationalBasis_measure_pure (ψ : Ket d) (i : d) :
+    (((computationalBasis d).measure (MState.pure ψ) i : Prob) : ℝ) =
+      Complex.normSq (ψ i) := by
+  change ⟪HermitianMat.single (𝕜 := ℂ) i 1, (MState.pure ψ).M⟫ =
+    Complex.normSq (ψ i)
+  simp [HermitianMat.inner_def, HermitianMat.single_mat, Matrix.trace,
+    Matrix.mul_apply, Matrix.single, MState.pure_apply]
+  rw [show (∑ x, ∑ y,
+      (if i = x ∧ i = y then ψ y * (starRingEnd ℂ) (ψ x) else 0).re) =
+        (ψ i * (starRingEnd ℂ) (ψ i)).re by
+    rw [Finset.sum_eq_single i]
+    · rw [Finset.sum_eq_single i]
+      · simp
+      · intro y _ hy
+        simp [Ne.symm hy]
+      · intro hi
+        exact (hi (Finset.mem_univ i)).elim
+    · intro x _ hx
+      simp [Ne.symm hx]
+    · intro hi
+      exact (hi (Finset.mem_univ i)).elim]
+  simp [Complex.mul_conj]
+
+/-- Measuring a computational-basis ket gives the matching point mass distribution. -/
+theorem computationalBasis_measure_basis (i : d) :
+    (computationalBasis d).measure (MState.pure (Ket.basis i)) =
+      ProbDistribution.constant i := by
+  ext j
+  rw [computationalBasis_measure_pure]
+  by_cases hij : i = j
+  · subst j
+    simp [Ket.basis, Ket.apply]
+  · simp [ProbDistribution.constant_eq, Ket.basis, Ket.apply, hij]
+
 /-- The quantum-classical `POVM.measurement_map`, gives a marginal on the right equal to `POVM.measure`.-/
 theorem traceLeft_measurementMap_eq_measure (Λ : POVM X d) (ρ : MState d) :
     (Λ.measurementMap ρ).traceLeft = MState.ofClassical (Λ.measure ρ) := by
@@ -130,9 +215,8 @@ theorem traceLeft_measurementMap_eq_measure (Λ : POVM X d) (ρ : MState d) :
   rcases ρ with ⟨⟨ρ, ρH⟩, hρ0, hρ1⟩
   change (Matrix.traceLeft (Λ.measurementMap.map ρ)) i j = _
   rw [measurementMap_apply_matrix]
-  --TODO: a lemma for Matrix.traceLeft (∑ x, _) = ∑ x, (Matrix.traceLeft _)
-  simp_rw [Matrix.traceLeft, Matrix.of_apply, Matrix.sum_apply]
-  rw [Finset.sum_comm]
+  rw [Matrix.traceLeft_sum]
+  simp only [Matrix.traceLeft, Matrix.of_apply, Matrix.sum_apply]
   simp only [kroneckerMap_apply, MState.coe_ofClassical]
   simp only [single, of_apply, mul_ite, mul_one, mul_zero, Finset.sum_ite_irrel,
     Finset.sum_const_zero]
@@ -163,6 +247,7 @@ noncomputable def measureForget (Λ : POVM X d) : CPTPMap d d :=
   CPTPMap.traceRight ∘ₘ Λ.measurementMap
 
 open scoped Kronecker in
+omit [Fintype d] [DecidableEq d] in
 private theorem traceRight_sum_kronecker_single {R : Type*} [Semiring R]
     (A : X → Matrix d d R) :
     Matrix.traceRight (∑ x, A x ⊗ₖ Matrix.single x x (1 : R)) = ∑ x, A x := by

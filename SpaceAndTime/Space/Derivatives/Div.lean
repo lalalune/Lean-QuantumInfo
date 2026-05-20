@@ -161,7 +161,7 @@ open MeasureTheory SchwartzMap InnerProductSpace Distribution
 noncomputable def distDiv {d} :
     ((Space d) →d[ℝ] (EuclideanSpace ℝ (Fin d))) →ₗ[ℝ] (Space d) →d[ℝ] ℝ where
   toFun f := ∑ i,
-    (ContinuousLinearMap.proj (R := ℝ) (φ := fun _ : Fin d => ℝ) i).comp (distDeriv i f)
+    (EuclideanSpace.proj i).comp (distDeriv i f)
   map_add' f1 f2 := by
     ext η
     simp [Finset.sum_add_distrib]
@@ -179,46 +179,13 @@ lemma distDiv_apply_eq_sum_distDeriv {d}
     (f : (Space d) →d[ℝ] EuclideanSpace ℝ (Fin d)) (η : 𝓢(Space d, ℝ)) :
     distDiv f η = ∑ i, distDeriv i f η i := by
   simp [distDiv]
-  exact Finset.sum_congr rfl (by intro i hi; rfl)
 
 /-!
 
 ### B.2. Divergence on distributions from bounded functions
 
--/
+The bounded-function construction is isolated in `SpaceAndTime.Space.DistOfFunction`.
 
-/-- The divergence of a distribution from a bounded function. -/
-lemma distDiv_ofFunction {dm1 : ℕ} {f : Space dm1.succ → EuclideanSpace ℝ (Fin dm1.succ)}
-    {hf : IsDistBounded f} (η : 𝓢(Space dm1.succ, ℝ)) :
-    distDiv (distOfFunction f hf) η =
-    - ∫ x : Space dm1.succ, ⟪f x, Space.grad η x⟫_ℝ := by
-  rw [distDiv_apply_eq_sum_distDeriv]
-  simp [distDeriv, distOfFunction_apply, SchwartzMap.pderivCLM_apply, Space.grad, Space.deriv]
-  calc
-    ∑ i, (∫ y : Space dm1.succ, (fderiv ℝ (⇑η) y) (basis i) • f y) i
-        = ∑ i, ∫ y : Space dm1.succ, (fderiv ℝ (⇑η) y) (basis i) * f y i := by
-          refine Finset.sum_congr rfl ?_
-          intro i hi
-          let proji : EuclideanSpace ℝ (Fin dm1.succ) →L[ℝ] ℝ :=
-            ContinuousLinearMap.proj (R := ℝ) (φ := fun _ : Fin dm1.succ => ℝ) i
-          change proji (∫ y : Space dm1.succ, (fderiv ℝ (⇑η) y) (basis i) • f y)
-            = ∫ y : Space dm1.succ, (fderiv ℝ (⇑η) y) (basis i) * f y i
-          rw [← proji.integral_comp_comm
-            (φ := fun y : Space dm1.succ => (fderiv ℝ (⇑η) y) (basis i) • f y)
-            (hf.integrable_space_fderiv η (basis i))]
-          refine integral_congr_ae ?_
-          exact Filter.Eventually.of_forall (fun y => by
-            change ((fderiv ℝ (⇑η) y) (basis i) • f y) i =
-              (fderiv ℝ (⇑η) y) (basis i) * f y i
-            simp [smul_eq_mul])
-    _ = ∫ y : Space dm1.succ, ∑ i, (fderiv ℝ (⇑η) y) (basis i) * f y i := by
-          rw [← integral_finset_sum (s := Finset.univ)
-            (f := fun i : Fin dm1.succ => fun y : Space dm1.succ =>
-              (fderiv ℝ (⇑η) y) (basis i) * f y i)]
-          intro i hi
-          exact (hf.pi_comp i).integrable_space_fderiv_mul η (basis i)
-    _ = ∫ y : Space dm1.succ, ⟪f y, WithLp.toLp 2 fun i => (fderiv ℝ (⇑η) y) (basis i)⟫_ℝ := by
-          refine integral_congr_ae ?_
-          exact Filter.Eventually.of_forall (fun y => by simp [PiLp.inner_apply, mul_comm])
+-/
 
 end Space

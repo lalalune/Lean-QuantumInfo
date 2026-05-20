@@ -32,11 +32,13 @@ variable (d : Type*) [Fintype d]
 
 /-- A ket as a vector of unit norm. We follow the convention in `Matrix` of vectors as simple functions
  from a Fintype. Kets are distinctly not a vector space in our notion, as they represent only normalized
- states and so cannot (in general) be added or scaled. -/
+ states and so cannot (in general) be added or scaled.
+
+ The Euclidean-space unit-sphere API is exposed by `Ket.toEuclidean`, `Ket.ofEuclidean`, and
+ `Ket.euclideanUnitSphereEquiv`. -/
 structure Ket where
   vec : d → ℂ
   normalized' : ∑ x, ‖vec x‖ ^ 2 = 1
-  --TODO: change to `vec : EuclideanSpace ℂ d` / `normalized' : ‖vec‖ = 1`
 
 /-- A bra is identical in definition to a `Ket`, but are separate to avoid complex conjugation confusion.
  They can be interconverted with the adjoint: `Ket.to_bra` and `Bra.to_ket` -/
@@ -99,6 +101,122 @@ theorem Bra.normalized (ψ : Bra d) : ∑ x, Complex.normSq (ψ x) = 1 := by
   convert ψ.normalized'
   rw [Complex.normSq_eq_norm_sq]
   rfl
+
+/-- A raw indexed vector has Euclidean norm one exactly when it satisfies the normalization
+condition used by `Ket` and `Bra`. -/
+theorem Ket.euclidean_norm_eq_one_iff (v : d → ℂ) :
+    ‖(WithLp.toLp 2 v : EuclideanSpace ℂ d)‖ = 1 ↔ ∑ x, ‖v x‖ ^ 2 = 1 := by
+  constructor
+  · intro hv
+    simpa [hv] using (EuclideanSpace.norm_sq_eq (𝕜 := ℂ) (n := d)
+      (WithLp.toLp 2 v : EuclideanSpace ℂ d)).symm
+  · intro hv
+    have hsq : ‖(WithLp.toLp 2 v : EuclideanSpace ℂ d)‖ ^ 2 = 1 := by
+      rw [EuclideanSpace.norm_sq_eq]
+      exact hv
+    nlinarith [norm_nonneg (WithLp.toLp 2 v : EuclideanSpace ℂ d)]
+
+/-- View a `Ket` as a vector in `EuclideanSpace ℂ d`. -/
+def Ket.toEuclidean (ψ : Ket d) : EuclideanSpace ℂ d :=
+  WithLp.toLp 2 ψ.vec
+
+@[simp]
+theorem Ket.toEuclidean_apply (ψ : Ket d) (i : d) : ψ.toEuclidean i = ψ i :=
+  rfl
+
+@[simp]
+theorem Ket.norm_toEuclidean_sq (ψ : Ket d) : ‖ψ.toEuclidean‖ ^ 2 = 1 := by
+  rw [EuclideanSpace.norm_sq_eq]
+  exact ψ.normalized'
+
+@[simp]
+theorem Ket.norm_toEuclidean (ψ : Ket d) : ‖ψ.toEuclidean‖ = 1 := by
+  have hsq : ‖ψ.toEuclidean‖ ^ 2 = 1 := Ket.norm_toEuclidean_sq ψ
+  nlinarith [norm_nonneg ψ.toEuclidean]
+
+/-- Construct a `Ket` from a unit vector in `EuclideanSpace ℂ d`. -/
+def Ket.ofEuclidean (v : EuclideanSpace ℂ d) (hv : ‖v‖ = 1) : Ket d where
+  vec := fun i ↦ v i
+  normalized' := by
+    simpa [hv] using (EuclideanSpace.norm_sq_eq (𝕜 := ℂ) (n := d) v).symm
+
+@[simp]
+theorem Ket.ofEuclidean_apply (v : EuclideanSpace ℂ d) (hv : ‖v‖ = 1) (i : d) :
+    Ket.ofEuclidean v hv i = v i :=
+  rfl
+
+@[simp]
+theorem Ket.toEuclidean_ofEuclidean (v : EuclideanSpace ℂ d) (hv : ‖v‖ = 1) :
+    (Ket.ofEuclidean v hv).toEuclidean = v := by
+  ext i
+  rfl
+
+@[simp]
+theorem Ket.ofEuclidean_toEuclidean (ψ : Ket d) :
+    Ket.ofEuclidean ψ.toEuclidean ψ.norm_toEuclidean = ψ := by
+  ext i
+  rfl
+
+/-- `Ket d` is equivalent to the Euclidean unit sphere in `EuclideanSpace ℂ d`. -/
+def Ket.euclideanUnitSphereEquiv (d : Type*) [Fintype d] :
+    Ket d ≃ {v : EuclideanSpace ℂ d // ‖v‖ = 1} where
+  toFun ψ := ⟨ψ.toEuclidean, ψ.norm_toEuclidean⟩
+  invFun v := Ket.ofEuclidean v.1 v.2
+  left_inv ψ := Ket.ofEuclidean_toEuclidean ψ
+  right_inv v := by
+    ext i
+    rfl
+
+/-- View a `Bra` as a vector in `EuclideanSpace ℂ d`. -/
+def Bra.toEuclidean (ψ : Bra d) : EuclideanSpace ℂ d :=
+  WithLp.toLp 2 ψ.vec
+
+@[simp]
+theorem Bra.toEuclidean_apply (ψ : Bra d) (i : d) : ψ.toEuclidean i = ψ.vec i :=
+  rfl
+
+@[simp]
+theorem Bra.norm_toEuclidean_sq (ψ : Bra d) : ‖ψ.toEuclidean‖ ^ 2 = 1 := by
+  rw [EuclideanSpace.norm_sq_eq]
+  exact ψ.normalized'
+
+@[simp]
+theorem Bra.norm_toEuclidean (ψ : Bra d) : ‖ψ.toEuclidean‖ = 1 := by
+  have hsq : ‖ψ.toEuclidean‖ ^ 2 = 1 := Bra.norm_toEuclidean_sq ψ
+  nlinarith [norm_nonneg ψ.toEuclidean]
+
+/-- Construct a `Bra` from a unit vector in `EuclideanSpace ℂ d`. -/
+def Bra.ofEuclidean (v : EuclideanSpace ℂ d) (hv : ‖v‖ = 1) : Bra d where
+  vec := fun i ↦ v i
+  normalized' := by
+    simpa [hv] using (EuclideanSpace.norm_sq_eq (𝕜 := ℂ) (n := d) v).symm
+
+@[simp]
+theorem Bra.ofEuclidean_apply (v : EuclideanSpace ℂ d) (hv : ‖v‖ = 1) (i : d) :
+    (Bra.ofEuclidean v hv).vec i = v i :=
+  rfl
+
+@[simp]
+theorem Bra.toEuclidean_ofEuclidean (v : EuclideanSpace ℂ d) (hv : ‖v‖ = 1) :
+    (Bra.ofEuclidean v hv).toEuclidean = v := by
+  ext i
+  rfl
+
+@[simp]
+theorem Bra.ofEuclidean_toEuclidean (ψ : Bra d) :
+    Bra.ofEuclidean ψ.toEuclidean ψ.norm_toEuclidean = ψ := by
+  ext i
+  rfl
+
+/-- `Bra d` is equivalent to the Euclidean unit sphere in `EuclideanSpace ℂ d`. -/
+def Bra.euclideanUnitSphereEquiv (d : Type*) [Fintype d] :
+    Bra d ≃ {v : EuclideanSpace ℂ d // ‖v‖ = 1} where
+  toFun ψ := ⟨ψ.toEuclidean, ψ.norm_toEuclidean⟩
+  invFun v := Bra.ofEuclidean v.1 v.2
+  left_inv ψ := Bra.ofEuclidean_toEuclidean ψ
+  right_inv v := by
+    ext i
+    rfl
 
 /-- Any Bra can be turned into a Ket by conjugating the elements. -/
 @[coe]
@@ -324,7 +442,7 @@ def Ket.MES (d) [Fintype d] [Nonempty d] : Ket (d × d) where
 theorem Ket.MES_isEntangled [Nontrivial d] : (Ket.MES d).IsEntangled := by
   obtain ⟨x, y, h⟩ := @Nontrivial.exists_pair_ne d _
   rw [IsEntangled, MES, IsProd_iff_mul_eq_mul]
-  push_neg
+  push Not
   use x, y, x, y
   simp [apply, h]
 

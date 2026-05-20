@@ -53,8 +53,7 @@ lemma distDeriv_distConst {M d} [NormedAddCommGroup M] [NormedSpace ℝ M]
     (μ : Fin d) (m : M) :
     distDeriv μ (distConst d m) = 0 := by
   ext η
-  rw [distDeriv_apply, Distribution.fderivD_apply]
-  simp
+  simp [distDeriv, distConst, Distribution.const]
 
 @[simp]
 lemma distGrad_distConst {d} (m : ℝ) :

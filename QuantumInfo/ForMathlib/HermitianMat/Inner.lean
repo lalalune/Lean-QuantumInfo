@@ -4,6 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: Alex Meiburg
 -/
 import QuantumInfo.ForMathlib.HermitianMat.Order
+import Mathlib.Analysis.CStarAlgebra.Matrix
 import Mathlib.Analysis.Convex.Contractible
 import Mathlib.Topology.Instances.Real.Lemmas
 
@@ -205,60 +206,57 @@ theorem inner_le_mul_trace (hA : 0 ≤ A) (hB : 0 ≤ B) : ⟪A, B⟫ ≤ A.trac
   classical convert inner_mono hA (le_trace_smul_one hB)
   simp [mul_comm]
 
---TODO cleanup
+private theorem Matrix.re_trace_conjTranspose_mul_self_eq_zero_iff (M : Matrix n n 𝕜) :
+    RCLike.re (M.conjTranspose * M).trace = 0 ↔ M = 0 := by
+  have hnonneg : 0 ≤ (M.conjTranspose * M).trace :=
+    (Matrix.posSemidef_conjTranspose_mul_self M).trace_nonneg
+  rw [RCLike.nonneg_iff] at hnonneg
+  constructor
+  · intro h
+    have htrace : (M.conjTranspose * M).trace = 0 := by
+      apply RCLike.ext
+      · simpa using h
+      · simpa using hnonneg.2
+    exact Matrix.trace_conjTranspose_mul_self_eq_zero_iff.mp htrace
+  · intro h
+    subst h
+    simp
+
+private theorem Matrix.PosSemidef.re_trace_mul_eq_zero_iff_mul_eq_zero [DecidableEq n]
+    {A B : Matrix n n 𝕜} (hA : A.PosSemidef) (hB : B.PosSemidef) :
+    RCLike.re (A * B).trace = 0 ↔ A * B = 0 := by
+  open MatrixOrder in
+  obtain ⟨C, hC⟩ : ∃ C : Matrix n n 𝕜, A = C.conjTranspose * C := by
+    rw [← Matrix.nonneg_iff_posSemidef] at hA
+    exact CStarAlgebra.nonneg_iff_eq_star_mul_self.mp hA
+  obtain ⟨D, hD⟩ : ∃ D : Matrix n n 𝕜, B = D.conjTranspose * D := by
+    erw [← Matrix.nonneg_iff_posSemidef] at hB
+    exact CStarAlgebra.nonneg_iff_eq_star_mul_self.mp hB
+  have h_trace_zero_iff : RCLike.re (A * B).trace = 0 ↔ D * C.conjTranspose = 0 := by
+    convert Matrix.re_trace_conjTranspose_mul_self_eq_zero_iff (D * C.conjTranspose) using 3
+    simp [hC, hD, Matrix.mul_assoc]
+    rw [← Matrix.trace_mul_comm]
+    have h_trace_cyclic :
+        Matrix.trace (D.conjTranspose * D * C.conjTranspose * C) =
+          Matrix.trace (C * D.conjTranspose * D * C.conjTranspose) := by
+      rw [← Matrix.trace_mul_comm]
+      simp [Matrix.mul_assoc]
+    simp_all [Matrix.mul_assoc]
+  constructor
+  · intro h
+    have hDC : D * C.conjTranspose = 0 := h_trace_zero_iff.mp h
+    rw [hC, hD]
+    simp [← Matrix.mul_assoc, ← Matrix.conjTranspose_inj, hDC]
+  · intro h
+    rw [h]
+    simp
+
 private theorem inner_zero_iff_aux_lemma [DecidableEq n] (hA₁ : A.mat.PosSemidef) (hB₁ : B.mat.PosSemidef) :
   RCLike.re (A.val * B.val).trace = 0 ↔
     LinearMap.range (Matrix.toEuclideanLin A.val) ≤
       LinearMap.ker (Matrix.toEuclideanLin B.val) := by
-  open MatrixOrder in
-  --Thanks Aristotle
-  have h_trace_zero : (RCLike.re ((A.val * B.val).trace)) = 0 ↔ (A.val * B.val) = 0 := by
-    -- Since $A$ and $B$ are positive semidefinite, we can write them as $A = C^* C$ and $B = D^* D$ for some matrices $C$ and $D$.
-    obtain ⟨C, hC⟩ : ∃ C : Matrix n n 𝕜, A.val = C.conjTranspose * C := by
-      rw [← Matrix.nonneg_iff_posSemidef] at hA₁
-      exact CStarAlgebra.nonneg_iff_eq_star_mul_self.mp hA₁
-    obtain ⟨D, hD⟩ : ∃ D : Matrix n n 𝕜, B.val = D.conjTranspose * D := by
-      erw [← Matrix.nonneg_iff_posSemidef] at hB₁
-      exact CStarAlgebra.nonneg_iff_eq_star_mul_self.mp hB₁
-    have h_trace_zero_iff : (RCLike.re ((A.val * B.val).trace)) = 0 ↔ (D * C.conjTranspose) = 0 := by
-      -- Since $\operatorname{Tr}((DC)^* DC) = \sum_{i,j} |(DC)_{ij}|^2$, and this sum is zero if and only if each term is zero, we have $\operatorname{Tr}((DC)^* DC) = 0$ if and only if $DC = 0$.
-      have h_trace_zero_iff : (RCLike.re ((D * C.conjTranspose).conjTranspose * (D * C.conjTranspose)).trace) = 0 ↔ (D * C.conjTranspose) = 0 := by
-        have h_trace_zero_iff : ∀ (M : Matrix n n 𝕜), (RCLike.re (M.conjTranspose * M).trace) = 0 ↔ M = 0 := by
-          simp [ Matrix.trace, Matrix.mul_apply ];
-          intro M
-          -- simp_all only
-          obtain ⟨val, property⟩ := A
-          obtain ⟨val_1, property_1⟩ := B
-          subst hD hC
-          apply Iff.intro
-          · intro a
-            rw [ Finset.sum_eq_zero_iff_of_nonneg fun i _ => Finset.sum_nonneg fun j _ => add_nonneg ( mul_self_nonneg _ ) ( mul_self_nonneg _ )] at a
-            ext i j
-            specialize a j
-            rw [ Finset.sum_eq_zero_iff_of_nonneg fun _ _ => add_nonneg ( mul_self_nonneg _ ) ( mul_self_nonneg _ ) ] at a
-            simp_all only [Finset.mem_univ, forall_const, Matrix.zero_apply]
-            exact RCLike.ext ( by norm_num; nlinarith only [ a i ] ) ( by norm_num; nlinarith only [ a i ] );
-          · intro a
-            subst a
-            simp_all only [Matrix.zero_apply, map_zero, mul_zero, add_zero, Finset.sum_const_zero]
-        exact h_trace_zero_iff _;
-      convert h_trace_zero_iff using 3
-      simp [ Matrix.mul_assoc ];
-      rw [ ← Matrix.trace_mul_comm ]
-      have h_trace_cyclic : Matrix.trace (D.conjTranspose * D * C.conjTranspose * C) = Matrix.trace (C * D.conjTranspose * D * C.conjTranspose) := by
-        rw [ ← Matrix.trace_mul_comm ]
-        simp [ Matrix.mul_assoc ] ;
-      simp_all [ Matrix.mul_assoc ]
-    simp_all only
-    obtain ⟨val, property⟩ := A
-    obtain ⟨val_1, property_1⟩ := B
-    subst hD hC
-    apply Iff.intro
-    · intro a
-      simp_all only [iff_true]
-      simp [ ← Matrix.mul_assoc, ← Matrix.conjTranspose_inj, a ];
-    · intro a
-      simp_all only [Matrix.trace_zero, map_zero, true_iff]
+  have h_trace_zero : RCLike.re (A.val * B.val).trace = 0 ↔ A.val * B.val = 0 :=
+    Matrix.PosSemidef.re_trace_mul_eq_zero_iff_mul_eq_zero hA₁ hB₁
   have h_range_ker : (LinearMap.range (Matrix.toEuclideanLin A.val)) ≤ (LinearMap.ker (Matrix.toEuclideanLin B.val)) → (A.val * B.val) = 0 := by
     intro h_range_ker
     have hAB_zero : ∀ v, (Matrix.toEuclideanLin B.val) ((Matrix.toEuclideanLin A.val) v) = 0 := by
@@ -271,7 +269,7 @@ private theorem inner_zero_iff_aux_lemma [DecidableEq n] (hA₁ : A.mat.PosSemid
       have h1 := hAB_zero
       simp only [Matrix.toEuclideanLin, Matrix.toLpLin_apply, Matrix.mulVec_mulVec] at h1
       have h2 := congr_fun (congrArg WithLp.ofLp h1) i
-      simp only [WithLp.ofLp_toLp, WithLp.ofLp_zero, EuclideanSpace.single] at h2
+      simp only [WithLp.ofLp_zero, EuclideanSpace.single] at h2
       simpa [Matrix.mul_apply, Matrix.mulVec, dotProduct, Pi.single_apply] using h2
     rw [h_herm, hBA_zero, Matrix.conjTranspose_zero]
   simp_all only
@@ -343,6 +341,7 @@ variable {d d₂ : Type*} [Fintype d] [Fintype d₂] {𝕜 : Type*} [RCLike 𝕜
 /-- We define the Hermitian inner product as our "canonical" inner product, which does induce a norm.
 This disagrees slightly with Mathlib convention on the `Matrix` type, which avoids asserting one norm
 as there are several reasonable ones; for Hermitian matrices, though, this seem to be the right choice. -/
+@[reducible]
 noncomputable def InnerProductCore : InnerProductSpace.Core ℝ (HermitianMat d 𝕜) :=
    {
     inner A B := ⟪A, B⟫
@@ -399,13 +398,22 @@ noncomputable instance instNormedSpace : NormedSpace ℝ (HermitianMat d 𝕜) w
 noncomputable instance instInnerProductSpace : InnerProductSpace ℝ (HermitianMat d 𝕜) :=
    letI : Inner ℝ (HermitianMat d 𝕜) := InnerProductCore.toInner;
    letI : NormedSpace ℝ (HermitianMat d 𝕜) := instNormedSpace;
-  { InnerProductCore with
-    norm_sq_eq_re_inner := fun x => by
+ { InnerProductCore with
+   norm_sq_eq_re_inner := fun x => by
       rw [norm_eq_sqrt_inner_self, Real.sq_sqrt (inner_self_nonneg x), RCLike.re_to_real]
   }
 
 instance : CompleteSpace (HermitianMat d 𝕜) :=
   inferInstance
+
+noncomputable instance : ContinuousENorm (HermitianMat d 𝕜) :=
+  SeminormedAddGroup.toContinuousENorm
+
+noncomputable instance : ENormedAddMonoid (HermitianMat d 𝕜) :=
+  NormedAddGroup.toENormedAddMonoid
+
+instance : LocallyCompactSpace (HermitianMat d 𝕜) :=
+  locallyCompact_of_proper
 
 --Shortcut instances
 noncomputable instance : NormedAddCommGroup (HermitianMat d ℝ) :=
@@ -416,7 +424,7 @@ noncomputable instance : NormedAddCommGroup (HermitianMat d ℂ) :=
 
 --PR'ed in #35056
 open ComplexOrder in
-def _root_.RCLike.instOrderClosed : OrderClosedTopology 𝕜 where
+@[reducible] def _root_.RCLike.instOrderClosed : OrderClosedTopology 𝕜 where
   isClosed_le' := by
     conv => enter [1, 1, p]; rw [RCLike.le_iff_re_im]
     simp_rw [Set.setOf_and]
@@ -458,9 +466,34 @@ theorem isClosed_nonneg : IsClosed { A : HermitianMat n 𝕜 | 0 ≤ A } := by
   simp_rw [zero_le_iff]
   exact Matrix.PosSemiDef_isClosed.preimage_val
 
---TODO: The PosDef matrices are open *within* the HermitianMat space (not in the ambient space of matrices.)
+open scoped Matrix.Norms.L2Operator in
+open MatrixOrder in
+/-- Positive definite matrices form an open subset of the Hermitian matrix space. -/
+theorem isOpen_posDef [DecidableEq d] : IsOpen { A : HermitianMat d 𝕜 | A.mat.PosDef } := by
+  letI : NormedAlgebra ℝ (Matrix d d 𝕜) := NormedAlgebra.restrictScalars ℝ 𝕜 (Matrix d d 𝕜)
+  rw [isOpen_iff_mem_nhds]
+  intro A hA
+  have hstrict : IsStrictlyPositive A.mat := Matrix.isStrictlyPositive_iff_posDef.mpr hA
+  have hspec_subset : spectrum ℝ A.mat ⊆ Set.Ioi (0 : ℝ) := by
+    intro x hx
+    exact (StarOrderedRing.isStrictlyPositive_iff_spectrum_pos (p := IsSelfAdjoint) A.mat
+      (ha := A.H.isSelfAdjoint)).mp hstrict x hx
+  have h_eventually_mat :
+      ∀ᶠ B : Matrix d d 𝕜 in nhds A.mat, spectrum ℝ B ⊆ Set.Ioi (0 : ℝ) :=
+    (upperHemicontinuous_spectrum ℝ (Matrix d d 𝕜)).forall_isOpen A.mat (Set.Ioi (0 : ℝ))
+      isOpen_Ioi hspec_subset
+  have h_eventually :
+      ∀ᶠ B : HermitianMat d 𝕜 in nhds A, spectrum ℝ B.mat ⊆ Set.Ioi (0 : ℝ) :=
+    (continuous_subtype_val.continuousAt (x := A)).eventually h_eventually_mat
+  filter_upwards [h_eventually] with B hB
+  have hstrictB : IsStrictlyPositive B.mat :=
+    (StarOrderedRing.isStrictlyPositive_iff_spectrum_pos (p := IsSelfAdjoint) B.mat
+      (ha := B.H.isSelfAdjoint)).mpr (by
+        intro x hx
+        exact hB hx)
+  exact Matrix.isStrictlyPositive_iff_posDef.mp hstrictB
 
-instance : OrderClosedTopology (HermitianMat d 𝕜) where
+@[reducible] def instOrderClosedTopology : OrderClosedTopology (HermitianMat d 𝕜) where
   isClosed_le' := by
     classical
     convert IsClosed.preimage (X := (HermitianMat d 𝕜 × HermitianMat d 𝕜))
@@ -468,11 +501,21 @@ instance : OrderClosedTopology (HermitianMat d 𝕜) where
     ext ⟨x, y⟩
     simp only [Set.mem_setOf_eq, Set.mem_preimage, ← sub_nonneg (b := x)]
 
+attribute [instance] instOrderClosedTopology
+
 /-- Equivalently: the matrices `X` such that `X - A` is PSD and `B - X` is PSD, form a compact set. -/
 instance : CompactIccSpace (HermitianMat d 𝕜) where
   isCompact_Icc := by
     intros A B
-    apply Metric.isCompact_of_isClosed_isBounded isClosed_Icc
+    letI : OrderClosedTopology (HermitianMat d 𝕜) := instOrderClosedTopology
+    refine Metric.isCompact_of_isClosed_isBounded (s := Set.Icc A B) ?_ ?_
+    · rw [show Set.Icc A B =
+          {x : HermitianMat d 𝕜 | 0 ≤ x - A} ∩ {x : HermitianMat d 𝕜 | 0 ≤ B - x} from by
+          ext x
+          simp [Set.mem_Icc, sub_nonneg]]
+      exact
+        (isClosed_nonneg.preimage (by fun_prop : Continuous fun x : HermitianMat d 𝕜 => x - A)).inter
+          (isClosed_nonneg.preimage (by fun_prop : Continuous fun x : HermitianMat d 𝕜 => B - x))
     rw [Metric.isBounded_iff]
     use 2 * ‖B - A‖
     rintro x ⟨hxA, hxB⟩ y ⟨hyA, hyB⟩
@@ -492,11 +535,22 @@ theorem unitInterval_IsCompact : IsCompact {m : HermitianMat d 𝕜 | 0 ≤ m �
 
 @[simp]
 theorem norm_one : ‖(1 : HermitianMat d 𝕜)‖ = √(Fintype.card d : ℝ) := by
-  rw [norm_eq_sqrt_real_inner (F := HermitianMat d 𝕜)]
+  rw [norm_eq_frobenius, ← Real.sqrt_eq_rpow]
   congr 1
-  simp only [inner_def, mat_one, Matrix.one_apply, Matrix.trace, Matrix.diag_apply,
-    ↑reduceIte, Finset.sum_const, Finset.card_univ, mul_one]
-  simp [selfadjMap]
+  classical
+  calc
+    ∑ x : d, ∑ y : d, ‖if x = y then (1 : 𝕜) else 0‖ ^ 2 =
+        ∑ x : d, (1 : ℝ) := by
+      apply Finset.sum_congr rfl
+      intro x _
+      rw [Finset.sum_eq_single x]
+      · simp
+      · intro y _ hy
+        rw [if_neg (fun h : x = y => hy h.symm)]
+        norm_num
+      · intro hx
+        exact (hx (Finset.mem_univ x)).elim
+    _ = (Fintype.card d : ℝ) := by simp
 
 theorem norm_eq_trace_sq : ‖A‖ ^ 2 = (A.mat ^ 2).trace := by
   rw [norm_eq_frobenius, ← RCLike.ofReal_pow, ← Real.rpow_two, ← Real.rpow_mul (by positivity)]
@@ -509,7 +563,6 @@ theorem norm_eq_trace_sq : ‖A‖ ^ 2 = (A.mat ^ 2).trace := by
 
 end innerproductspace
 
---TODO: Cleanup, ew what?
 /--
 The inner product ⟪A, B⟫ equals ∑_{ij} a_i b_j w_{ij} where a_i, b_j are eigenvalues
 and w_{ij} = ‖C_{ij}‖² for C = U_A^* U_B unitary.

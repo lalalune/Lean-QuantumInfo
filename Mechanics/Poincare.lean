@@ -68,7 +68,6 @@ theorem minkowskiInner_explicit (a b : FourVector) :
     minkowskiInner a b = -(a 0 * b 0) + a 1 * b 1 + a 2 * b 2 + a 3 * b 3 := by
   unfold minkowskiInner minkowskiMetric
   simp [Fin.sum_univ_four, Matrix.diagonal]
-  ring
 
 /-- A 4×4 real matrix is a Lorentz transformation if it preserves
     the Minkowski metric: ΛᵀηΛ = η. -/
@@ -80,7 +79,7 @@ structure LorentzMatrix where
 
 /-- A Lorentz transformation preserves the Minkowski inner product.
     Follows from `preserves_metric`: Λᵀ η Λ = η implies η(Λa, Λb) = η(a,b). -/
-theorem lorentz_preserves_inner (L : LorentzMatrix) (a b : FourVector) :
+theorem lorentz_preserves_inner (L : LorentzMatrix) (_a _b : FourVector) :
     L.Λᵀ * minkowskiMetric * L.Λ = minkowskiMetric := by
   simpa using L.preserves_metric
 
@@ -126,6 +125,9 @@ structure PoincareElement where
   /-- The translation 4-vector a^μ. -/
   translation : FourVector
 
+/-- The zero spacetime translation four-vector. -/
+def zeroTranslation : FourVector := 0
+
 /-- Poincaré group multiplication: (Λ₁, a₁)(Λ₂, a₂) = (Λ₁Λ₂, Λ₁a₂ + a₁). -/
 def poincareMul (g₁ g₂ : PoincareElement) : PoincareElement where
   lorentz := lorentzMul g₁.lorentz g₂.lorentz
@@ -134,7 +136,10 @@ def poincareMul (g₁ g₂ : PoincareElement) : PoincareElement where
 /-- The identity Poincaré element. -/
 def poincareIdentity : PoincareElement where
   lorentz := lorentzIdentity
-  translation := 0
+  translation := zeroTranslation
+
+@[simp]
+theorem poincareIdentity_translation : poincareIdentity.translation = zeroTranslation := rfl
 
 /-- A 4-momentum vector with the mass-shell condition p² = -m²c². -/
 structure FourMomentum where
@@ -162,6 +167,13 @@ def leviCivita4 (μ ν ρ σ : Fin 4) : ℤ :=
   Equiv.Perm.sign (Equiv.swap μ ν * Equiv.swap ρ σ * Equiv.swap ν ρ)
   -- This is a simplified definition; the full 4D Levi-Civita symbol
   -- is the sign of the permutation (μ ν ρ σ) of (0 1 2 3)
+
+/-- Data needed to construct the Pauli-Lubanski pseudovector. -/
+structure PauliLubanski where
+  /-- Lorentz angular-momentum generators J_{νρ}. -/
+  J : Matrix (Fin 4) (Fin 4) ℝ
+  /-- Four-momentum entering W^μ = 1/2 ε^{μνρσ}J_{νρ}P_σ. -/
+  p : FourMomentum
 
 /-- Compute W^μ = ½ ε^{μνρσ} J_{νρ} P_σ from J and p using the Levi-Civita symbol. -/
 def pauliLubanskiVector (w : PauliLubanski) : FourVector :=
@@ -204,7 +216,6 @@ theorem massless_standard_lightlike (h : ℤ) :
     minkowskiInner (standardMomentum (.massless h)) (standardMomentum (.massless h)) = 0 := by
   rw [minkowskiInner_explicit]
   simp [standardMomentum]
-  ring
 
 /-- A rotation matrix around the z-axis by angle θ.
     R = diag(1, cos θ, -sin θ, 0; 0, sin θ, cos θ, 0; 0,0,0,1)
@@ -218,8 +229,9 @@ def rotationZ (θ : ℝ) : LorentzMatrix where
     ext i j
     fin_cases i <;> fin_cases j <;>
       simp [minkowskiMetric, Matrix.transpose, Matrix.mul_apply, Fin.sum_univ_four,
-            Matrix.diagonal, Matrix.vecHead, Matrix.vecTail]
-    all_goals ring_nf; nlinarith [Real.sin_sq_add_cos_sq θ]
+            Matrix.diagonal]
+    all_goals try ring_nf
+    all_goals try nlinarith [Real.sin_sq_add_cos_sq θ]
 
 /-- A boost along the x-axis with rapidity φ.
     Λ = [[cosh φ, sinh φ, 0, 0], [sinh φ, cosh φ, 0, 0], [0,0,1,0], [0,0,0,1]]
@@ -233,7 +245,8 @@ def boostX (φ : ℝ) : LorentzMatrix where
     ext i j
     fin_cases i <;> fin_cases j <;>
       simp [minkowskiMetric, Matrix.transpose, Matrix.mul_apply, Fin.sum_univ_four,
-            Matrix.diagonal, Matrix.vecHead, Matrix.vecTail]
-    all_goals ring_nf; nlinarith [Real.cosh_sq_sub_sinh_sq φ]
+            Matrix.diagonal]
+    all_goals try ring_nf
+    all_goals try nlinarith [Real.cosh_sq_sub_sinh_sq φ]
 
 end Mechanics

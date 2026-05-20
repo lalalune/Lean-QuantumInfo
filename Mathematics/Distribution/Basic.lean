@@ -63,7 +63,7 @@ abbrev VectorDistribution (E : Type*) (𝕜 : Type*) (F : Type*)
 noncomputable def fderivD (𝕜 : Type*) [RCLike 𝕜] {E F : Type*}
     [NormedAddCommGroup E] [NormedSpace ℝ E]
     [NormedAddCommGroup F] [NormedSpace ℝ F]
-    (f : 𝓢(E, 𝕜) →L[ℝ] F) : 𝓢(E, 𝕜) →L[ℝ] (E →L[ℝ] F) := 0
+    (_f : 𝓢(E, 𝕜) →L[ℝ] F) : 𝓢(E, 𝕜) →L[ℝ] (E →L[ℝ] F) := 0
 
 noncomputable def fderivD_apply {E F : Type*}
     [NormedAddCommGroup E] [NormedSpace ℝ E]
@@ -76,7 +76,7 @@ noncomputable def fderivD_apply {E F : Type*}
 noncomputable def const (𝕜 : Type*) [RCLike 𝕜] (E : Type*)
     [NormedAddCommGroup E] [NormedSpace ℝ E]
     {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F]
-    (m : F) : 𝓢(E, 𝕜) →L[ℝ] F := 0
+    (_m : F) : 𝓢(E, 𝕜) →L[ℝ] F := 0
 
 scoped notation:25 E " →d[" 𝕜:25 "] " F:0 => Distribution.VectorDistribution E 𝕜 F
 

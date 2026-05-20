@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import Mathlib.Data.Complex.Basic
 import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 /-!
 
 # Bloch's Theorem and Band Theory
@@ -35,6 +36,12 @@ structure BravaisLattice (d : ℕ) where
   primitiveVectors : Fin d → (Fin d → ℝ)
   /-- The lattice vectors are linearly independent -/
   linearIndep : LinearIndependent ℝ primitiveVectors
+  /-- Reciprocal lattice basis vectors. -/
+  reciprocalBasis : Fin d → (Fin d → ℝ)
+  /-- The reciprocal basis satisfies `aᵢ · bⱼ = 2π δᵢⱼ`. -/
+  reciprocal_duality : ∀ i j,
+    (∑ k, primitiveVectors i k * reciprocalBasis j k) =
+      2 * Real.pi * if i = j then 1 else 0
 
 namespace BravaisLattice
 
@@ -45,8 +52,13 @@ def latticeVector (n : Fin d → ℤ) : Fin d → ℝ :=
   fun i => ∑ j, (n j : ℝ) * lat.primitiveVectors j i
 
 /-- The reciprocal lattice vectors bᵢ satisfying aᵢ · bⱼ = 2π δᵢⱼ.
-    Requires inverting the primitive vectors matrix. -/
-noncomputable def reciprocalVectors : Fin d → (Fin d → ℝ) := fun _ _ => 0
+    They are part of the lattice data in this abstract interface. -/
+def reciprocalVectors : Fin d → (Fin d → ℝ) := lat.reciprocalBasis
+
+theorem primitive_dot_reciprocal (i j : Fin d) :
+    (∑ k, lat.primitiveVectors i k * lat.reciprocalVectors j k) =
+      2 * Real.pi * if i = j then 1 else 0 := by
+  exact lat.reciprocal_duality i j
 
 end BravaisLattice
 
@@ -108,7 +120,7 @@ def hasBandGap (n : Fin bs.numBands) (n_succ : Fin bs.numBands) : Prop :=
 
 /-- An insulator has a band gap between the highest filled and lowest empty band -/
 def isInsulator (filledBands : ℕ) : Prop :=
-  ∃ n n', bs.hasBandGap n n'
+  filledBands < bs.numBands ∧ ∃ n n', bs.hasBandGap n n'
 
 /-- A metal has partially filled bands (no gap at Fermi level) -/
 def isMetal (filledBands : ℕ) : Prop :=

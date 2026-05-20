@@ -20,6 +20,7 @@ The majority of quantum theory revolves around `CPTPMap`s, so those are explored
 thoroughly in their file CPTP.lean.
 -/
 
+noncomputable section
 
 variable (dIn dOut R : Type*) (𝕜 : Type := ℂ)
 variable [Fintype dIn] [Fintype dOut]
@@ -73,6 +74,15 @@ structure CPUMap [DecidableEq dIn] [DecidableEq dOut] extends CPMap dIn dOut �
 
 variable {dIn dOut R} {𝕜 : Type} [RCLike 𝕜]
 
+namespace HermitianMat
+
+/-- The negative part of a Hermitian matrix is positive semidefinite. -/
+theorem zero_le_negPart {n : Type*} [Fintype n] [DecidableEq n] (A : HermitianMat n 𝕜) :
+    0 ≤ A⁻ :=
+  A.negPart_le_zero
+
+end HermitianMat
+
 --Hermitian-presering maps: continuous linear maps on HermitianMats.
 namespace HPMap
 omit [Fintype dIn] [Fintype dOut]
@@ -103,7 +113,7 @@ theorem funext_pos [Fintype dIn] (h : ∀ M : HermitianMat dIn ℂ, 0 ≤ M → 
   apply funext_hermitian
   intro M
   have hPos := h M⁺ M.zero_le_posPart
-  have hNeg := h M⁻ M.negPart_le_zero --TODO: this is named incorrectly
+  have hNeg := h M⁻ M.zero_le_negPart
   rw [← M.posPart_add_negPart]
   simp [hPos, hNeg]
 
@@ -143,7 +153,7 @@ instance instFunLike : FunLike (HPMap dIn dOut ℂ) (HermitianMat dIn ℂ) (Herm
 instance : ContinuousLinearMapClass
     (HPMap dIn dOut ℂ) ℝ (HermitianMat dIn ℂ) (HermitianMat dOut ℂ) where
   map_add f x y := HermitianMat.ext <| LinearMap.map_add f.toLinearMap x y
-  map_smulₛₗ f c x := HermitianMat.ext <| by simp [instFunLike]
+  map_smulₛₗ f c x := HermitianMat.ext <| LinearMap.map_smul_of_tower f.toLinearMap c x
   map_continuous f := .subtype_mk (by fun_prop) _
 
 end HPMap
@@ -167,7 +177,7 @@ instance instFunLike : FunLike (PMap dIn dOut ℂ) (HermitianMat dIn ℂ) (Hermi
 set_option synthInstance.maxHeartbeats 40000 in
 instance instLinearMapClass : LinearMapClass (PMap dIn dOut ℂ) ℝ (HermitianMat dIn ℂ) (HermitianMat dOut ℂ) where
   map_add f x y := HermitianMat.ext <| LinearMap.map_add f.toLinearMap x y
-  map_smulₛₗ f c x := HermitianMat.ext <| by simp [instFunLike]
+  map_smulₛₗ f c x := HermitianMat.ext <| LinearMap.map_smul_of_tower f.toLinearMap c x
 
 instance instContinuousOrderHomClass : ContinuousOrderHomClass (PMap dIn dOut ℂ)
     (HermitianMat dIn ℂ) (HermitianMat dOut ℂ) where
@@ -209,8 +219,8 @@ instance instFunLike : FunLike (PTPMap dIn dOut ℂ) (HermitianMat dIn ℂ) (Her
   coe_injective' := DFunLike.coe_injective'.comp injective_toPMap
 
 instance instLinearMapClass : LinearMapClass (PTPMap dIn dOut ℂ) ℝ (HermitianMat dIn ℂ) (HermitianMat dOut ℂ) where
-  map_add f x y := by simp [instFunLike]
-  map_smulₛₗ f c x := by simp [instFunLike]
+  map_add f x y := HermitianMat.ext <| LinearMap.map_add f.toLinearMap x y
+  map_smulₛₗ f c x := HermitianMat.ext <| LinearMap.map_smul_of_tower f.toLinearMap c x
 
 instance instHContinuousOrderHomClass : ContinuousOrderHomClass (PTPMap dIn dOut ℂ)
     (HermitianMat dIn ℂ) (HermitianMat dOut ℂ) where
@@ -336,7 +346,7 @@ instance instFunLike : FunLike (PUMap dIn dOut ℂ) (HermitianMat dIn ℂ) (Herm
 
 instance instLinearMapClass : LinearMapClass (PUMap dIn dOut ℂ) ℝ (HermitianMat dIn ℂ) (HermitianMat dOut ℂ) where
   map_add f x y := HermitianMat.ext <| LinearMap.map_add f.toLinearMap x y
-  map_smulₛₗ f c x := HermitianMat.ext <| by simp [instFunLike]
+  map_smulₛₗ f c x := HermitianMat.ext <| LinearMap.map_smul_of_tower f.toLinearMap c x
 
 instance instHContinuousOrderHomClass : ContinuousOrderHomClass (PUMap dIn dOut ℂ)
     (HermitianMat dIn ℂ) (HermitianMat dOut ℂ) where
@@ -374,7 +384,7 @@ instance instFunLike : FunLike (CPUMap dIn dOut ℂ) (HermitianMat dIn ℂ) (Her
 
 instance instLinearMapClass : LinearMapClass (CPUMap dIn dOut ℂ) ℝ (HermitianMat dIn ℂ) (HermitianMat dOut ℂ) where
   map_add f x y := HermitianMat.ext <| LinearMap.map_add f.toLinearMap x y
-  map_smulₛₗ f c x := HermitianMat.ext <| by simp [instFunLike]
+  map_smulₛₗ f c x := HermitianMat.ext <| LinearMap.map_smul_of_tower f.toLinearMap c x
 
 instance instHContinuousOrderHomClass : ContinuousOrderHomClass (CPUMap dIn dOut ℂ)
     (HermitianMat dIn ℂ) (HermitianMat dOut ℂ) where

@@ -57,8 +57,12 @@ def equivEuclid (d : ℕ) :
 lemma equivEuclid_apply (d : ℕ) (v : Vector d) (i : Fin 1 ⊕ Fin d) :
     equivEuclid d v i = v i := rfl
 
-instance (d : ℕ) : Norm (Vector d) where
-  norm := fun v => ‖equivEuclid d v‖
+instance (d : ℕ) : NormedAddCommGroup (Vector d) :=
+  NormedAddCommGroup.induced (Vector d) (EuclideanSpace ℝ (Fin 1 ⊕ Fin d))
+    (equivEuclid d).toAddMonoidHom (equivEuclid d).injective
+
+instance (d : ℕ) : NormedSpace ℝ (Vector d) :=
+  NormedSpace.induced ℝ (Vector d) (EuclideanSpace ℝ (Fin 1 ⊕ Fin d)) (equivEuclid d)
 
 lemma norm_eq_equivEuclid (d : ℕ) (v : Vector d) :
     ‖v‖ = ‖equivEuclid d v‖ := rfl
@@ -72,23 +76,6 @@ lemma abs_component_le_norm {d : ℕ} (v : Vector d) (i : Fin 1 ⊕ Fin d) :
   · simp
   refine Finset.sum_le_univ_sum_of_nonneg (fun i => by positivity)
 
-instance isNormedAddCommGroup (d : ℕ) : NormedAddCommGroup (Vector d) where
-  dist_self x := by simp [norm_eq_equivEuclid]
-  dist_comm x y := by
-    simpa [norm_eq_equivEuclid] using dist_comm ((equivEuclid d) x) _
-  dist_triangle x y z := by
-    simpa [norm_eq_equivEuclid] using dist_triangle
-      ((equivEuclid d) x) ((equivEuclid d) y) ((equivEuclid d) z)
-  eq_of_dist_eq_zero {x y} := by
-    simp only [norm_eq_equivEuclid, map_sub]
-    intro h
-    apply (equivEuclid d).injective
-    exact (eq_of_dist_eq_zero h)
-
-instance isNormedSpace (d : ℕ) : NormedSpace ℝ (Vector d) where
-  norm_smul_le c v := by
-    simp only [norm_eq_equivEuclid, map_smul]
-    exact norm_smul_le c (equivEuclid d v)
 open InnerProductSpace
 
 instance (d : ℕ) : Inner ℝ (Vector d) where
@@ -337,6 +324,13 @@ lemma toTensor_symm_basis {d : ℕ} (μ : Fin 1 ⊕ Fin d) :
     enter [1, 2]
     change (contrBasisFin d) (indexEquiv.symm μ 0)
   simp [contrBasisFin, indexEquiv, Finsupp.single_apply]
+  by_cases h : μ = i
+  · simp [h]
+  · simp [h]
+    intro hc
+    apply h
+    apply finSumFinEquiv.injective
+    exact Fin.ext (by simpa using congrArg Fin.val hc)
 
 lemma toTensor_basis_eq_tensor_basis {d : ℕ} (μ : Fin 1 ⊕ Fin d) :
     toTensor (basis μ) = Tensor.basis ![Color.up] (indexEquiv.symm μ) := by
@@ -418,7 +412,8 @@ lemma smul_eq_sum {d : ℕ} (i : Fin 1 ⊕ Fin d) (Λ : LorentzGroup d) (p : Vec
   rw [smul_toTensor_symm]
   apply induction_on_pure (t := p)
   · intro p
-    rw [actionT_pure]
+    rw [show Λ • p.toTensor = (Λ • p).toTensor from
+      TensorSpecies.Tensor.actionT_pure (g := Λ) (p := p)]
     rw [toTensor_symm_pure]
     conv_lhs =>
       enter [1, 2]
@@ -431,14 +426,21 @@ lemma smul_eq_sum {d : ℕ} (i : Fin 1 ⊕ Fin d) (Λ : LorentzGroup d) (p : Vec
     simp only [Finset.sum_apply]
     congr
     funext j
+    have hcast (x : Fin 1 ⊕ Fin d) :
+        (finSumFinEquiv (m := 1) (n := d)).symm (Fin.cast (show 1 + d = 1 + d by rfl)
+          ((finSumFinEquiv (m := 1) (n := d)) x)) = x := by
+      apply (finSumFinEquiv (m := 1) (n := d)).injective
+      simp
     simp only [Fin.isValue, Pi.smul_apply, transpose_apply, MulOpposite.smul_eq_mul_unop,
-      MulOpposite.unop_op, Nat.succ_eq_add_one, Nat.reduceAdd, mul_eq_mul_left_iff]
-    left
+      MulOpposite.unop_op, Nat.succ_eq_add_one, Nat.reduceAdd]
     rw [toTensor_symm_pure, contrBasisFin_repr_apply]
-    congr
-    simp [indexEquiv]
+    congr 1
+    · exact congrArg (fun x => Λ.1 x j) (hcast i)
+    · exact congrArg (fun x => (p 0).val x) (hcast j).symm
   · intro r t h
-    simp only [actionT_smul, _root_.map_smul]
+    rw [show Λ • (r • t) = r • (Λ • t) from
+      TensorSpecies.Tensor.actionT_smul (g := Λ) (r := r) (t := t)]
+    simp only [_root_.map_smul]
     change r * toTensor (self := tensorial).symm (Λ • t) i = _
     rw [h]
     rw [Finset.mul_sum]
@@ -447,7 +449,9 @@ lemma smul_eq_sum {d : ℕ} (i : Fin 1 ⊕ Fin d) (Λ : LorentzGroup d) (p : Vec
     simp only [Nat.succ_eq_add_one, Nat.reduceAdd, apply_smul]
     ring
   · intro t1 t2 h1 h2
-    simp only [actionT_add, map_add, h1, h2, apply_add]
+    rw [show Λ • (t1 + t2) = Λ • t1 + Λ • t2 from
+      TensorSpecies.Tensor.actionT_add (g := Λ) (t1 := t1) (t2 := t2)]
+    simp only [map_add, h1, h2, apply_add]
     rw [← Finset.sum_add_distrib]
     congr
     funext x
@@ -466,15 +470,18 @@ lemma smul_add {d : ℕ} (Λ : LorentzGroup d) (p q : Vector d) :
 @[simp]
 lemma smul_sub {d : ℕ} (Λ : LorentzGroup d) (p q : Vector d) :
     Λ • (p - q) = Λ • p - Λ • q := by
-  rw [smul_eq_mulVec, smul_eq_mulVec, smul_eq_mulVec, Matrix.mulVec_sub]
+  funext i
+  simp [smul_eq_sum, sub_eq_add_neg, Finset.sum_add_distrib, mul_add]
 
 lemma smul_zero {d : ℕ} (Λ : LorentzGroup d) :
     Λ • (0 : Vector d) = 0 := by
-  rw [smul_eq_mulVec, Matrix.mulVec_zero]
+  funext i
+  simp [smul_eq_sum]
 
 lemma smul_neg {d : ℕ} (Λ : LorentzGroup d) (p : Vector d) :
     Λ • (-p) = - (Λ • p) := by
-  rw [smul_eq_mulVec, smul_eq_mulVec, Matrix.mulVec_neg]
+  funext i
+  simp [smul_eq_sum, Finset.mul_sum]
 
 lemma neg_smul {d} (Λ : LorentzGroup d) (p : Vector d) :
     (-Λ) • p = - (Λ • p) := by
@@ -533,7 +540,7 @@ lemma smul_basis {d : ℕ} (Λ : LorentzGroup d) (μ : Fin 1 ⊕ Fin d) :
     ↓reduceIte]
   trans ∑ ν, ((Λ.1 ν μ • basis ν) i)
   · simp
-  rw [Fintype.sum_apply]
+  exact (Finset.sum_apply (s := Finset.univ) (g := fun ν => Λ.1 ν μ • basis ν) i).symm
 
 /-!
 
@@ -639,15 +646,25 @@ open InnerProductSpace
 
 lemma basis_inner {d : ℕ} (μ : Fin 1 ⊕ Fin d) (p : Lorentz.Vector d) :
     ⟪Lorentz.Vector.basis μ, p⟫_ℝ = p μ := by
-  simp [inner_eq_equivEuclid]
-  rw [PiLp.inner_apply]
-  simp
+  cases μ with
+  | inl t =>
+      fin_cases t
+      simp [inner_eq_equivEuclid, PiLp.inner_apply, equivEuclid_apply, basis_apply,
+        real_inner_eq_re_inner, RCLike.inner_apply]
+  | inr i =>
+      simp [inner_eq_equivEuclid, PiLp.inner_apply, equivEuclid_apply, basis_apply,
+        real_inner_eq_re_inner, RCLike.inner_apply]
 
 lemma inner_basis {d : ℕ} (p : Lorentz.Vector d) (μ : Fin 1 ⊕ Fin d) :
     ⟪p, Lorentz.Vector.basis μ⟫_ℝ = p μ := by
-  simp [inner_eq_equivEuclid]
-  rw [PiLp.inner_apply]
-  simp
+  cases μ with
+  | inl t =>
+      fin_cases t
+      simp [inner_eq_equivEuclid, PiLp.inner_apply, equivEuclid_apply, basis_apply,
+        real_inner_eq_re_inner, RCLike.inner_apply]
+  | inr i =>
+      simp [inner_eq_equivEuclid, PiLp.inner_apply, equivEuclid_apply, basis_apply,
+        real_inner_eq_re_inner, RCLike.inner_apply]
 
 end Vector
 

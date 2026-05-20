@@ -12,8 +12,6 @@ import Mathlib.GroupTheory.QuotientGroup.Defs
 The Pati-Salam model is a petite unified theory that unifies the Standard Model gauge group into
 `SU(4) x SU(2) x SU(2)`.
 
-This file currently contains informal-results about the Pati-Salam group.
-
 -/
 
 namespace PatiSalam
@@ -58,56 +56,6 @@ lemma ext {g g' : GaugeGroupI} (h4 : toSU4 g = toSU4 g') (hL : toSU2L g = toSU2L
   simp_all
 
 end GaugeGroupI
-
-/-- A temporary matrix-model stand-in for the Standard Model inclusion.
-
-The full Pati-Salam embedding mixes the `SU(3)` and `U(1)` factors into the
-`SU(4)` and right-handed `SU(2)` factors. Until that block-matrix construction
-is formalized, we retain the visible `SU(2)` component and use identity elements
-for the unavailable factors. -/
-def inclSM : StandardModel.GaugeGroupI →* GaugeGroupI where
-  toFun g := (1, StandardModel.GaugeGroupI.toSU2 g, 1)
-  map_one' := by simp [StandardModel.GaugeGroupI.toSU2]
-  map_mul' g h := by
-    apply GaugeGroupI.ext
-    · simp [GaugeGroupI.toSU4]
-    · simp [GaugeGroupI.toSU2L, StandardModel.GaugeGroupI.toSU2]
-    · simp [GaugeGroupI.toSU2R]
-
-/-- The actual kernel of the current stand-in inclusion `inclSM`.
-
-Because the present matrix-level model only retains the visible `SU(2)` factor,
-this is larger than the physical `ℤ₃` kernel of the full Pati-Salam embedding. -/
-def inclSM_ker : Subgroup StandardModel.GaugeGroupI :=
-  inclSM.ker
-
-@[simp]
-lemma mem_inclSM_ker_iff (g : StandardModel.GaugeGroupI) :
-    g ∈ inclSM_ker ↔ StandardModel.GaugeGroupI.toSU2 g = 1 := by
-  change inclSM g = 1 ↔ StandardModel.GaugeGroupI.toSU2 g = 1
-  constructor
-  · intro h
-    simpa [inclSM, GaugeGroupI.toSU2L, StandardModel.GaugeGroupI.toSU2] using
-      congrArg GaugeGroupI.toSU2L h
-  · intro h
-    apply GaugeGroupI.ext
-    · simp [inclSM, GaugeGroupI.toSU4]
-    · simpa [inclSM, GaugeGroupI.toSU2L, StandardModel.GaugeGroupI.toSU2] using h
-    · simp [inclSM, GaugeGroupI.toSU2R]
-
-/-- The current stand-in embedding from the `ℤ₃`-quotiented Standard Model gauge group. -/
-def embedSMℤ₃ : StandardModel.GaugeGroupℤ₃ →* GaugeGroupI :=
-  inclSM
-
-/-- A temporary stand-in for the unavailable `Spin(6) × Spin(4)` model.
-
-At the current matrix-group level, we retain the underlying
-`SU(4) × SU(2) × SU(2)` realization and expose the identity equivalence.
-Replacing this with the actual spin-group equivalence requires a dedicated
-formalization of spin groups and their low-rank accidental isomorphisms. -/
-@[simps!]
-def gaugeGroupISpinEquiv : GaugeGroupI ≃* GaugeGroupI :=
-  MulEquiv.refl _
 
 /-- The central element `-1` in `SU(4)`. -/
 noncomputable def minusOneSU4 : Matrix.specialUnitaryGroup (Fin 4) ℂ := by
@@ -201,29 +149,5 @@ noncomputable def toGaugeGroupℤ₂ : GaugeGroupI →* GaugeGroupℤ₂ :=
 @[simp]
 lemma toGaugeGroupℤ₂_gaugeGroupℤ₂Elem : toGaugeGroupℤ₂ gaugeGroupℤ₂Elem = 1 := by
   exact (QuotientGroup.eq_one_iff gaugeGroupℤ₂Elem).mpr <| Subgroup.mem_zpowers gaugeGroupℤ₂Elem
-
-/-- The current stand-in `ℤ₆` subgroup maps trivially into the `ℤ₂` quotient.
-
-At present `StandardModel.gaugeGroupℤ₆SubGroup` is implemented as `⊥`, so the
-factorization condition is the corresponding kernel inclusion. -/
-lemma sm_ℤ₆_factor_through_gaugeGroupℤ₂SubGroup :
-    StandardModel.gaugeGroupℤ₆SubGroup ≤ (toGaugeGroupℤ₂.comp inclSM).ker := by
-  intro g hg
-  have hg' : g = 1 := by
-    simpa [StandardModel.gaugeGroupℤ₆SubGroup, Subgroup.mem_bot] using hg
-  change (toGaugeGroupℤ₂.comp inclSM) g = 1
-  simpa [hg']
-
-/-- The current stand-in hom from `StandardModel.GaugeGroupℤ₆` to `GaugeGroupℤ₂`.
-
-Since `StandardModel.GaugeGroupℤ₆` is presently definitionally equal to
-`StandardModel.GaugeGroupI`, this is the direct composite of `inclSM` with the
-canonical quotient map. -/
-noncomputable def embedSMℤ₆Toℤ₂ : StandardModel.GaugeGroupℤ₆ →* GaugeGroupℤ₂ :=
-  toGaugeGroupℤ₂.comp inclSM
-
-@[simp]
-lemma embedSMℤ₆Toℤ₂_apply (g : StandardModel.GaugeGroupℤ₆) :
-    embedSMℤ₆Toℤ₂ g = toGaugeGroupℤ₂ (inclSM g) := rfl
 
 end PatiSalam

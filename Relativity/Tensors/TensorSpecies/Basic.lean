@@ -104,7 +104,7 @@ lemma basis_congr_repr {c c1 : C} (h : c = c1) (i : Fin (S.repDim c))
   simp
 
 lemma FD_map_basis {c c1 : C} (h : c = c1) (i : Fin (S.repDim c)) :
-    (S.FD.map (Discrete.eqToHom h)).hom.hom (S.basis c i)
+    (S.FD.map (Discrete.eqToHom h)).hom (S.basis c i)
     = S.basis c1 (Fin.cast (by simp [h]) i) := by
   subst h
   simp
@@ -140,13 +140,16 @@ lemma castToField_eq_self {S : TensorSpecies k C G} {c}
 /-- Casts an element of `(S.F.obj (OverColor.mk c)).V` for `c` a map from `Fin 0` to an
   element of the field. -/
 def castFin0ToField {c : Fin 0 → C} : (S.F.obj (OverColor.mk c)).V →ₗ[k] k :=
-  (PiTensorProduct.isEmptyEquiv (Fin 0)).toLinearMap
+  ((PiTensorProduct.isEmptyEquiv (Fin 0) :
+    (PiTensorProduct k fun i : Fin 0 => (S.FD.obj (Discrete.mk (c i))).V) ≃ₗ[k] k).toLinearMap)
 
 lemma castFin0ToField_tprod {c : Fin 0 → C}
     (x : (i : Fin 0) → S.FD.obj (Discrete.mk (c i))) :
     castFin0ToField S (PiTensorProduct.tprod k x) = 1 := by
-  simp only [castFin0ToField, mk_hom, LinearEquiv.coe_coe]
-  erw [PiTensorProduct.isEmptyEquiv_apply_tprod]
+  change ((PiTensorProduct.isEmptyEquiv (Fin 0) :
+    (PiTensorProduct k fun i : Fin 0 => (S.FD.obj (Discrete.mk (c i))).V) ≃ₗ[k] k)
+      ((PiTensorProduct.tprod k) x)) = 1
+  rw [PiTensorProduct.isEmptyEquiv_apply_tprod]
 
 /-!
 
@@ -161,7 +164,13 @@ lemma contr_congr (c c' : C) (h : c = c') (x : S.FD.obj (Discrete.mk c))
     ((S.FD.map (Discrete.eqToHom (by simp [h]))).hom x ⊗ₜ
     (S.FD.map (Discrete.eqToHom (by simp [h]))).hom y) := by
   subst h
-  simp
+  have hx : (S.FD.map (Discrete.eqToHom (rfl : c = c))).hom x = x := by simp
+  have hy : (S.FD.map (Discrete.eqToHom (rfl : S.τ c = S.τ c))).hom y = y := by simp
+  change (S.contr.app { as := c }).hom (x ⊗ₜ[k] y) =
+    (S.contr.app { as := c }).hom
+      ((S.FD.map (Discrete.eqToHom (rfl : c = c))).hom x ⊗ₜ[k]
+        (S.FD.map (Discrete.eqToHom (rfl : S.τ c = S.τ c))).hom y)
+  rw [hx, hy]
 
 /-- The number of indices `n` from a tensor. -/
 @[nolint unusedArguments]

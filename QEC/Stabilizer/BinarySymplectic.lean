@@ -4,6 +4,7 @@ import QEC.Stabilizer.BinarySymplectic.CheckMatrix
 import QEC.Stabilizer.BinarySymplectic.CheckMatrixDecidable
 import QEC.Stabilizer.BinarySymplectic.IndependentEquiv
 import QEC.Stabilizer.BinarySymplectic.SymplecticSpan
+import QEC.Stabilizer.BinarySymplectic.WeightTwoInSpan
 
 /-!
 # Binary symplectic representation and check matrix

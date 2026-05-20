@@ -34,7 +34,7 @@ def mexicanHatPotential (μ_sq quartic : ℝ) (φ_sq : ℝ) : ℝ :=
   μ_sq * φ_sq + quartic * φ_sq ^ 2
 
 /-- The minimum of the Mexican hat potential occurs at |φ|² = -μ²/(2λ) -/
-theorem mexicanHat_minimum (μ_sq quartic : ℝ) (hμ : μ_sq < 0) (hq : 0 < quartic) :
+theorem mexicanHat_minimum (μ_sq quartic : ℝ) (_hμ : μ_sq < 0) (hq : 0 < quartic) :
     ∀ φ_sq, mexicanHatPotential μ_sq quartic (-μ_sq / (2 * quartic)) ≤
     mexicanHatPotential μ_sq quartic φ_sq := by
   intro φ_sq
@@ -49,7 +49,7 @@ theorem mexicanHat_minimum (μ_sq quartic : ℝ) (hμ : μ_sq < 0) (hq : 0 < qua
   linarith
 
 /-- The vacuum expectation value v = √(-μ²/λ) -/
-def vacuumExpectationValue (μ_sq quartic : ℝ) (hμ : μ_sq < 0) (hq : 0 < quartic) : ℝ :=
+def vacuumExpectationValue (μ_sq quartic : ℝ) (_hμ : μ_sq < 0) (_hq : 0 < quartic) : ℝ :=
   Real.sqrt (-μ_sq / quartic)
 
 /-- The symmetry breaking pattern of the Standard Model:
@@ -77,8 +77,10 @@ structure HiggsMechanism where
   /-- Z boson mass -/
   m_Z : ℝ
   m_Z_pos : 0 < m_Z
-  /-- Photon mass = 0 -/
-  m_γ : ℝ := 0
+  /-- Photon mass. -/
+  m_γ : ℝ
+  /-- The unbroken electromagnetic `U(1)` keeps the photon massless. -/
+  photon_massless : m_γ = 0
   /-- Higgs boson mass -/
   m_H : ℝ
   m_H_pos : 0 < m_H

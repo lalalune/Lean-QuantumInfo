@@ -20,7 +20,7 @@ stabilizer groups (no -I), the centralizer coincides with the normalizer.
 
 /-- The centralizer of a stabilizer group: all Pauli elements that commute with
     every element of S. Equivalently, operators that preserve the codespace. -/
-def centralizer (S : StabilizerGroup n) : Subgroup (NQubitPauliGroupElement n) :=
+noncomputable def centralizer (S : StabilizerGroup n) : Subgroup (NQubitPauliGroupElement n) :=
   Subgroup.centralizer (S.toSubgroup : Set (NQubitPauliGroupElement n))
 
 /-- The centralizer depends only on the underlying subgroup. -/

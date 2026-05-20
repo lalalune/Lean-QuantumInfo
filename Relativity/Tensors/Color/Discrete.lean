@@ -3,7 +3,7 @@ Copyright (c) 2024 Joseph Tooby-Smith. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Joseph Tooby-Smith
 -/
-import Mathlib.RepresentationTheory.Rep
+import Mathlib.RepresentationTheory.Rep.Basic
 /-!
 
 # Discrete color category
@@ -30,8 +30,7 @@ def pairτ (τ : C → C) : Discrete C ⥤ Rep k G :=
   F ⊗ ((Discrete.functor (Discrete.mk ∘ τ) : Discrete C ⥤ Discrete C) ⋙ F)
 
 lemma pairτ_tmul {c : C} (x : F.obj (Discrete.mk c))
-    (y : ↑(((Action.functorCategoryEquivalence (ModuleCat k) (MonCat.of G)).symm.inverse.obj
-    ((Discrete.functor (Discrete.mk ∘ τ) ⋙ F).obj { as := c })).obj PUnit.unit)) (h : c = c1) :
+    (y : ((Discrete.functor (Discrete.mk ∘ τ) ⋙ F).obj (Discrete.mk c))) (h : c = c1) :
     ((pairτ F τ).map (Discrete.eqToHom h)).hom (x ⊗ₜ[k] y)= ((F.map (Discrete.eqToHom h)).hom x)
     ⊗ₜ[k] ((F.map (Discrete.eqToHom (by simp [h]))).hom y) := by
   rfl

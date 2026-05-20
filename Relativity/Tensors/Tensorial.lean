@@ -107,7 +107,7 @@ lemma self_toTensor_apply {n : ℕ} (S : TensorSpecies k C G) (c : Fin n → C) 
 -/
 
 /-- The number of indices of a elements `t : M` where `M` carries a tensorial instance. -/
-def numIndices (t : M) [Tensorial S c M] : ℕ :=
+noncomputable def numIndices (t : M) [Tensorial S c M] : ℕ :=
   TensorSpecies.numIndices (toTensor t)
 
 /-!
@@ -126,10 +126,10 @@ noncomputable instance mulAction [Tensorial S c M] : MulAction G M where
     change toTensor.symm (1 • toTensor m) = _
     simp
   mul_smul g h m := by
-    change _ = toTensor.symm (g • toTensor (toTensor.symm (h • toTensor m)))
+    change toTensor.symm ((g * h) • toTensor m) =
+      toTensor.symm (g • toTensor (toTensor.symm (h • toTensor m)))
     simp only [LinearEquiv.apply_symm_apply]
-    rw [← mul_smul]
-    rfl
+    exact congrArg toTensor.symm (mul_smul g h (toTensor m))
 
 /-!
 
@@ -162,10 +162,12 @@ noncomputable instance (priority := high) distribMulAction [Tensorial S c M] :
     DistribMulAction G M where
   smul_add g m m' := by
     apply toTensor.injective
-    simp [toTensor_smul, map_add, Tensor.actionT_add]
+    simp only [toTensor_smul, map_add]
+    exact Tensor.actionT_add
   smul_zero g := by
     apply toTensor.injective
-    simp only [toTensor_smul, map_zero, Tensor.actionT_zero]
+    simp only [toTensor_smul, map_zero]
+    exact Tensor.actionT_zero
 
 /-!
 
@@ -181,7 +183,8 @@ noncomputable def smulLinearMap (g : G) [Tensorial S c M] : M →ₗ[k] M where
     simp [toTensor_smul]
   map_smul' c x := by
     apply toTensor.injective
-    simp [toTensor_smul]
+    simp only [toTensor_smul, map_smul]
+    exact Tensor.actionT_smul
 
 lemma smulLinearMap_apply {g : G} [Tensorial S c M] (m : M) :
     smulLinearMap g m = g • m := rfl
@@ -195,7 +198,8 @@ lemma smulLinearMap_apply {g : G} [Tensorial S c M] (m : M) :
 instance [Tensorial S c M] : SMulCommClass k G M where
   smul_comm c g m := by
     apply toTensor.injective
-    simp [toTensor_smul]
+    simp only [toTensor_smul, map_smul]
+    exact Tensor.actionT_smul.symm
 
 /-!
 
@@ -246,7 +250,8 @@ lemma smul_prod {n2 : ℕ} {c2 : Fin n2 → C} {M₂ : Type}
   apply toTensor.injective
   simp [toTensor_smul]
   rw [toTensor_tprod, toTensor_tprod]
-  rw [← Tensor.prodT_equivariant, toTensor_smul, toTensor_smul]
+  rw [toTensor_smul, toTensor_smul]
+  exact (Tensor.prodT_equivariant g (toTensor m) (toTensor m2)).symm
 
 /-!
 

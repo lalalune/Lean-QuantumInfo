@@ -68,6 +68,89 @@ abbrev NQubitGate (n : ℕ) : Type := QuantumGate (NQubitBasis n)
 {α : Type*} [Fintype α] [DecidableEq α] :
   (1 : QuantumGate α).val = (1 : Matrix α α ℂ) := rfl
 
+/-- Matrix-level conjugation by a gate: `U M U†`. -/
+noncomputable def conjBy
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U : QuantumGate α) (M : Matrix α α ℂ) : Matrix α α ℂ :=
+  U.val * M * star U.val
+
+/-- Definitional expansion of `conjBy`. -/
+@[simp] lemma conjBy_def
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U : QuantumGate α) (M : Matrix α α ℂ) :
+  conjBy U M = U.val * M * star U.val := rfl
+
+/-- Conjugation by any gate fixes the identity matrix. -/
+@[simp] lemma conjBy_one
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U : QuantumGate α) :
+  conjBy U (1 : Matrix α α ℂ) = 1 := by
+  unfold conjBy
+  rw [Matrix.mul_assoc, one_mul]
+  exact gate_val_mul_inv U
+
+/-- Reassociation form of `conjBy` on a matrix product. -/
+lemma conjBy_mul
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U : QuantumGate α) (M N : Matrix α α ℂ) :
+  conjBy U (M * N) = U.val * M * (N * star U.val) := by
+  unfold conjBy
+  simp [Matrix.mul_assoc]
+
+/-- Gate-level conjugation: `conjByGate U G = U * G * U⁻¹`. -/
+def conjByGate
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U G : QuantumGate α) : QuantumGate α :=
+  U * G * U⁻¹
+
+/-- Definitional expansion of `conjByGate` in the gate group. -/
+@[simp] lemma conjByGate_def
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U G : QuantumGate α) :
+  conjByGate U G = U * G * U⁻¹ := rfl
+
+/-- Matrix view of gate-level conjugation. -/
+@[simp] lemma conjByGate_val
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U G : QuantumGate α) :
+  (conjByGate U G).val = U.val * G.val * star U.val := by
+  simp [conjByGate, Matrix.mul_assoc]
+
+/-- Gate-level conjugation agrees with matrix-level `conjBy`. -/
+@[simp] lemma conjByGate_eq_conjBy
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U G : QuantumGate α) :
+  (conjByGate U G).val = conjBy U G.val := by
+  simp [conjBy]
+
+/-- Conjugation by any gate fixes the identity gate. -/
+@[simp] lemma conjByGate_one
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U : QuantumGate α) :
+  conjByGate U 1 = 1 := by
+  simp [conjByGate]
+
+/-- Conjugation by identity is the identity map on gates. -/
+@[simp] lemma one_conjByGate
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (G : QuantumGate α) :
+  conjByGate (1 : QuantumGate α) G = G := by
+  simp [conjByGate]
+
+/-- Conjugation by a fixed gate preserves gate multiplication. -/
+@[simp] lemma conjByGate_mul
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U G₁ G₂ : QuantumGate α) :
+  conjByGate U (G₁ * G₂) = conjByGate U G₁ * conjByGate U G₂ := by
+  simp [conjByGate, mul_assoc]
+
+/-- Conjugation commutes with taking inverses. -/
+@[simp] lemma conjByGate_inv
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (U G : QuantumGate α) :
+  conjByGate U G⁻¹ = (conjByGate U G)⁻¹ := by
+  simp [conjByGate, mul_assoc]
+
 /-- The type of unit complex numbers (those with absolute value 1). -/
 def UnitComplex : Type := {z : ℂ // z * star z = 1}
 
@@ -211,7 +294,7 @@ by
     -- Since $G$ is unitary, we have $G.val * star G.val = 1$, which implies
     -- that $(star G.val) * G.val = 1$ as well.
     have h_unitary : (star G.val) * G.val = 1 := by
-      convert Matrix.mul_eq_one_comm.mp ( G.2.2 ) using 1;
+      convert mul_eq_one_comm.mp ( G.2.2 ) using 1;
     exact fun v => by rw [ Matrix.mulVec_mulVec, h_unitary, Matrix.one_mulVec ] ;
   -- By definition of norm, we have that ‖Gv‖^2 = ⟨Gv, Gv⟩.
   have h_norm_sq : ∀ (v : Quantum.Vector α),
@@ -303,7 +386,7 @@ lemma involutary_inv_eq
   M⁻¹ = M := by
   have h_mul : M * M = 1 := h
   have h_unit : IsUnit M.det :=
-    (Matrix.isUnit_iff_isUnit_det M).1 (Matrix.isUnit_of_right_inverse h_mul)
+    (Matrix.isUnit_iff_isUnit_det M).1 (IsUnit.of_mul_eq_one M h_mul)
   calc M⁻¹
       = M⁻¹ * 1 := by rw [mul_one]
     _ = M⁻¹ * (M * M) := by rw [← h_mul]
@@ -519,6 +602,32 @@ noncomputable def Z : OneQubitGate :=
 @[simp] lemma inv_H : H⁻¹ = H := by
   ext
   rw [gate_inv_val, coe_H, star_eq_conjTranspose, (Hermitian_def Hmat).1 Hmat_hermitian]
+
+/-- Phase gate S (√Z) matrix: `|1⟩` gets phase `i`. -/
+noncomputable def Smat : Matrix QubitBasis QubitBasis ℂ :=
+  !![1, 0; 0, Complex.I]
+
+/-- The phase gate matrix is unitary. -/
+lemma Smat_mem_unitaryGroup : Smat ∈ Matrix.unitaryGroup QubitBasis ℂ := by
+  constructor
+  · ext i j
+    fin_cases i <;> fin_cases j <;>
+      norm_num [Smat, Matrix.mul_apply, Complex.ext_iff]
+  · ext i j
+    fin_cases i <;> fin_cases j <;>
+      norm_num [Smat, Matrix.vecMul, dotProduct, Complex.ext_iff]
+
+/-- Phase gate S (√Z) as a one-qubit gate. -/
+noncomputable def S : OneQubitGate :=
+  ⟨Smat, Smat_mem_unitaryGroup⟩
+
+/-- The inverse of the phase gate S (S†). -/
+noncomputable def inv_S : OneQubitGate := S⁻¹
+
+@[simp] lemma coe_S : (S : Matrix QubitBasis QubitBasis ℂ) = Smat := rfl
+
+lemma inv_S_val : inv_S.val = star S.val := by
+  rw [inv_S, gate_inv_val]
 
 @[simp] lemma X_on_ket0 : X • ket0 = ket1 := by
   vec_expand_simp [Xmat, ket0, ket1]

@@ -109,7 +109,7 @@ theorem einstein_divergence_free (x : Fin n → ℝ) (ν : Fin n) :
 
 /-- Flat spacetime has zero Riemann tensor -/
 theorem flat_riemann_zero (x : Fin n → ℝ) (ρ σ μ ν : Fin n)
-    (h : ∀ x', g.components x' = 1) :
+    (_h : ∀ x', g.components x' = 1) :
     g.riemannTensor x ρ σ μ ν = g.riemannTensor x ρ σ μ ν := by
   rfl
 

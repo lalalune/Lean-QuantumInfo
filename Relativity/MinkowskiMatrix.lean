@@ -137,7 +137,12 @@ as well as other properties related to squaring the Minkowski matrix.
 /-- The Minkowski matrix is self-inverting. -/
 @[simp]
 lemma sq : @minkowskiMatrix d * minkowskiMatrix = 1 := by
-  simp [as_block, fromBlocks_multiply]
+  rw [as_diagonal, Matrix.diagonal_mul_diagonal]
+  ext μ ν
+  by_cases h : μ = ν
+  · subst h
+    cases μ <;> simp
+  · simp [h]
 
 /-- Multiplying any element on the diagonal of the Minkowski matrix by itself gives `1`. -/
 @[simp]

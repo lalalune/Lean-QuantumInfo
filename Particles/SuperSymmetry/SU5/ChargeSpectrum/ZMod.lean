@@ -7,6 +7,7 @@ import Mathlib.Data.Fintype.Prod
 import Mathlib.Data.ZMod.Defs
 import Particles.SuperSymmetry.SU5.ChargeSpectrum.Yukawa
 import Particles.SuperSymmetry.SU5.ChargeSpectrum.Completions
+import Particles.SuperSymmetry.SU5.ChargeSpectrum.PhenoClosed
 import Meta.Linters.Sorry
 /-!
 
@@ -132,196 +133,152 @@ lemma ZModCharges_five_eq : ZModCharges 5 = ∅ := by decide +kernel
 
 -/
 
-private def withQHdQHuEmbedding {𝓩 : Type} (qHd qHu : Option 𝓩) :
-    Finset 𝓩 × Finset 𝓩 ↪ ChargeSpectrum 𝓩 where
-  toFun x := ⟨qHd, qHu, x.1, x.2⟩
+private def zmod6SingletonEmbedding :
+    ((ZMod 6 × ZMod 6) × (ZMod 6 × ZMod 6)) ↪ ChargeSpectrum (ZMod 6) where
+  toFun x := ⟨some x.1.1, some x.1.2, {x.2.1}, {x.2.2}⟩
   inj' := by
-    rintro ⟨Q5, Q10⟩ ⟨Q5', Q10'⟩ h
+    rintro ⟨⟨qHd, qHu⟩, ⟨q5, q10⟩⟩ ⟨⟨qHd', qHu'⟩, ⟨q5', q10'⟩⟩ h
     simp [ChargeSpectrum.eq_iff] at h
     simp [h]
 
-private def ofFinsetUnivWithQHdQHu (n : ℕ) [NeZero n]
-    (qHd qHu : Option (ZMod n)) :
-    Finset (ChargeSpectrum (ZMod n)) :=
-  let SQ : Finset (Finset (ZMod n)) := (Finset.univ : Finset (ZMod n)).powerset
-  (SQ.product SQ).map (withQHdQHuEmbedding qHd qHu)
+private def zmod6SingletonCharges : Finset (ChargeSpectrum (ZMod 6)) :=
+  (Finset.univ : Finset ((ZMod 6 × ZMod 6) × (ZMod 6 × ZMod 6))).map
+    zmod6SingletonEmbedding
 
-private lemma mem_ofFinsetUnivWithQHdQHu_iff {n : ℕ} [NeZero n]
-    {qHd qHu : Option (ZMod n)}
-    {x : ChargeSpectrum (ZMod n)} :
-    x ∈ ofFinsetUnivWithQHdQHu n qHd qHu ↔ x.qHd = qHd ∧ x.qHu = qHu := by
-  cases x
-  simp [ofFinsetUnivWithQHdQHu, withQHdQHuEmbedding]
-
-private def ZModChargesWithQHdQHu (n : ℕ) [NeZero n]
-    (qHd qHu : Option (ZMod n)) :
-    Finset (ChargeSpectrum (ZMod n)) :=
-  (ofFinsetUnivWithQHdQHu n qHd qHu).filter
-    fun x => IsComplete x ∧ ¬ x.IsPhenoConstrained ∧ ¬ x.YukawaGeneratesDangerousAtLevel 4
-
-private lemma mem_ZModChargesWithQHdQHu_iff {n : ℕ} [NeZero n]
-    {qHd qHu : Option (ZMod n)}
-    {x : ChargeSpectrum (ZMod n)} :
-    x ∈ ZModChargesWithQHdQHu n qHd qHu ↔
-      x ∈ ZModCharges n ∧ x.qHd = qHd ∧ x.qHu = qHu := by
-  simp [ZModChargesWithQHdQHu, ZModCharges, mem_ofFinsetUnivWithQHdQHu_iff, ofFinset_univ]
-
-private lemma ZModChargesWithQHdQHu_subset {n : ℕ} [NeZero n]
-    (qHd qHu : Option (ZMod n)) :
-    ZModChargesWithQHdQHu n qHd qHu ⊆ ZModCharges n := by
-  intro x hx
-  exact (mem_ZModChargesWithQHdQHu_iff.mp hx).1
-
-private lemma ZModChargesWithQHdQHu_mem_of_eq {n : ℕ} [NeZero n]
-    {qHd qHu : Option (ZMod n)} {x : ChargeSpectrum (ZMod n)}
-    (hx : x ∈ ZModCharges n) (hHd : x.qHd = qHd) (hHu : x.qHu = qHu) :
-    x ∈ ZModChargesWithQHdQHu n qHd qHu := by
-  exact mem_ZModChargesWithQHdQHu_iff.mpr ⟨hx, hHd, hHu⟩
-
-private lemma ZModCharges_six_zero_zero_eq :
-    ZModChargesWithQHdQHu 6 (some 0) (some 0) = ∅ := by
+private lemma zmod6_singleton_topYukawa_of_good :
+    ∀ x ∈ zmod6SingletonCharges,
+      ¬ x.IsPhenoConstrained → ¬ x.YukawaGeneratesDangerousAtLevel 4 →
+        x.AllowsTerm .topYukawa := by
   decide +kernel
 
-private lemma ZModCharges_six_zero_one_eq :
-    ZModChargesWithQHdQHu 6 (some 0) (some 1) = ∅ := by
+private lemma zmod6_topYukawa_of_good {x : ChargeSpectrum (ZMod 6)}
+    (hComplete : x.IsComplete) (hPheno : ¬ x.IsPhenoConstrained)
+    (hYukawa : ¬ x.YukawaGeneratesDangerousAtLevel 4) :
+    x.AllowsTerm .topYukawa := by
+  obtain ⟨qHd, hqHd⟩ := Option.isSome_iff_exists.mp hComplete.1
+  obtain ⟨qHu, hqHu⟩ := Option.isSome_iff_exists.mp hComplete.2.1
+  obtain ⟨q5, hq5⟩ := Finset.nonempty_iff_ne_empty.mpr hComplete.2.2.1
+  obtain ⟨q10, hq10⟩ := Finset.nonempty_iff_ne_empty.mpr hComplete.2.2.2
+  let y : ChargeSpectrum (ZMod 6) := ⟨some qHd, some qHu, {q5}, {q10}⟩
+  have hyMem : y ∈ zmod6SingletonCharges := by
+    simp [zmod6SingletonCharges, zmod6SingletonEmbedding, y]
+  have hySubset : y ⊆ x := by
+    simp [subset_def, y, hqHd, hqHu, hq5, hq10]
+  have hyPheno : ¬ y.IsPhenoConstrained := fun hy =>
+    hPheno (isPhenoConstrained_mono hySubset hy)
+  have hyYukawa : ¬ y.YukawaGeneratesDangerousAtLevel 4 := fun hy =>
+    hYukawa (yukawaGeneratesDangerousAtLevel_of_subset hySubset hy)
+  exact allowsTerm_mono hySubset (zmod6_singleton_topYukawa_of_good y hyMem hyPheno hyYukawa)
+
+private def zmod6TopYukawaLevelOneCharges : Finset (ChargeSpectrum (ZMod 6)) :=
+  {⟨some 0, some 2, {1}, {1}⟩,
+    ⟨some 0, some 2, {5}, {1}⟩,
+    ⟨some 0, some 4, {1}, {5}⟩,
+    ⟨some 0, some 4, {5}, {5}⟩,
+    ⟨some 1, some 0, {2}, {3}⟩,
+    ⟨some 1, some 0, {4}, {3}⟩,
+    ⟨some 1, some 2, {0}, {1}⟩,
+    ⟨some 1, some 2, {4}, {1}⟩,
+    ⟨some 1, some 2, {5}, {1}⟩,
+    ⟨some 1, some 2, {5}, {4}⟩,
+    ⟨some 1, some 4, {0}, {5}⟩,
+    ⟨some 1, some 4, {2}, {5}⟩,
+    ⟨some 1, some 4, {3}, {2}⟩,
+    ⟨some 1, some 4, {5}, {5}⟩,
+    ⟨some 2, some 0, {1}, {3}⟩,
+    ⟨some 2, some 0, {5}, {3}⟩,
+    ⟨some 2, some 4, {1}, {2}⟩,
+    ⟨some 2, some 4, {1}, {5}⟩,
+    ⟨some 2, some 4, {3}, {2}⟩,
+    ⟨some 2, some 4, {5}, {5}⟩,
+    ⟨some 3, some 2, {5}, {4}⟩,
+    ⟨some 3, some 4, {1}, {2}⟩,
+    ⟨some 4, some 0, {1}, {3}⟩,
+    ⟨some 4, some 0, {5}, {3}⟩,
+    ⟨some 4, some 2, {1}, {1}⟩,
+    ⟨some 4, some 2, {3}, {4}⟩,
+    ⟨some 4, some 2, {5}, {1}⟩,
+    ⟨some 4, some 2, {5}, {4}⟩,
+    ⟨some 5, some 0, {2}, {3}⟩,
+    ⟨some 5, some 0, {4}, {3}⟩,
+    ⟨some 5, some 2, {0}, {1}⟩,
+    ⟨some 5, some 2, {1}, {1}⟩,
+    ⟨some 5, some 2, {3}, {4}⟩,
+    ⟨some 5, some 2, {4}, {1}⟩,
+    ⟨some 5, some 4, {0}, {5}⟩,
+    ⟨some 5, some 4, {1}, {2}⟩,
+    ⟨some 5, some 4, {1}, {5}⟩,
+    ⟨some 5, some 4, {2}, {5}⟩}
+
+private lemma zmod6_level1_topYukawa :
+    ∀ x ∈ zmod6TopYukawaLevelOneCharges.val, x.AllowsTerm .topYukawa := by
   decide +kernel
 
-private lemma ZModCharges_six_zero_two_eq :
-    ZModChargesWithQHdQHu 6 (some 0) (some 2) = {⟨some 0, some 2, {5}, {1}⟩} := by
+private lemma zmod6_level1_not_pheno :
+    ∀ x ∈ zmod6TopYukawaLevelOneCharges.val, ¬ x.IsPhenoConstrained := by
   decide +kernel
 
-private lemma ZModCharges_six_zero_three_eq :
-    ZModChargesWithQHdQHu 6 (some 0) (some 3) = ∅ := by
+private lemma zmod6_level1_not_yukawa1 :
+    ∀ x ∈ zmod6TopYukawaLevelOneCharges.val, ¬ x.YukawaGeneratesDangerousAtLevel 1 := by
   decide +kernel
 
-private lemma ZModCharges_six_zero_four_eq :
-    ZModChargesWithQHdQHu 6 (some 0) (some 4) = {⟨some 0, some 4, {1}, {5}⟩} := by
+private lemma zmod6_level1_complete :
+    ∀ x ∈ zmod6TopYukawaLevelOneCharges.val, x.IsComplete := by
   decide +kernel
 
-private lemma ZModCharges_six_zero_five_eq :
-    ZModChargesWithQHdQHu 6 (some 0) (some 5) = ∅ := by
+private lemma zmod6_level1_closed_Q5 :
+    IsPhenoClosedQ5 (Finset.univ : Finset (ZMod 6)) zmod6TopYukawaLevelOneCharges.val := by
+  apply isPhenClosedQ5_of_isPhenoConstrainedQ5
   decide +kernel
 
-private lemma ZModCharges_six_one_zero_eq :
-    ZModChargesWithQHdQHu 6 (some 1) (some 0) = {⟨some 1, some 0, {2}, {3}⟩} := by
+private lemma zmod6_level1_closed_Q10 :
+    IsPhenoClosedQ10 (Finset.univ : Finset (ZMod 6)) zmod6TopYukawaLevelOneCharges.val := by
+  apply isPhenClosedQ10_of_isPhenoConstrainedQ10
   decide +kernel
 
-private lemma ZModCharges_six_one_one_eq :
-    ZModChargesWithQHdQHu 6 (some 1) (some 1) = ∅ := by
+private lemma zmod6_level1_contains :
+    ContainsPhenoCompletionsOfMinimallyAllows
+      (Finset.univ : Finset (ZMod 6)) (Finset.univ : Finset (ZMod 6))
+      zmod6TopYukawaLevelOneCharges.val := by
+  rw [← completeMinSubset_subset_iff_containsPhenoCompletionsOfMinimallyAllows]
   decide +kernel
 
-private lemma ZModCharges_six_one_two_eq :
-    ZModChargesWithQHdQHu 6 (some 1) (some 2) = {⟨some 1, some 2, {4}, {1}⟩} := by
-  decide +kernel
+private lemma mem_zmod6TopYukawaLevelOneCharges_iff {x : ChargeSpectrum (ZMod 6)} :
+    x ∈ zmod6TopYukawaLevelOneCharges ↔
+      x.AllowsTerm .topYukawa ∧ x.IsComplete ∧
+        ¬ x.IsPhenoConstrained ∧ ¬ x.YukawaGeneratesDangerousAtLevel 1 := by
+  have h := completeness_of_isPhenoClosedQ5_isPhenoClosedQ10
+    (S5 := (Finset.univ : Finset (ZMod 6)))
+    (S10 := (Finset.univ : Finset (ZMod 6)))
+    (charges := zmod6TopYukawaLevelOneCharges.val)
+    zmod6_level1_topYukawa
+    zmod6_level1_not_pheno
+    zmod6_level1_not_yukawa1
+    zmod6_level1_complete
+    zmod6_level1_closed_Q5
+    zmod6_level1_closed_Q10
+    zmod6_level1_contains
+    (x := x)
+    (ofFinset_univ x)
+  constructor
+  · intro hx
+    have hx' : x ∈ zmod6TopYukawaLevelOneCharges.val := hx
+    rcases h.mp hx' with ⟨hTop, hNoPheno, hNoYukawa1, hComplete⟩
+    exact ⟨hTop, hComplete, hNoPheno, hNoYukawa1⟩
+  · intro hx
+    exact h.mpr ⟨hx.1, hx.2.2.1, hx.2.2.2, hx.2.1⟩
 
-private lemma ZModCharges_six_one_three_eq :
-    ZModChargesWithQHdQHu 6 (some 1) (some 3) = ∅ := by
-  decide +kernel
+private def zmod6ChargesSixExpected : Finset (ChargeSpectrum (ZMod 6)) :=
+  {⟨some 0, some 2, {5}, {1}⟩,
+    ⟨some 0, some 4, {1}, {5}⟩, ⟨some 1, some 0, {2}, {3}⟩, ⟨some 1, some 2, {4}, {1}⟩,
+    ⟨some 1, some 4, {0}, {5}⟩, ⟨some 1, some 4, {3}, {2}⟩, ⟨some 2, some 0, {1}, {3}⟩,
+    ⟨some 2, some 4, {5}, {5}⟩, ⟨some 3, some 2, {5}, {4}⟩, ⟨some 3, some 4, {1}, {2}⟩,
+    ⟨some 4, some 0, {5}, {3}⟩, ⟨some 4, some 2, {1}, {1}⟩, ⟨some 5, some 0, {4}, {3}⟩,
+    ⟨some 5, some 2, {0}, {1}⟩, ⟨some 5, some 2, {3}, {4}⟩, ⟨some 5, some 4, {2}, {5}⟩}
 
-private lemma ZModCharges_six_one_four_eq :
-    ZModChargesWithQHdQHu 6 (some 1) (some 4) = {⟨some 1, some 4, {0}, {5}⟩,
-      ⟨some 1, some 4, {3}, {2}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_one_five_eq :
-    ZModChargesWithQHdQHu 6 (some 1) (some 5) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_two_zero_eq :
-    ZModChargesWithQHdQHu 6 (some 2) (some 0) = {⟨some 2, some 0, {1}, {3}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_two_one_eq :
-    ZModChargesWithQHdQHu 6 (some 2) (some 1) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_two_two_eq :
-    ZModChargesWithQHdQHu 6 (some 2) (some 2) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_two_three_eq :
-    ZModChargesWithQHdQHu 6 (some 2) (some 3) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_two_four_eq :
-    ZModChargesWithQHdQHu 6 (some 2) (some 4) = {⟨some 2, some 4, {5}, {5}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_two_five_eq :
-    ZModChargesWithQHdQHu 6 (some 2) (some 5) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_three_zero_eq :
-    ZModChargesWithQHdQHu 6 (some 3) (some 0) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_three_one_eq :
-    ZModChargesWithQHdQHu 6 (some 3) (some 1) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_three_two_eq :
-    ZModChargesWithQHdQHu 6 (some 3) (some 2) = {⟨some 3, some 2, {5}, {4}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_three_three_eq :
-    ZModChargesWithQHdQHu 6 (some 3) (some 3) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_three_four_eq :
-    ZModChargesWithQHdQHu 6 (some 3) (some 4) = {⟨some 3, some 4, {1}, {2}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_three_five_eq :
-    ZModChargesWithQHdQHu 6 (some 3) (some 5) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_four_zero_eq :
-    ZModChargesWithQHdQHu 6 (some 4) (some 0) = {⟨some 4, some 0, {5}, {3}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_four_one_eq :
-    ZModChargesWithQHdQHu 6 (some 4) (some 1) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_four_two_eq :
-    ZModChargesWithQHdQHu 6 (some 4) (some 2) = {⟨some 4, some 2, {1}, {1}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_four_three_eq :
-    ZModChargesWithQHdQHu 6 (some 4) (some 3) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_four_four_eq :
-    ZModChargesWithQHdQHu 6 (some 4) (some 4) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_four_five_eq :
-    ZModChargesWithQHdQHu 6 (some 4) (some 5) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_five_zero_eq :
-    ZModChargesWithQHdQHu 6 (some 5) (some 0) = {⟨some 5, some 0, {4}, {3}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_five_one_eq :
-    ZModChargesWithQHdQHu 6 (some 5) (some 1) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_five_two_eq :
-    ZModChargesWithQHdQHu 6 (some 5) (some 2) = {⟨some 5, some 2, {0}, {1}⟩,
-      ⟨some 5, some 2, {3}, {4}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_five_three_eq :
-    ZModChargesWithQHdQHu 6 (some 5) (some 3) = ∅ := by
-  decide +kernel
-
-private lemma ZModCharges_six_five_four_eq :
-    ZModChargesWithQHdQHu 6 (some 5) (some 4) = {⟨some 5, some 4, {2}, {5}⟩} := by
-  decide +kernel
-
-private lemma ZModCharges_six_five_five_eq :
-    ZModChargesWithQHdQHu 6 (some 5) (some 5) = ∅ := by
+private lemma zmod6_topYukawaLevelOne_filter_eq :
+    zmod6TopYukawaLevelOneCharges.filter (fun x => ¬ x.YukawaGeneratesDangerousAtLevel 4) =
+    zmod6ChargesSixExpected := by
   decide +kernel
 
 lemma ZModCharges_six_eq : ZModCharges 6 = {⟨some 0, some 2, {5}, {1}⟩,
@@ -330,106 +287,42 @@ lemma ZModCharges_six_eq : ZModCharges 6 = {⟨some 0, some 2, {5}, {1}⟩,
     ⟨some 2, some 4, {5}, {5}⟩, ⟨some 3, some 2, {5}, {4}⟩, ⟨some 3, some 4, {1}, {2}⟩,
     ⟨some 4, some 0, {5}, {3}⟩, ⟨some 4, some 2, {1}, {1}⟩, ⟨some 5, some 0, {4}, {3}⟩,
     ⟨some 5, some 2, {0}, {1}⟩, ⟨some 5, some 2, {3}, {4}⟩, ⟨some 5, some 4, {2}, {5}⟩} := by
+  change ZModCharges 6 = zmod6ChargesSixExpected
   ext x
-  simp only [Finset.mem_insert, Finset.mem_singleton]
   constructor
   · intro hx
-    have hxComplete : IsComplete x := by
-      simpa [ZModCharges] using hx
-    let qHd := x.qHd
-    have hqHd : x.qHd = qHd := rfl
-    let qHu := x.qHu
-    have hqHu : x.qHu = qHu := rfl
-    fin_cases qHd
-    · simp [hqHd] at hxComplete
-    fin_cases qHu
-    · simp [hqHu] at hxComplete
-    all_goals
-      have hx' := ZModChargesWithQHdQHu_mem_of_eq hx hqHd hqHu
-      first
-      | rw [ZModCharges_six_zero_zero_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_zero_one_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_zero_two_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_zero_three_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_zero_four_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_zero_five_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_one_zero_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_one_one_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_one_two_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_one_three_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_one_four_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_one_five_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_two_zero_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_two_one_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_two_two_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_two_three_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_two_four_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_two_five_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_three_zero_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_three_one_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_three_two_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_three_three_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_three_four_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_three_five_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_four_zero_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_four_one_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_four_two_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_four_three_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_four_four_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_four_five_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_five_zero_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_five_one_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_five_two_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_five_three_eq] at hx'; simp at hx'
-      | rw [ZModCharges_six_five_four_eq] at hx'; simpa [ChargeSpectrum.eq_iff] using hx'
-      | rw [ZModCharges_six_five_five_eq] at hx'; simp at hx'
+    rw [ZModCharges] at hx
+    have hxFilter := Finset.mem_filter.mp hx
+    have hxComplete : IsComplete x := hxFilter.2.1
+    have hxPheno : ¬ x.IsPhenoConstrained := hxFilter.2.2.1
+    have hxYukawa4 : ¬ x.YukawaGeneratesDangerousAtLevel 4 := hxFilter.2.2.2
+    have hxTop : x.AllowsTerm .topYukawa :=
+      zmod6_topYukawa_of_good hxComplete hxPheno hxYukawa4
+    have hxYukawa1 : ¬ x.YukawaGeneratesDangerousAtLevel 1 := fun h1 =>
+      hxYukawa4 (yukawaGeneratesDangerousAtLevel_of_le (by decide : 1 ≤ 4) h1)
+    have hxLevelOne : x ∈ zmod6TopYukawaLevelOneCharges :=
+      mem_zmod6TopYukawaLevelOneCharges_iff.mpr
+        ⟨hxTop, hxComplete, hxPheno, hxYukawa1⟩
+    have hxFiltered :
+        x ∈ zmod6TopYukawaLevelOneCharges.filter
+          (fun x => ¬ x.YukawaGeneratesDangerousAtLevel 4) := by
+      exact Finset.mem_filter.mpr ⟨hxLevelOne, hxYukawa4⟩
+    rw [zmod6_topYukawaLevelOne_filter_eq] at hxFiltered
+    exact hxFiltered
   · intro hx
-    rcases hx with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
-      rfl | rfl | rfl | rfl
-    all_goals
-      first
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 0) (some 2) (by
-          rw [ZModCharges_six_zero_two_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 0) (some 4) (by
-          rw [ZModCharges_six_zero_four_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 1) (some 0) (by
-          rw [ZModCharges_six_one_zero_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 1) (some 2) (by
-          rw [ZModCharges_six_one_two_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 1) (some 4) (by
-          rw [ZModCharges_six_one_four_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 2) (some 0) (by
-          rw [ZModCharges_six_two_zero_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 2) (some 4) (by
-          rw [ZModCharges_six_two_four_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 3) (some 2) (by
-          rw [ZModCharges_six_three_two_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 3) (some 4) (by
-          rw [ZModCharges_six_three_four_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 4) (some 0) (by
-          rw [ZModCharges_six_four_zero_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 4) (some 2) (by
-          rw [ZModCharges_six_four_two_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 5) (some 0) (by
-          rw [ZModCharges_six_five_zero_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 5) (some 2) (by
-          rw [ZModCharges_six_five_two_eq]
-          simp)
-      | exact ZModChargesWithQHdQHu_subset (n := 6) (some 5) (some 4) (by
-          rw [ZModCharges_six_five_four_eq]
-          simp)
+    have hxFiltered :
+        x ∈ zmod6TopYukawaLevelOneCharges.filter
+          (fun x => ¬ x.YukawaGeneratesDangerousAtLevel 4) := by
+      rw [zmod6_topYukawaLevelOne_filter_eq]
+      exact hx
+    have hxLevelOne : x ∈ zmod6TopYukawaLevelOneCharges :=
+      (Finset.mem_filter.mp hxFiltered).1
+    have hxYukawa4 : ¬ x.YukawaGeneratesDangerousAtLevel 4 :=
+      (Finset.mem_filter.mp hxFiltered).2
+    have hxProps := mem_zmod6TopYukawaLevelOneCharges_iff.mp hxLevelOne
+    rw [ZModCharges]
+    exact Finset.mem_filter.mpr
+      ⟨ofFinset_univ x, hxProps.2.1, hxProps.2.2.1, hxYukawa4⟩
 
 /-!
 

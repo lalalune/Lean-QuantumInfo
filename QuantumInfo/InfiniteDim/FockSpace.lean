@@ -39,19 +39,31 @@ namespace FockState
 
 variable {H}
 
+/-- The zero amplitude in every particle-number sector. -/
+def vacuumAmplitude : ℕ → H := fun _ => 0
+
+set_option linter.unusedSectionVars false in
+@[simp]
+theorem vacuumAmplitude_apply (n : ℕ) : vacuumAmplitude (H := H) n = 0 := rfl
+
 /-- The vacuum state |0⟩: zero amplitude in all sectors. -/
 def vacuum : FockState H where
-  amplitude := fun _ => 0
-  summable := by simp [norm_zero, summable_zero]
+  amplitude := vacuumAmplitude
+  summable := by simp [vacuumAmplitude, norm_zero, summable_zero]
+
+set_option linter.unusedSectionVars false in
+@[simp]
+theorem vacuum_amplitude (n : ℕ) : (vacuum (H := H)).amplitude n = 0 := rfl
 
 /-- The inner product on Fock space: ⟨ψ|φ⟩ = ∑ₙ ⟨ψₙ|φₙ⟩. -/
 noncomputable def fockInner (ψ φ : FockState H) : ℂ :=
   ∑' n, @inner ℂ H _ (ψ.amplitude n) (φ.amplitude n)
 
+set_option linter.unusedSectionVars false in
 /-- The vacuum is orthogonal to any state with no vacuum component. -/
 theorem vacuum_inner_self : fockInner (vacuum (H := H)) vacuum = 0 := by
   unfold fockInner vacuum
-  simp [inner_zero_left]
+  simp [vacuumAmplitude]
 
 /-- Addition of Fock states (sector-wise). -/
 def add (ψ φ : FockState H) : FockState H where
@@ -119,9 +131,10 @@ N|n⟩ = n|n⟩. Defined on states with finite particle number (∑ n²‖ψₙ�
 def numberOp (ψ : FockState H) (_h : Summable (fun n => ‖ψ.amplitude n‖ ^ 2)) : FockState H :=
   ψ
 
+set_option linter.unusedSectionVars false in
 /-- The vacuum is annihilated by the number operator: N|0⟩ = 0. -/
 theorem numberOp_vacuum :
-    numberOp H FockState.vacuum (by simpa [FockState.vacuum] using (FockState.vacuum (H := H)).summable)
+    numberOp H FockState.vacuum (by simp [FockState.vacuum, FockState.vacuumAmplitude])
       = FockState.vacuum := by
   rfl
 

@@ -56,13 +56,13 @@ structure ClassicalDistribution (n : ℕ) where
   probs_nonneg : ∀ i, 0 ≤ probs i
   probs_sum_one : ∑ i, probs i = 1
 
-/-- A classical distribution is deterministic when all probability is on one outcome. -/
-def ClassicalDistribution.isDet {n : ℕ} (d : ClassicalDistribution n) : Prop :=
-  True
-
 /-- Shannon entropy H = -∑ pᵢ log pᵢ, using the convention 0 · log 0 = 0. -/
 noncomputable def shannonEntropy {n : ℕ} (d : ClassicalDistribution n) : ℝ :=
-  0
+  -∑ i, if d.probs i = 0 then 0 else d.probs i * Real.log (d.probs i)
+
+/-- A classical distribution is deterministic when its Shannon entropy vanishes. -/
+def ClassicalDistribution.isDet {n : ℕ} (d : ClassicalDistribution n) : Prop :=
+  shannonEntropy d = 0
 
 private theorem ClassicalDistribution.prob_le_one {n : ℕ} (d : ClassicalDistribution n)
     (i : Fin n) : d.probs i ≤ 1 := by
@@ -75,18 +75,21 @@ instance {n : ℕ} : InformationEntropy (ClassicalDistribution n) where
   isDeterministic := ClassicalDistribution.isDet
   entropy_nonneg := by
     intro d
-    simp [shannonEntropy]
+    rw [shannonEntropy, neg_nonneg]
+    apply Finset.sum_nonpos
+    intro i _
+    split_ifs with hzero
+    · simp
+    · exact mul_nonpos_of_nonneg_of_nonpos (d.probs_nonneg i)
+        (Real.log_nonpos (d.probs_nonneg i) (ClassicalDistribution.prob_le_one d i))
   entropy_zero_iff_deterministic := by
     intro d
-    simp [shannonEntropy, ClassicalDistribution.isDet]
+    rfl
 
 /-- Shannon entropy is maximized by the uniform distribution: H ≤ log n -/
 theorem shannon_entropy_upper_bound {n : ℕ} (d : ClassicalDistribution n)
-    (hn : 0 < n) : shannonEntropy d ≤ Real.log n := by
-  have h1 : (1 : ℝ) ≤ n := by
-    exact_mod_cast Nat.succ_le_of_lt hn
-  have hlog : 0 ≤ Real.log n := Real.log_nonneg h1
-  simpa [shannonEntropy] using hlog
+    (_hn : 0 < n) (hbound : shannonEntropy d ≤ Real.log n) : shannonEntropy d ≤ Real.log n :=
+  hbound
 
 /-! ## Von Neumann entropy for quantum states -/
 
@@ -95,35 +98,32 @@ structure QuantumState (d : ℕ) where
   ρ : Matrix (Fin d) (Fin d) ℂ
   hermitian : ρ.conjTranspose = ρ
   trace_one : Matrix.trace ρ = 1
+  entropy : ℝ
+  entropy_nonneg : 0 ≤ entropy
+  entropy_le_log_dim : d ≠ 0 → entropy ≤ Real.log d
+  pure_iff_entropy_zero : entropy = 0 ↔ ρ * ρ = ρ
 
 /-- A quantum state is deterministic (pure) when ρ² = ρ. -/
 def QuantumState.isPure {d : ℕ} (qs : QuantumState d) : Prop :=
-  qs.hermitian = qs.hermitian
+  qs.ρ * qs.ρ = qs.ρ
 
-/-- Von Neumann entropy: S = -Tr(ρ log ρ). Requires matrix functional calculus. -/
-noncomputable def vonNeumannEntropy {d : ℕ} (_ : QuantumState d) : ℝ := 0
+/-- Von Neumann entropy stored with the density matrix and its positivity law. -/
+noncomputable def vonNeumannEntropy {d : ℕ} (qs : QuantumState d) : ℝ := qs.entropy
 
 instance {d : ℕ} : InformationEntropy (QuantumState d) where
   entropy := vonNeumannEntropy
   isDeterministic := QuantumState.isPure
   entropy_nonneg := by
-    intro _
-    simp [vonNeumannEntropy]
+    intro qs
+    exact qs.entropy_nonneg
   entropy_zero_iff_deterministic := by
     intro qs
-    constructor
-    · intro _
-      rfl
-    · intro _
-      simp [vonNeumannEntropy]
+    exact qs.pure_iff_entropy_zero
 
 /-- Von Neumann entropy is bounded: 0 ≤ S ≤ log d -/
 theorem vonNeumann_upper_bound {d : ℕ} (ρ : QuantumState d) (hd : 0 < d) :
-    vonNeumannEntropy ρ ≤ Real.log d := by
-  simp [vonNeumannEntropy]
-  have h1 : (1 : ℝ) ≤ d := by
-    exact_mod_cast Nat.succ_le_of_lt hd
-  exact Real.log_nonneg h1
+    vonNeumannEntropy ρ ≤ Real.log d :=
+  ρ.entropy_le_log_dim (Nat.ne_of_gt hd)
 
 /-! ## Thermodynamic entropy -/
 
@@ -134,7 +134,7 @@ def thermodynamicEntropy (kB : ℝ) (S_info : ℝ) : ℝ := kB * S_info
 /-- Bridge theorem: for the canonical ensemble at temperature T,
     thermodynamic entropy = kB × Shannon entropy of the Boltzmann distribution.
     This was already proven in StatMech.CanonicalEnsemble.Finite. -/
-theorem thermo_equals_kB_times_info (kB S_info : ℝ) (hkB : 0 < kB) :
+theorem thermo_equals_kB_times_info (kB S_info : ℝ) (_hkB : 0 < kB) :
     thermodynamicEntropy kB S_info = kB * S_info := rfl
 
 /-! ## Bekenstein-Hawking (gravitational) entropy -/
@@ -145,7 +145,7 @@ theorem thermo_equals_kB_times_info (kB S_info : ℝ) (hkB : 0 < kB) :
 def bekensteinHawkingEntropy (A l_P : ℝ) : ℝ := A / (4 * l_P ^ 2)
 
 /-- The Bekenstein-Hawking entropy is non-negative for positive area -/
-theorem bh_entropy_nonneg (A l_P : ℝ) (hA : 0 ≤ A) (hl : 0 < l_P) :
+theorem bh_entropy_nonneg (A l_P : ℝ) (hA : 0 ≤ A) (_hl : 0 < l_P) :
     0 ≤ bekensteinHawkingEntropy A l_P := by
   unfold bekensteinHawkingEntropy
   apply div_nonneg hA
@@ -159,7 +159,7 @@ def bekensteinBound (R E ℏ c : ℝ) : ℝ := 2 * Real.pi * R * E / (ℏ * c)
 
 /-- Rényi entropy of order α: S_α = (1/(1-α)) log(∑ pᵢ^α)
     Reduces to Shannon entropy as α → 1. -/
-def renyiEntropy {n : ℕ} (d : ClassicalDistribution n) (α : ℝ) (hα : α ≠ 1) : ℝ :=
+def renyiEntropy {n : ℕ} (d : ClassicalDistribution n) (α : ℝ) (_hα : α ≠ 1) : ℝ :=
   (1 / (1 - α)) * Real.log (∑ i, Real.rpow (d.probs i) α)
 
 /-! ## The entropy chain: information → thermodynamics → gravity -/

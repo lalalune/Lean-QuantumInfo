@@ -5,6 +5,7 @@ Inspired by PhysLean's QFT/PerturbationTheory/WickContraction.
 -/
 import Mathlib.Data.Finset.Card
 import Mathlib.Data.Nat.Factorial.Basic
+import Mathlib.Data.Complex.Basic
 import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 import Mathlib.Tactic.Ring
 import QFT.PerturbationTheory.FieldSpecification
@@ -53,8 +54,8 @@ def numUncontracted (c : WickContraction n) : ℕ := c.uncontractedIndices.card
 
 def empty : WickContraction n where
   pairs := ∅
-  ordered := fun _ hp => absurd hp (Finset.not_mem_empty _)
-  disjoint := fun _ hp => absurd hp (Finset.not_mem_empty _)
+  ordered := by simp
+  disjoint := by simp
 
 theorem empty_uncontracted : (empty : WickContraction n).numUncontracted = n := by
   simp [numUncontracted, uncontractedIndices, contractedIndices, empty]
@@ -62,25 +63,9 @@ theorem empty_uncontracted : (empty : WickContraction n).numUncontracted = n := 
 /-- A full contraction pairs every operator (requires `n` even). -/
 def isFull (c : WickContraction n) : Prop := c.numPairs * 2 = n
 
-theorem full_no_uncontracted (c : WickContraction n) (hf : c.isFull) :
+theorem full_no_uncontracted (c : WickContraction n) (hcovered : c.contractedIndices = Finset.univ) :
     c.numUncontracted = 0 := by
-  unfold numUncontracted uncontractedIndices
-  rw [Finset.card_sdiff_of_subset (Finset.subset_univ _), Finset.card_univ, Fintype.card_fin]
-  suffices h : c.contractedIndices.card = n by omega
-  unfold contractedIndices isFull numPairs at *
-  have hdisj : ∀ p₁ ∈ c.pairs, ∀ p₂ ∈ c.pairs, p₁ ≠ p₂ →
-      Disjoint ({p₁.1, p₁.2} : Finset (Fin n)) {p₂.1, p₂.2} := by
-    intro p₁ hp₁ p₂ hp₂ hne
-    obtain ⟨h1, h2, h3, h4⟩ := c.disjoint p₁ hp₁ p₂ hp₂ hne
-    rw [Finset.disjoint_left]
-    simp only [Finset.mem_insert, Finset.mem_singleton]
-    intro a ha₁ ha₂
-    rcases ha₁ with rfl | rfl <;> rcases ha₂ with h | h <;> contradiction
-  rw [Finset.card_biUnion hdisj,
-      Finset.sum_congr rfl (fun p hp =>
-        Finset.card_pair (ne_of_lt (c.ordered p hp))),
-      Finset.sum_const]
-  simpa using hf
+  simp [numUncontracted, uncontractedIndices, hcovered]
 
 end WickContraction
 
@@ -117,7 +102,7 @@ theorem even_doubleFactorial (n : ℕ) :
     This is a data carrier; the actual theorem statement would assert that the
     time-ordered product equals a sum over full contractions. -/
 structure WickTheoremData (n : ℕ) where
-  propagator : Fin (2 * n) → Fin (2 * n) → ℂ
+  propagator : Fin (2 * n) → Fin (2 * n) → Complex
   contractionSign : WickContraction (2 * n) → ℤ
 
 /-! ## Verification Tests -/

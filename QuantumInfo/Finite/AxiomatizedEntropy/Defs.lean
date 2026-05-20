@@ -62,7 +62,7 @@ class RelEntropy
       f (ρ₁ ⊗ᴹ ρ₂) (σ₁ ⊗ᴹ σ₂) = f ρ₁ σ₁ + f ρ₂ σ₂
   /-- Normalization of entropy to be `ln N` for a pure state vs. uniform on `N` many states. -/
   normalized {d : Type u} [fin : Fintype d] [DecidableEq d] [Nonempty d] (i : d) :
-    f (MState.ofClassical (Distribution.constant i)) ((MState.uniform (d := d)).M) =
+    f (MState.ofClassical (ProbDistribution.constant i)) ((MState.uniform (d := d)).M) =
       some ⟨Real.log fin.card, Real.log_nonneg (mod_cast Fintype.card_pos)⟩
 
 /-- The axioms to be a well-behaved quantum relative entropy, as given by
@@ -111,9 +111,9 @@ theorem of_equiv_eq (e : d ≃ d₂) (ρ σ : MState d) :
   · convert RelEntropy.DPI (f := f) ((CPTPMap.ofEquiv e) ρ) ((CPTPMap.ofEquiv e) σ)
       (CPTPMap.ofEquiv e.symm)
     · symm
-      simpa [CPTPMap.ofEquiv_apply] using MState.relabel_relabel ρ e.symm e
+      simp [CPTPMap.ofEquiv_apply]
     · symm
-      simpa [CPTPMap.ofEquiv_apply] using MState.relabel_relabel σ e.symm e
+      simp [CPTPMap.ofEquiv_apply]
 
 /-- Relabelling a state with `MState.relabel` leaves relative entropies unchanged. -/
 @[simp]
@@ -153,10 +153,15 @@ def min (ρ : MState d) (σ : HermitianMat d ℂ) : ENNReal :=
 theorem min_eq_top_iff (ρ : MState d) (σ : HermitianMat d ℂ) :
     (min ρ σ) = ⊤ ↔ ρ.M.support ≤ σ.ker := by
   rw [min, Prob.negLog_eq_top_iff]
-  rw [Subtype.ext_iff]
-  simpa using
-    (ρ.exp_val_eq_zero_iff (A := σ.supportProj)
-      (HermitianMat.supportProj_nonneg (A := σ)))
+  rw [Prob.ext_iff]
+  change ρ.exp_val σ.supportProj = 0 ↔ ρ.M.support ≤ σ.ker
+  rw [ρ.exp_val_eq_zero_iff (A := σ.supportProj) (HermitianMat.supportProj_nonneg (A := σ))]
+  have h_supportProj_ker : σ.supportProj.ker = σ.ker := by
+    rw [HermitianMat.supportProj_eq_cfc]
+    apply HermitianMat.ker_cfc_eq_ker
+    intro i
+    by_cases hi : i = 0 <;> simp [hi]
+  rw [h_supportProj_ker]
 
 open scoped HermitianMat in
 protected theorem toReal_min (ρ : MState d) (σ : HermitianMat d ℂ) :
@@ -181,5 +186,9 @@ class Entropy (f : ∀ {d : Type u} [Fintype d] [DecidableEq d], MState d → �
   /-- Entropy is additive under tensor products -/
   of_kron {d₁ d₂ : Type u} [Fintype d₁] [Fintype d₂] [DecidableEq d₁] [DecidableEq d₂] :
     ∀ (ρ : MState d₁) (σ : MState d₂), f (ρ ⊗ᴹ σ) = f ρ + f σ
-  -- /-- Entropy is convex. TODO def? Or do we even need this? -/
-  -- convexity law to be specified if needed
+
+/-!
+`Entropy` deliberately records only axioms shared by the generalized entropy functions used by
+this interface. Convexity or concavity properties, when available for a particular entropy, should
+be stated as separate theorem assumptions or in a refinement class rather than as a field here.
+-/

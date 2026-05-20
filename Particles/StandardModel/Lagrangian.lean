@@ -3,6 +3,9 @@ Copyright (c) 2025 PhysLean contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import Mathlib.Data.Complex.Basic
+import Mathlib.Data.Real.Sqrt
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Inverse
 import Mathlib.LinearAlgebra.Matrix.Hermitian
 /-!
 
@@ -57,7 +60,7 @@ variable (hp : HiggsPotentialParams)
 /-- The vacuum expectation value: v = √(-μ²/λ) -/
 def vev : ℝ := Real.sqrt (-hp.μ_sq / hp.quartic)
 
-theorem vev_pos : 0 < hp.vev := by
+theorem vev_pos : 0 < HiggsPotentialParams.vev hp := by
   unfold vev
   rw [Real.sqrt_pos]
   exact div_pos (neg_pos.mpr hp.μ_sq_neg) hp.quartic_pos
@@ -66,22 +69,25 @@ theorem vev_pos : 0 < hp.vev := by
 def higgsBosonMass : ℝ := Real.sqrt (-2 * hp.μ_sq)
 
 /-- The W boson mass: m_W = gv/2 -/
-def wBosonMass (g₂ : ℝ) : ℝ := g₂ * hp.vev / 2
+def wBosonMass (g₂ : ℝ) : ℝ := g₂ * HiggsPotentialParams.vev hp / 2
 
 /-- The Z boson mass: m_Z = v√(g² + g'²)/2 -/
-def zBosonMass (g₁ g₂ : ℝ) : ℝ := hp.vev * Real.sqrt (g₁ ^ 2 + g₂ ^ 2) / 2
+def zBosonMass (g₁ g₂ : ℝ) : ℝ :=
+  HiggsPotentialParams.vev hp * Real.sqrt (g₁ ^ 2 + g₂ ^ 2) / 2
 
 /-- The Weinberg angle: cos θ_W = m_W/m_Z -/
 def weinbergAngle (g₁ g₂ : ℝ) : ℝ := Real.arccos (g₂ / Real.sqrt (g₁ ^ 2 + g₂ ^ 2))
 
 /-- The ρ parameter: ρ = m_W²/(m_Z² cos²θ_W) = 1 at tree level -/
 theorem rho_parameter_tree_level (g₁ g₂ : ℝ) (hg₁ : 0 < g₁) (hg₂ : 0 < g₂) :
-    (hp.wBosonMass g₂) ^ 2 / ((hp.zBosonMass g₁ g₂) ^ 2 *
+    (HiggsPotentialParams.wBosonMass hp g₂) ^ 2 /
+      ((HiggsPotentialParams.zBosonMass hp g₁ g₂) ^ 2 *
     (g₂ / Real.sqrt (g₁ ^ 2 + g₂ ^ 2)) ^ 2) = 1 := by
   unfold wBosonMass zBosonMass
   have hg12 : (0 : ℝ) < g₁ ^ 2 + g₂ ^ 2 := by positivity
   have hsqrt_ne : Real.sqrt (g₁ ^ 2 + g₂ ^ 2) ≠ 0 := ne_of_gt (Real.sqrt_pos.mpr hg12)
-  have hvev_ne : hp.vev ≠ 0 := ne_of_gt hp.vev_pos
+  have hvev_ne : HiggsPotentialParams.vev hp ≠ 0 :=
+    ne_of_gt (HiggsPotentialParams.vev_pos hp)
   have hg₂_ne : g₂ ≠ 0 := ne_of_gt hg₂
   rw [div_eq_iff (by positivity)]
   simp only [one_mul, div_pow, mul_pow]
@@ -133,7 +139,7 @@ def fineStructureConstant : ℝ :=
 
 /-- The Fermi constant: G_F / √2 = g₂² / (8 m_W²) -/
 def fermiConstant : ℝ :=
-  sm.gauge.g₂ ^ 2 / (8 * (sm.higgs.wBosonMass sm.gauge.g₂) ^ 2)
+  sm.gauge.g₂ ^ 2 / (8 * (HiggsPotentialParams.wBosonMass sm.higgs sm.gauge.g₂) ^ 2)
 
 /-- The strong coupling constant α_s = g₃²/(4π) -/
 def strongCoupling : ℝ := sm.gauge.g₃ ^ 2 / (4 * Real.pi)

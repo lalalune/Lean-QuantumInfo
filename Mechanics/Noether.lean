@@ -38,6 +38,10 @@ structure InfinitesimalTransformation (n : ℕ) where
   /-- The induced variation of velocity δq̇ᵢ. -/
   δq_dot : ConfigVelocity n → (Fin n → ℝ)
 
+/-- The zero induced velocity variation used by constant translations. -/
+def zeroVelocityVariation (n : ℕ) : ConfigVelocity n → (Fin n → ℝ) :=
+  fun _ _ => 0
+
 /-- A transformation is a symmetry of a Lagrangian system if δL = 0
     (the Lagrangian is invariant under the infinitesimal transformation).
     More precisely: Σᵢ (∂L/∂qᵢ δqᵢ + ∂L/∂q̇ᵢ δq̇ᵢ) = 0. -/
@@ -88,7 +92,12 @@ theorem noethers_theorem {n : ℕ} (sys : LagrangianSystem n)
 /-- Translation symmetry in direction `e`: δqᵢ = eᵢ, δq̇ᵢ = 0. -/
 def translationSymmetry (n : ℕ) (e : Fin n → ℝ) : InfinitesimalTransformation n where
   δq := fun _ => e
-  δq_dot := fun _ _ => 0
+  δq_dot := zeroVelocityVariation n
+
+@[simp]
+theorem translationSymmetry_δq_dot {n : ℕ} (e : Fin n → ℝ) (cv : ConfigVelocity n)
+    (i : Fin n) :
+    (translationSymmetry n e).δq_dot cv i = 0 := rfl
 
 /-- The Noether charge for spatial translation is the linear momentum:
     Q = Σᵢ pᵢ eᵢ. -/

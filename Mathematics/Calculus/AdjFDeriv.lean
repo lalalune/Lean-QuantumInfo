@@ -333,10 +333,14 @@ lemma HasAdjFDerivAt.inner {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E
       simp [fderiv_snd, fderiv_fst]
     constructor
     intro a b
-    simp [inner_smul_left']
-    conv_lhs =>
-      enter [1]
-      rw [real_inner_comm']
+    rw [real_inner_comm']
+    change ⟪a.1, b • x.2⟫_ℝ + ⟪a.2, b • x.1⟫_ℝ =
+      ⟪b, ⟪x.1, a.2⟫_ℝ + ⟪a.1, x.2⟫_ℝ⟫_ℝ
+    simp [inner_smul_right', real_inner_comm']
+    have hreal (c : ℝ) : ⟪b, c⟫_ℝ = c * b := rfl
+    rw [hreal]
+    change b * ⟪a.1, x.2⟫_ℝ + b * ⟪x.1, a.2⟫_ℝ =
+      (⟪x.1, a.2⟫_ℝ + ⟪a.1, x.2⟫_ℝ) * b
     ring
 
 lemma adjFDeriv_inner {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [InnerProductSpace' ℝ E]

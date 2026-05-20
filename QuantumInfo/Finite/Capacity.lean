@@ -12,7 +12,7 @@ import QuantumInfo.Finite.Distance
 
 /-! # Quantum Capacity
 
-This focuses on defining and proving theorems about the quantum capacity, the maximum asymptotic rate at which quantum information can be coherently transmitted. The precise definition is not consistent in the literature, see [Capacity_doc](./QuantumInfo/Finite/Capacity_doc.html) for a note on what has been used and how that was used to arrive at the following definition:
+This focuses on defining and proving theorems about quantum capacities, especially the asymptotic quantum capacity: the maximum rate at which quantum information can be coherently transmitted. The precise asymptotic definition is not consistent in the literature, see [Capacity_doc](./QuantumInfo/Finite/Capacity_doc.html) for a note on what has been used and how that was used to arrive at the following definition:
 
  1. A channel A `Emulates` another channel B if there are D and E such that D∘A∘E = B.
  2. A channel A `εApproximates` channel B (of the same dimensions) if the for every state ρ, the fidelity F(A(ρ), B(ρ)) is at least 1-ε.
@@ -22,6 +22,7 @@ This focuses on defining and proving theorems about the quantum capacity, the ma
 The most basic facts:
  * `emulates_self`: Every channel emulates itself.
  * `emulates_trans`: If A emulates B and B emulates C, then A emulates C. (That is, emulation is an ordering.)
+ * `piProd_id`: The finite tensor product of identity channels is the identity channel.
  * `εApproximates A B ε` is equivalent to the existence of some δ (depending ε and dims(A)) so that |A-B| has diamond norm at most δ, and δ→0 as ε→0.
  * `achievesRate_0`: Every channel achievesRate 0. So, the set of achievable rates is Nonempty.
  * If a channel achievesRate R₁, it also every achievesRate R₂ every R₂ ≤ R₁, i.e. it is an interval extending left towards -∞. Achievable rates are `¬BddBelow`.
@@ -39,19 +40,10 @@ Then, we should show that our definition is equivalent to some above. Most, exce
 
 Then the LSD theorem establishes that the single-copy coherent information is a lower bound. This is stated in `coherentInfo_le_quantumCapacity`. The corollary, that the n-copy coherent information converges to the capacity, is `quantumCapacity_eq_piProd_coherentInfo`.
 
-# TODO
+# Implemented capacity API
 
-The only notion of "capacity" here currently is "quantum capacity" in the usual sense. But there are several non-equal capacities relevant to quantum channels, see e.g. [Watrous's notes](https://cs.uwaterloo.ca/~watrous/TQI/TQI.8.pdf) for a list:
- * Quantum capacity (`quantumCapacity`)
- * Quantum 1-shot capacity
- * Entanglement-assisted classical capacity
- * Qss, the quantum side-channel capacity
- * Holevo capacity, aka Holevo χ. The Holevo–Schumacher–Westmoreland theorem as a major theorem
- * Entanglement-assisted Holevo capacity
- * Entanglement-assisted quantum capacity
- * One- and two-way distillable entanglement
-
-And other important theorems like superdense coding, nonadditivity, superactivation
+ * `CPTPMap.quantumCapacity`: asymptotic quantum capacity from achievable emulation rates.
+ * `CPTPMap.oneShotQuantumCapacity`: single-use coherent-information capacity, defined as the supremum of `coherentInfo ρ Λ` over input states.
 -/
 
 namespace CPTPMap
@@ -85,6 +77,10 @@ def AchievesRate (A : CPTPMap d₁ d₂) (R : ℝ) : Prop :=
 noncomputable def quantumCapacity (A : CPTPMap d₁ d₂) : ℝ :=
   sSup { R : ℝ | AchievesRate A R }
 
+/-- One-shot quantum capacity, as the supremum of coherent information over input states. -/
+noncomputable def oneShotQuantumCapacity (A : CPTPMap d₁ d₂) : ℝ :=
+  sSup { R : ℝ | ∃ ρ : MState d₁, R = coherentInfo ρ A }
+
 section emulates
 variable [DecidableEq d₃] [DecidableEq d₄] [DecidableEq d₅]
 
@@ -102,6 +98,31 @@ theorem emulates_trans (Λ₁ : CPTPMap d₁ d₂) (Λ₂ : CPTPMap d₃ d₄) (
   exact ⟨E₁.compose E₂, D₂.compose D₁, by classical simp [← hED₁, ← hED₂, compose_assoc]⟩
 
 end emulates
+
+section piProd
+
+variable {ι : Type*} [DecidableEq ι] [Fintype ι]
+variable {d : ι → Type*} [∀ i, Fintype (d i)] [∀ i, DecidableEq (d i)]
+
+/-- The finite tensor product of identity channels is the identity channel. -/
+@[simp]
+theorem piProd_id : piProd (fun i ↦ id (dIn := d i)) = id (dIn := (i : ι) → d i) := by
+  apply CPTPMap.ext
+  simp [CPTPMap.piProd, MatrixMap.piProd]
+
+end piProd
+
+section id
+
+variable [DecidableEq d₃]
+
+/-- Identity channels on equivalent spaces emulate one another by relabeling. -/
+theorem id_emulates_id_of_equiv (e : d₁ ≃ d₃) :
+    (id (dIn := d₁)).Emulates (id (dIn := d₃)) := by
+  refine ⟨CPTPMap.ofEquiv e.symm, CPTPMap.ofEquiv e, ?_⟩
+  simp
+
+end id
 
 section εApproximates
 
@@ -137,18 +158,9 @@ theorem id_achievesRate_log_dim : (id (dIn := d₁)).AchievesRate (Real.logb 2 (
   intro ε hε
   use 1, zero_lt_one, Fintype.card d₁, id
   constructor
-  · --they are equivalent up to permutation
-    -- TODO: Instead this proof should be `@[simp] piProd (fun x => id) = id` and `emulates_self`
-    refine' ⟨ _, _, _ ⟩;
-    exact CPTPMap.ofEquiv ( Fintype.equivFinOfCardEq ( by simp +decide ) ).symm;
-    exact CPTPMap.ofEquiv ( Fintype.equivFinOfCardEq ( by simp +decide ) );
-    apply CPTPMap.ext;
-    ext; simp +decide [ CPTPMap.piProd ];
-    unfold MatrixMap.piProd
-    simp_all only [gt_iff_lt, PiTensorProduct.map_id, LinearMap.toMatrix_id_eq_basis_toMatrix,
-      Module.Basis.toMatrix_self, Matrix.reindex_apply, Matrix.submatrix_one_equiv, Matrix.toLin_one]
-    erw [ MatrixMap.submatrix_apply ]
-    simp_all only [Equiv.symm_symm, Equiv.apply_symm_apply, Matrix.submatrix_apply]
+  · let e : (Fin 1 → d₁) ≃ Fin (Fintype.card d₁) :=
+      Fintype.equivFinOfCardEq (by simp +decide)
+    simpa [e] using id_emulates_id_of_equiv e
   constructor
   · norm_num
   · exact εApproximates_monotone (εApproximates_self id) hε.le

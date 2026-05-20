@@ -14,6 +14,7 @@ Definitions and theorems about the dual of a matrix map. -/
 
 noncomputable section
 open ComplexOrder
+open scoped InnerProductSpace RealInnerProductSpace
 
 variable {dIn dOut : Type*} [Fintype dIn] [Fintype dOut]
 variable {R : Type*} [CommRing R]
@@ -22,6 +23,15 @@ variable {𝕜 : Type*} [RCLike 𝕜]
 namespace MatrixMap
 
 variable [DecidableEq dIn] [DecidableEq dOut] {M : MatrixMap dIn dOut 𝕜}
+
+namespace Unital
+
+omit [Fintype dIn] [Fintype dOut] in
+/-- Construct `MatrixMap.Unital` from the defining identity-preservation equality. -/
+theorem of_map_one {M : MatrixMap dIn dOut R} (h : M 1 = 1) : M.Unital :=
+  h
+
+end Unital
 
 --This should be definable with LinearMap.adjoint, but that requires InnerProductSpace stuff
 --that is currently causing issues and pains (tried `open scoped Frobenius`).
@@ -157,43 +167,47 @@ theorem IsHermitianPreserving.dual {M : MatrixMap dIn dOut ℂ}
       _ = (2 : ℂ) * b := by ring
   exact mul_left_cancel₀ (two_ne_zero : (2 : ℂ) ≠ 0) hdouble
 
---TODO Cleanup, find home, abstract out to HermitianMats...?
+/-- The trace pairing of nonnegative Hermitian matrices is nonnegative. -/
+theorem _root_.HermitianMat.trace_mul_nonneg {n : Type*} [Fintype n]
+    {A B : HermitianMat n 𝕜} (hA : 0 ≤ A) (hB : 0 ≤ B) :
+    0 ≤ (A.mat * B.mat).trace := by
+  have hinner : 0 ≤ ⟪A, B⟫ := HermitianMat.inner_ge_zero hA hB
+  have hinner' : (0 : 𝕜) ≤ (⟪A, B⟫ : 𝕜) := by exact_mod_cast hinner
+  simpa [HermitianMat.inner_eq_trace_rc] using hinner'
+
+/-- The trace pairing of positive semidefinite matrices is nonnegative. -/
 theorem _root_.Matrix.PosSemidef.trace_mul_nonneg {n : Type*} [Fintype n] [DecidableEq n]
     {A B : Matrix n n 𝕜} (hA : A.PosSemidef) (hB : B.PosSemidef) :
     0 ≤ (A * B).trace := by
-  open scoped Matrix in
-  obtain ⟨sqrtB, rfl⟩ : ∃ sqrtB : Matrix n n 𝕜, B = sqrtBᴴ * sqrtB := by
-    open MatrixOrder in
-    exact CStarAlgebra.nonneg_iff_eq_star_mul_self.mp hB.nonneg
-  simp only [← Matrix.mul_assoc, ← Matrix.trace_mul_comm sqrtB]
-  have h : (sqrtB * A * sqrtBᴴ).PosSemidef := by
-    convert hA.conjTranspose_mul_mul_same sqrtBᴴ using 1
-    simp [Matrix.mul_assoc]
-  rw [Matrix.posSemidef_iff_dotProduct_mulVec] at h
-  simpa [Matrix.mulVec, dotProduct, Matrix.trace, Pi.single_apply] using
-    Finset.sum_nonneg fun i _ ↦ h.2 (Pi.single i 1)
+  let AH : HermitianMat n 𝕜 := ⟨A, hA.1⟩
+  let BH : HermitianMat n 𝕜 := ⟨B, hB.1⟩
+  have hAH : 0 ≤ AH := HermitianMat.zero_le_iff.mpr hA
+  have hBH : 0 ≤ BH := HermitianMat.zero_le_iff.mpr hB
+  simpa [AH, BH] using HermitianMat.trace_mul_nonneg hAH hBH
 
 /-- The dual of a `IsPositive` map also `IsPositive`. -/
 theorem IsPositive.dual {M : MatrixMap dIn dOut ℂ} (h : M.IsPositive) : M.dual.IsPositive := by
   intro x hx
+  have hx_psd : x.PosSemidef := hx
   rw [Matrix.posSemidef_iff_dotProduct_mulVec] at hx ⊢
   use IsHermitianPreserving.dual h.IsHermitianPreserving hx.1
   intro v
   have h_dual_pos : 0 ≤ (M (Matrix.vecMulVec v (star v)) * x).trace := by
-    --TODO Cleanup. Should be all in terms of HermitianMat
-    apply Matrix.PosSemidef.trace_mul_nonneg;
-    · apply h;
-      exact Matrix.posSemidef_vecMulVec_self_star v;
-    · rw [← Matrix.posSemidef_iff_dotProduct_mulVec] at hx
-      exact hx;
+    have hvv : (Matrix.vecMulVec v (star v)).PosSemidef :=
+      Matrix.posSemidef_vecMulVec_self_star v
+    let Mvv : HermitianMat dOut ℂ := ⟨M (Matrix.vecMulVec v (star v)), (h hvv).1⟩
+    let xH : HermitianMat dOut ℂ := ⟨x, hx_psd.1⟩
+    have hMvv : 0 ≤ Mvv := HermitianMat.zero_le_iff.mpr (h hvv)
+    have hxH : 0 ≤ xH := HermitianMat.zero_le_iff.mpr hx_psd
+    simpa [Mvv, xH] using HermitianMat.trace_mul_nonneg hMvv hxH
   convert h_dual_pos using 1;
   rw [ MatrixMap.Dual.trace_eq ];
   simp [ Matrix.vecMulVec, Matrix.mul_apply, Matrix.trace ];
   simp [ Matrix.mulVec, dotProduct, Finset.mul_sum _ _ _, mul_assoc, mul_comm, mul_left_comm ];
   exact Finset.sum_comm.trans ( Finset.sum_congr rfl fun _ _ => Finset.sum_congr rfl fun _ _ => by ring )
 
-/-- The dual of TracePreserving map is *not* trace-preserving, it's *unital*, that is, M*(I) = I. -/
-theorem dual_Unital (h : M.IsTracePreserving) : M.dual.Unital := by
+/-- The dual of a trace-preserving map sends the identity to the identity. -/
+theorem dual_map_one_of_tracePreserving (h : M.IsTracePreserving) : M.dual 1 = 1 := by
   -- By definition of dual, we know that for any matrix A, Tr(M(A) * I) = Tr(A * M*(I)).
   have h_dual_trace : ∀ A : Matrix dIn dIn 𝕜, (M A * 1).trace = (A * M.dual 1).trace := by
     exact fun A => Dual.trace_eq M A 1;
@@ -203,6 +217,10 @@ theorem dual_Unital (h : M.IsTracePreserving) : M.dual.Unital := by
   specialize h ( Matrix.of ( fun k l => if k = j then if l = i then 1 else 0 else 0 ) )
   simp_all [ Matrix.trace ]
   simp [ Matrix.one_apply, eq_comm ]
+
+/-- The dual of TracePreserving map is *not* trace-preserving, it's *unital*, that is, M*(I) = I. -/
+theorem dual_Unital (h : M.IsTracePreserving) : M.dual.Unital :=
+  Unital.of_map_one (dual_map_one_of_tracePreserving h)
 
 alias IsTracePreserving.dual := dual_Unital
 
@@ -278,7 +296,7 @@ lemma dual_kron {A B C D : Type*} [Fintype A] [Fintype B] [Fintype C] [Fintype D
     obtain ⟨X_sum, hX_sum⟩ : ∃ X_sum : Finset (Matrix A A 𝕜 × Matrix C C 𝕜), X = ∑ p ∈ X_sum, (Matrix.kroneckerMap (fun a b => a * b) p.1 p.2) := by
       refine' ⟨ Finset.univ.image fun p : A × A × C × C => ( Matrix.of fun i j => if i = p.1 ∧ j = p.2.1 then X ( p.1, p.2.2.1 ) ( p.2.1, p.2.2.2 ) else 0, Matrix.of fun i j => if i = p.2.2.1 ∧ j = p.2.2.2 then 1 else 0 ), _ ⟩;
       ext ⟨a, c⟩ ⟨a', c'⟩;
-      rw [ Finset.sum_apply, Finset.sum_apply ];
+      rw [ Matrix.sum_apply ];
       rw [ Finset.sum_eq_single ( ( Matrix.of fun i j => if i = a ∧ j = a' then X ( a, c ) ( a', c' ) else 0, Matrix.of fun i j => if i = c ∧ j = c' then 1 else 0 ) ) ] <;> simp;
       · intro a_1 b x x_1 x_2 x_3 a_2 a_3 a_4
         subst a_3 a_2
@@ -406,36 +424,75 @@ section hermDual
 def HPMap.ofHermitianMat (f : HermitianMat dIn ℂ →ₗ[ℝ] HermitianMat dOut ℂ) : HPMap dIn dOut where
   toFun x := f (realPart x) + Complex.I • f (imaginaryPart x)
   map_add' x y := by
-    simp only [map_add, HermitianMat.mat_add, smul_add]
-    abel
+    ext i j
+    have hreal : (f (realPart x + realPart y)) i j =
+        (f (realPart x)) i j + (f (realPart y)) i j := by
+      change (f (realPart x + realPart y)).mat i j =
+        (f (realPart x) + f (realPart y)).mat i j
+      exact congrArg (fun A : HermitianMat dOut ℂ => A.mat i j)
+        (LinearMap.map_add f (realPart x) (realPart y))
+    have himag : (f (imaginaryPart x + imaginaryPart y)) i j =
+        (f (imaginaryPart x)) i j + (f (imaginaryPart y)) i j := by
+      change (f (imaginaryPart x + imaginaryPart y)).mat i j =
+        (f (imaginaryPart x) + f (imaginaryPart y)).mat i j
+      exact congrArg (fun A : HermitianMat dOut ℂ => A.mat i j)
+        (LinearMap.map_add f (imaginaryPart x) (imaginaryPart y))
+    simp [Matrix.add_apply, hreal, himag]
+    ring
   map_smul' c m := by
     have h_expand : realPart (c • m) = c.re • realPart m - c.im • imaginaryPart m ∧
       imaginaryPart (c • m) = c.re • imaginaryPart m + c.im • realPart m := by
-      simp only [Subtype.ext_iff, AddSubgroupClass.coe_sub, selfAdjoint.val_smul,
-        AddSubgroup.coe_add, realPart, selfAdjointPart_apply_coe, invOf_eq_inv, star_smul, RCLike.star_def,
-        smul_add, imaginaryPart, LinearMap.coe_comp, Function.comp_apply,
-        skewAdjoint.negISMul_apply_coe, skewAdjointPart_apply_coe,
-        ← Matrix.ext_iff, Matrix.add_apply, Matrix.smul_apply, smul_eq_mul, Complex.real_smul,
-        Complex.ofReal_inv, Complex.ofReal_ofNat, Matrix.star_apply, RCLike.star_def,
-        Matrix.sub_apply, Complex.ext_iff, Complex.add_re, Complex.mul_re, Complex.inv_re,
-        Complex.normSq_ofNat, Complex.mul_im, Complex.conj_re, Complex.conj_im, Complex.ofReal_re,
-        Complex.sub_re, Complex.sub_im, Complex.add_im, Complex.neg_re, Complex.neg_im]
-      ring_nf
-      simp
-    ext
-    simp only [h_expand, map_sub, map_smul, map_add, Matrix.add_apply, Matrix.smul_apply,
-      smul_eq_mul, RingHom.id_apply, Complex.ext_iff, Complex.add_re, Complex.mul_re,
-      Complex.I, Complex.mul_im, Complex.add_im]
-    simp only [HermitianMat.mat_sub, HermitianMat.mat_smul, Matrix.sub_apply, Matrix.smul_apply,
-      Complex.real_smul, Complex.sub_re, Complex.mul_re, Complex.ofReal_re, Complex.ofReal_im,
-      zero_mul, sub_zero, HermitianMat.mat_add, Matrix.add_apply, Complex.add_re, Complex.add_im,
-      Complex.mul_im, add_zero, one_mul, zero_sub, neg_add_rev, zero_add, Complex.sub_im]
-    ring_nf
-    simp
+      exact ⟨realPart_smul c m, imaginaryPart_smul c m⟩
+    rw [h_expand.1, h_expand.2]
+    ext i j
+    have hsub : (f (c.re • realPart m - c.im • imaginaryPart m)) i j =
+        c.re * (f (realPart m)) i j - c.im * (f (imaginaryPart m)) i j := by
+      have hhm : f (c.re • realPart m - c.im • imaginaryPart m) =
+          c.re • f (realPart m) - c.im • f (imaginaryPart m) := by
+        calc
+          f (c.re • realPart m - c.im • imaginaryPart m) =
+              f (c.re • realPart m) - f (c.im • imaginaryPart m) := by
+            exact LinearMap.map_sub f (c.re • realPart m) (c.im • imaginaryPart m)
+          _ = c.re • f (realPart m) - c.im • f (imaginaryPart m) := by
+            congr 1
+            · exact LinearMap.map_smul f c.re (realPart m)
+            · exact LinearMap.map_smul f c.im (imaginaryPart m)
+      change (f (c.re • realPart m - c.im • imaginaryPart m)).mat i j =
+        (c.re • f (realPart m) - c.im • f (imaginaryPart m)).mat i j
+      rw [congrArg (fun A : HermitianMat dOut ℂ => A.mat i j) hhm]
+    have hadd : (f (c.re • imaginaryPart m + c.im • realPart m)) i j =
+        c.re * (f (imaginaryPart m)) i j + c.im * (f (realPart m)) i j := by
+      have hhm : f (c.re • imaginaryPart m + c.im • realPart m) =
+          c.re • f (imaginaryPart m) + c.im • f (realPart m) := by
+        calc
+          f (c.re • imaginaryPart m + c.im • realPart m) =
+              f (c.re • imaginaryPart m) + f (c.im • realPart m) := by
+            exact LinearMap.map_add f (c.re • imaginaryPart m) (c.im • realPart m)
+          _ = c.re • f (imaginaryPart m) + c.im • f (realPart m) := by
+            congr 1
+            · exact LinearMap.map_smul f c.re (imaginaryPart m)
+            · exact LinearMap.map_smul f c.im (realPart m)
+      change (f (c.re • imaginaryPart m + c.im • realPart m)).mat i j =
+        (c.re • f (imaginaryPart m) + c.im • f (realPart m)).mat i j
+      rw [congrArg (fun A : HermitianMat dOut ℂ => A.mat i j) hhm]
+    change (f (c.re • realPart m - c.im • imaginaryPart m)) i j +
+        Complex.I * (f (c.re • imaginaryPart m + c.im • realPart m)) i j =
+      (c * ((f (realPart m)) i j + Complex.I * (f (imaginaryPart m)) i j))
+    rw [hsub, hadd]
+    simp only [Complex.ext_iff, Complex.add_re, Complex.add_im,
+      Complex.sub_re, Complex.sub_im, Complex.mul_re, Complex.mul_im, Complex.ofReal_re,
+      Complex.ofReal_im, Complex.I_re, Complex.I_im, zero_mul, one_mul,
+      add_zero, zero_add, sub_zero]
+    constructor <;> ring_nf
   HP _ h := by
     apply Matrix.IsHermitian.add
     · apply HermitianMat.H
-    · simp [IsSelfAdjoint.imaginaryPart h]
+    · rw [IsSelfAdjoint.imaginaryPart h]
+      have hf0 : f 0 = 0 := map_zero f
+      have hf0m : (↑(f 0) : Matrix dOut dOut ℂ) = 0 := congrArg HermitianMat.mat hf0
+      change (Complex.I • (↑(f 0) : Matrix dOut dOut ℂ)).IsHermitian
+      rw [hf0m]
+      simp [Matrix.IsHermitian]
 
 --PULLOUT
 omit [Fintype dOut] in
@@ -444,19 +501,26 @@ theorem HPMap.linearMap_ofHermitianMat (f : HermitianMat dIn ℂ →ₗ[ℝ] Her
     LinearMapClass.linearMap (HPMap.ofHermitianMat f) = f := by
   ext1 ⟨x, hx⟩
   ext1
-  simp only [ofHermitianMat, LinearMap.coe_coe]
-  simp only [HPMap.instFunLike, HPMap.map, HermitianMat.mat_mk,
-    LinearMap.coe_mk, AddHom.coe_mk]
-  conv => enter [2, 1, 2, 1]; rw [← realPart_add_I_smul_imaginaryPart x]
-  suffices imaginaryPart x = 0 by simp [this]
-  simp [imaginaryPart, skewAdjoint.negISMul, show star x = x from hx]
+  have hreal : realPart x = ⟨x, hx⟩ := by
+    exact (show IsSelfAdjoint x from hx).selfAdjointPart_apply ℝ
+  have himag : imaginaryPart x = 0 := by
+    exact IsSelfAdjoint.imaginaryPart (show IsSelfAdjoint x from hx)
+  change (↑(f (realPart x)) : Matrix dOut dOut ℂ) +
+      Complex.I • (↑(f (imaginaryPart x)) : Matrix dOut dOut ℂ) =
+    ↑(f ⟨x, hx⟩)
+  rw [hreal, himag]
+  have hf0 : (↑(f 0) : Matrix dOut dOut ℂ) = 0 :=
+    congrArg HermitianMat.mat (map_zero f)
+  change (↑(f ⟨x, hx⟩) : Matrix dOut dOut ℂ) +
+      Complex.I • (↑(f 0) : Matrix dOut dOut ℂ) = ↑(f ⟨x, hx⟩)
+  rw [hf0, smul_zero, add_zero]
 
 --PULLOUT
 omit [Fintype dOut] in
 @[simp]
 theorem HPMap.ofHermitianMat_linearMap (f : HPMap dIn dOut ℂ) :
     ofHermitianMat (LinearMapClass.linearMap f) = f := by
-  ext : 3
+  ext x i j
   simp only [map, ofHermitianMat, instFunLike, LinearMap.coe_coe, HermitianMat.val_eq_coe,
     HermitianMat.mat_mk, LinearMap.coe_mk, AddHom.coe_mk,
     ← map_smul, ← map_add]
@@ -465,8 +529,19 @@ theorem HPMap.ofHermitianMat_linearMap (f : HPMap dIn dOut ℂ) :
     HermitianMat.mat_mk,LinearMap.map_smul_of_tower, skewAdjoint.negISMul]
   simp only [Matrix.add_apply, Matrix.smul_apply, smul_eq_mul]
   ring_nf
-  simp
-  ring
+  rw [Complex.I_sq]
+  rw [neg_one_mul, sub_neg_eq_add]
+  rw [← Matrix.add_apply]
+  rw [← LinearMap.map_add]
+  have hdecomp : (⅟2 : ℝ) • (x + star x) +
+      (↑((skewAdjointPart ℝ) x) : Matrix dIn dIn ℂ) = x := by
+    rw [skewAdjointPart_apply_coe]
+    ext a b
+    simp [Matrix.add_apply, Matrix.sub_apply, Matrix.smul_apply]
+    ring
+  change f.toLinearMap ((⅟2 : ℝ) • (x + star x) +
+      (↑((skewAdjointPart ℝ) x) : Matrix dIn dIn ℂ)) i j = f.toLinearMap x i j
+  exact congrArg (fun M : Matrix dIn dIn ℂ => f.toLinearMap M i j) hdecomp
 
 
 variable (f : HPMap dIn dOut) (A : HermitianMat dIn ℂ)
@@ -486,13 +561,11 @@ open RealInnerProductSpace
 /-- The defining property of a dual map: inner products are preserved on the opposite argument. -/
 theorem HPMap.inner_hermDual (B : HermitianMat dOut ℂ) :
     ⟪f A, B⟫ = ⟪A, f.hermDual B⟫ := by
-  change ⟪(LinearMapClass.linearMap f) A, B⟫ = ⟪A, (LinearMapClass.linearMap f.hermDual) B⟫
-  rw [hermDual, ← LinearMap.adjoint_inner_right, HPMap.linearMap_ofHermitianMat]
-
-/-- Version of `HPMap.inner_hermDual` that uses HermitiaMat.inner directly. TODO cleanup -/
-theorem HPMap.inner_hermDual' (B : HermitianMat dOut ℂ) :
-    ⟪f A, B⟫ = ⟪A, f.hermDual B⟫ :=
-  HPMap.inner_hermDual f A B
+  change ⟪(LinearMapClass.linearMap f) A, B⟫ =
+    ⟪A, (LinearMapClass.linearMap (HPMap.ofHermitianMat
+      (LinearMap.adjoint (LinearMapClass.linearMap f)))) B⟫
+  rw [HPMap.linearMap_ofHermitianMat]
+  exact (LinearMap.adjoint_inner_right (LinearMapClass.linearMap f) A B).symm
 
 /-- The dual of a `IsPositive` map also `IsPositive`. -/
 theorem MatrixMap.IsPositive.hermDual (h : MatrixMap.IsPositive f.map) : f.hermDual.map.IsPositive := by
@@ -512,18 +585,35 @@ theorem MatrixMap.IsPositive.hermDual (h : MatrixMap.IsPositive f.map) : f.hermD
   rw [HPMap.inner_hermDual, HPMap.hermDual_hermDual]
   apply HermitianMat.inner_ge_zero hx h
 
-/-- The dual of TracePreserving map is *not* trace-preserving, it's *unital*, that is, M*(I) = I. -/
-theorem HPMap.hermDual_Unital [DecidableEq dIn] [DecidableEq dOut] (h : MatrixMap.IsTracePreserving f.map) :
-    f.hermDual.map.Unital := by
-  suffices f.hermDual 1 = 1 by --todo: make this is an accessible 'constructor' for Unital
-    rw [HermitianMat.ext_iff] at this
-    exact this
+omit [Fintype dIn] [Fintype dOut] in
+/-- Construct unitality of an `HPMap` from the identity-preservation equality on Hermitian matrices. -/
+theorem HPMap.unital_of_map_one [DecidableEq dIn] [DecidableEq dOut] {f : HPMap dIn dOut ℂ}
+    (h : f 1 = 1) : f.map.Unital := by
+  rw [HermitianMat.ext_iff] at h
+  exact h
+
+/-- A trace-preserving `HPMap` preserves `HermitianMat.trace` on Hermitian inputs. -/
+theorem HPMap.trace_eq_of_isTracePreserving (h : MatrixMap.IsTracePreserving f.map)
+    (A : HermitianMat dIn ℂ) : (f A).trace = A.trace := by
+  rw [HermitianMat.trace_eq_re_trace, HermitianMat.trace_eq_re_trace]
+  exact congr(Complex.re $(h A.mat))
+
+/-- The Hermitian dual of a trace-preserving `HPMap` sends the identity to the identity. -/
+theorem HPMap.hermDual_map_one_of_tracePreserving [DecidableEq dIn] [DecidableEq dOut]
+    (h : MatrixMap.IsTracePreserving f.map) :
+    f.hermDual 1 = 1 := by
   open RealInnerProductSpace in
   apply ext_inner_left ℝ
   intro v
-  rw [← HPMap.inner_hermDual]
-  rw [HermitianMat.inner_one, HermitianMat.inner_one] --TODO change to Inner.inner
-  exact congr(Complex.re $(h v)) --TODO: HPMap with IsTracePreserving give the HermitianMat.trace version
+  calc
+    ⟪v, f.hermDual 1⟫ = ⟪f v, 1⟫ := (HPMap.inner_hermDual f v 1).symm
+    _ = ⟪v, 1⟫ := by
+      simpa [HermitianMat.inner_one] using HPMap.trace_eq_of_isTracePreserving f h v
+
+/-- The dual of TracePreserving map is *not* trace-preserving, it's *unital*, that is, M*(I) = I. -/
+theorem HPMap.hermDual_Unital [DecidableEq dIn] [DecidableEq dOut] (h : MatrixMap.IsTracePreserving f.map) :
+    f.hermDual.map.Unital :=
+  HPMap.unital_of_map_one (HPMap.hermDual_map_one_of_tracePreserving f h)
 
 alias MatrixMap.IsTracePreserving.hermDual := HPMap.hermDual_Unital
 
@@ -553,7 +643,7 @@ theorem hermDual.PTP_POVM (M : PTPMap dIn dOut) {T : HermitianMat dOut ℂ} (hT 
 theorem exp_val_hermDual (ℰ : PTPMap dIn dOut) (ρ : MState dIn) (T : HermitianMat dOut ℂ) :
     (ℰ ρ).exp_val T  = ρ.exp_val (ℰ.hermDual T) := by
   simp only [MState.exp_val]
-  apply HPMap.inner_hermDual'
+  apply HPMap.inner_hermDual
 
 end PTPMap
 

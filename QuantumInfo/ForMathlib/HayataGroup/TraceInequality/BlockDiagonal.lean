@@ -124,10 +124,13 @@ noncomputable def blockDiagonalHom : (L ℋ × L ℋ) →⋆ₐ[ℝ] L (HSum ℋ
   commutes' := by
     intro r
     ext z i
-    fin_cases i <;> {
-      simp [blockDiagonal, hsumProj, hsumIncl, hsumEquiv, Algebra.algebraMap_eq_smul_one]
-      -- rfl --TODO: Port from v4.29 to v4.28 didn't need this
-    }
+    fin_cases i
+    · simp [blockDiagonal, hsumProj, hsumIncl, hsumEquiv, Algebra.algebraMap_eq_smul_one]
+      change (r : ℂ) • z.ofLp 0 = (((r : ℂ) • z).ofLp 0)
+      rfl
+    · simp [blockDiagonal, hsumProj, hsumIncl, hsumEquiv, Algebra.algebraMap_eq_smul_one]
+      change (r : ℂ) • z.ofLp 1 = (((r : ℂ) • z).ofLp 1)
+      rfl
   map_star' := by
     intro p
     simp

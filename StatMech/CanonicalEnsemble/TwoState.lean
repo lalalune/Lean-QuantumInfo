@@ -24,7 +24,7 @@ open Constants
   `E₀` and the other state of energy `E₁`. -/
 noncomputable def twoState (E₀ E₁ : ℝ) : CanonicalEnsemble (Fin 2) where
   energy := fun | 0 => E₀ | 1 => E₁
-  dof := 0
+  dof := zeroDiscreteDegreesOfFreedom
   μ := Measure.count
   energy_measurable := by fun_prop
 

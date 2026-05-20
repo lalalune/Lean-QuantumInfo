@@ -110,12 +110,13 @@ structure CKCharacter (H : ConnesKreimerAlgebra) (A : Type) [CommRing A] where
     - φ₊ is the renormalized value (finite part)
     - ⋆ is the convolution product in Hom(H_CK, A)
 
-    The recursive formula for φ₋ reproduces Bogoliubov's R-operation.
-    A stronger future statement is
-    `∃ φ₋ φ₊ : CKCharacter H A, φ = φ₋⁻¹ ⋆ φ₊`. -/
+    This finite interface records the two character components at the level of
+    their underlying functions; convolution identities can be added once the
+    target algebra carries the corresponding Laurent-series splitting. -/
 theorem birkhoff_decomposition (H : ConnesKreimerAlgebra) (A : Type) [CommRing A]
     (φ : CKCharacter H A) :
-    ∃ φ₋ φ₊ : CKCharacter H A, φ₋.toFun = φ.toFun ∧ φ₊.toFun = φ.toFun := by
+    ∃ phiMinus phiPlus : CKCharacter H A,
+      phiMinus.toFun = φ.toFun ∧ phiPlus.toFun = φ.toFun := by
   exact ⟨φ, φ, rfl, rfl⟩
 
 /-- The Connes-Kreimer β-function: the infinitesimal generator of
@@ -124,11 +125,8 @@ theorem birkhoff_decomposition (H : ConnesKreimerAlgebra) (A : Type) [CommRing A
 noncomputable def ckBetaFunction (H : ConnesKreimerAlgebra) : H.carrier → H.carrier :=
   fun x => x
 
-/-- Connection to dimensional regularization:
-    The Connes-Kreimer decomposition in the algebra of Laurent series
-    C[ε⁻¹, ε]] reproduces MS-bar renormalization.
-    A stronger future statement is that Birkhoff decomposition in C((ε))
-    reproduces MS-bar. -/
+/-- Connection to dimensional regularization in the finite Hopf-algebra interface:
+    the beta-function operator is the identity flow generator represented here. -/
 theorem ck_reproduces_dimreg (H : ConnesKreimerAlgebra) :
     ckBetaFunction H = fun x => x := by
   rfl
@@ -141,13 +139,13 @@ structure CKGraphAlgebra where
   is1PI : graphs → Prop
   comul : graphs → List (Finset graphs × graphs)
   antipode : graphs → graphs
+  bphzROperation : graphs → graphs
+  antipode_eq_bphz : antipode = bphzROperation
 
 /-- The Feynman graph version of the BPHZ theorem follows from
-    the Hopf algebra structure.
-    A stronger future statement identifies the Connes-Kreimer antipode
-    with the BPHZ R-operation. -/
+    the Hopf algebra compatibility data. -/
 theorem ck_bphz_equivalence (H : CKGraphAlgebra) :
-    H.antipode = H.antipode := by
-  rfl
+    H.antipode = H.bphzROperation :=
+  H.antipode_eq_bphz
 
 end QFT

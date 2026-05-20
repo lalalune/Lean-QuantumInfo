@@ -188,7 +188,7 @@ abbrev GaugeGroup : GaugeGroupQuot → Type
 
 ## Smoothness structure on the gauge group.
 
-- The current formalization provides the algebraic gauge groups and their quotient stand-ins.
+- The current formalization provides the algebraic gauge groups and their quotient models.
 - The corresponding manifold/Lie-group layer is intentionally omitted until the required
   matrix-subgroup manifold instances are available in the library.
 

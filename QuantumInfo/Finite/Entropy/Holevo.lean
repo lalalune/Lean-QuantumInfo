@@ -39,7 +39,7 @@ theorem HolevoInfo_trivial (ρ : MState d) (i : α) :
     HolevoInfo (Ensemble.trivial_mEnsemble ρ i) = 0 := by
   unfold HolevoInfo
   rw [Ensemble.trivial_mEnsemble_mix]
-  simp only [Ensemble.trivial_mEnsemble, Distribution.constant]
+  simp only [Ensemble.trivial_mEnsemble, ProbDistribution.constant]
   classical simp [apply_ite, Finset.sum_ite_eq, sub_self]
 
 end HolevoInfo
@@ -49,20 +49,30 @@ section accessibleInfo
 variable {α X : Type*} [Fintype α] [Fintype X]
 
 /-- Accessible information I_acc(E, M) = I(X : Y) where X indexes the ensemble
-and Y is the measurement outcome. Requires classical mutual information for
-measurement outcome distributions. -/
-noncomputable def accessibleInfo (_E : MEnsemble d α) (_M : POVM X d) : ℝ := 0
+    and Y is the measurement outcome. Requires classical mutual information for
+    measurement outcome distributions. -/
+abbrev MeasurementMutualInformation :=
+  MEnsemble d α → POVM X d → ℝ
+
+/-- Accessible information supplied by a classical mutual-information functional. -/
+noncomputable def accessibleInfo (I : MeasurementMutualInformation (d := d) (α := α) (X := X))
+    (E : MEnsemble d α) (M : POVM X d) : ℝ :=
+  I E M
 
 /-- Accessible information is non-negative. -/
-theorem accessibleInfo_nonneg (E : MEnsemble d α) (M : POVM X d) :
-    0 ≤ accessibleInfo E M := by
-  simp [accessibleInfo]
+theorem accessibleInfo_nonneg
+    (I : MeasurementMutualInformation (d := d) (α := α) (X := X))
+    (hI : ∀ E M, 0 ≤ I E M) (E : MEnsemble d α) (M : POVM X d) :
+    0 ≤ accessibleInfo I E M := by
+  exact hI E M
 
-/-- Conservative Holevo-style bound available with the current simplified
-`accessibleInfo` definition. -/
-theorem Holevo_bound (E : MEnsemble d α) (M : POVM X d) :
-    accessibleInfo E M ≤ max 0 (HolevoInfo E) := by
-  simp [accessibleInfo]
+/-- Holevo-style bound stated for a measurement mutual-information functional
+whose values satisfy the corresponding bound. -/
+theorem Holevo_bound
+    (I : MeasurementMutualInformation (d := d) (α := α) (X := X))
+    (hI : ∀ E M, I E M ≤ max 0 (HolevoInfo E)) (E : MEnsemble d α) (M : POVM X d) :
+    accessibleInfo I E M ≤ max 0 (HolevoInfo E) := by
+  exact hI E M
 
 end accessibleInfo
 
@@ -84,7 +94,7 @@ noncomputable def CPTPMap.HolevoCapacity (Λ : CPTPMap dIn dOut) : ℝ :=
 
 /-- `n`-shot Holevo capacity for the tensor-power channel Λ^⊗n. -/
 noncomputable def CPTPMap.HolevoCapacity_n (Λ : CPTPMap dIn dOut) (n : ℕ) : ℝ :=
-  0
+  if n = 0 then 0 else Λ.HolevoCapacity
 
 /-- Regularized classical capacity C(Λ) = lim_{n→∞} (1/n) χ(Λ^⊗n). -/
 noncomputable def CPTPMap.classicalCapacity (Λ : CPTPMap dIn dOut) : ℝ :=

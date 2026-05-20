@@ -117,19 +117,18 @@ noncomputable def schwarzschildProperTimeIntegral (M r₁ r₂ : ℝ) : ℝ :=
 theorem schwarzschild_proper_time_integral_value_complexity (M : ℝ) (_hM : 0 < M)
     (hvalue : schwarzschildProperTimeIntegral M (2 * M) 0 = Real.pi * M) :
     schwarzschildProperTimeIntegral M (2 * M) 0 = Real.pi * M := hvalue
-/-- Proper time to ring for any Kerr black hole.
+/-- Normalized proper-time-to-ring model for any Kerr black hole.
 
-    For Schwarzschild (a = 0): uses the exact integral above
-    For Kerr (a ≠ 0): defined via the geodesic equations (more complex)
+    For Schwarzschild (`a = 0`) this uses the exact radial-infall integral above.
+    For rotating Kerr parameters this file uses the same positive `πM`
+    normalization as a finite-time model; the fully geodesic-dependent elliptic
+    integral is not evaluated in this module.
 -/
 noncomputable def properTimeToRing (p : KerrParams) (_ : GeodesicMotion p) : ℝ :=
   if _ /-h-/ : p.a = 0 then
-    -- Schwarzschild case: use exact formula
     Real.pi * p.M
   else
-    -- Kerr case: the integral is more complex (hypergeometric functions)
-    -- but still finite and O(M)
-    Real.pi * p.M  -- Placeholder: actual value depends on a/M and geodesic parameters
+    Real.pi * p.M
 
 /-- For Schwarzschild, proper time from horizon to singularity equals πM.
 

@@ -64,12 +64,12 @@ theorem ring_singularity_characterization (p : KerrParams) (r θ : ℝ)
         have h2 : (k : ℝ) < 1/2 := by linarith
         have h3 : (k : ℤ) ≥ 0 := by
           by_contra hc
-          push_neg at hc
+          push Not at hc
           have : (k : ℝ) ≤ -1 := by exact_mod_cast Int.le_sub_one_of_lt hc
           linarith
         have h4 : (k : ℤ) ≤ 0 := by
           by_contra hc
-          push_neg at hc
+          push Not at hc
           have : (k : ℝ) ≥ 1 := by exact_mod_cast hc
           linarith
         exact le_antisymm h4 h3

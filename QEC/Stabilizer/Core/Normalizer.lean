@@ -74,7 +74,7 @@ lemma maps_to_codespace_of_mem_normalizer (U : NQubitGate n) (S : StabilizerGrou
     obtain ⟨g, hg₁, hg₂⟩ := h; intro H; specialize H g hg₁
     simp_all +decide [← Matrix.mulVec_mulVec]
     specialize H ((1 / Real.sqrt (∑ i : Quantum.NQubitBasis n, ‖v i‖ ^ 2)) • v) ?_ ?_ <;>
-      simp_all +decide [Matrix.mulVec_smul]
+      simp_all +decide
     all_goals norm_num [mul_pow, ← Finset.mul_sum _ _ _, ← Finset.sum_mul,
       Real.sq_sqrt <| Finset.sum_nonneg fun _ _ => sq_nonneg _] at *
     any_goals rw [inv_mul_cancel₀]; contrapose! hg₂; simp_all +decide [← Matrix.mulVec_mulVec]
@@ -82,7 +82,13 @@ lemma maps_to_codespace_of_mem_normalizer (U : NQubitGate n) (S : StabilizerGrou
       <;> simp_all +decide [funext_iff, Matrix.mulVec, dotProduct]
     · intro g hg; specialize hv g hg
       simp only [Quantum.StabilizerGroup.IsStabilizedBy, Quantum.StabilizerGroup.IsStabilizedVec]
-      rw [Matrix.mulVec_smul, hv]
+      calc
+        g.toMatrix *ᵥ ((Real.sqrt (∑ i : Quantum.NQubitBasis n, ‖v i‖ ^ 2))⁻¹ • v)
+            = (Real.sqrt (∑ i : Quantum.NQubitBasis n, ‖v i‖ ^ 2))⁻¹ • (g.toMatrix *ᵥ v) := by
+              exact Matrix.mulVec_smul g.toMatrix
+                (Real.sqrt (∑ i : Quantum.NQubitBasis n, ‖v i‖ ^ 2))⁻¹ v
+        _ = (Real.sqrt (∑ i : Quantum.NQubitBasis n, ‖v i‖ ^ 2))⁻¹ • v := by
+              rw [hv]
     · replace H := congr_arg (fun x => (Real.sqrt (∑ i : Quantum.NQubitBasis n, ‖v i‖ ^ 2)) • x) H
       simp_all +decide
       by_cases h : Real.sqrt (∑ i : Quantum.NQubitBasis n, ‖v i‖ ^ 2) = 0 <;>
@@ -90,7 +96,25 @@ lemma maps_to_codespace_of_mem_normalizer (U : NQubitGate n) (S : StabilizerGrou
       · rw [Real.sqrt_eq_zero (Finset.sum_nonneg fun _ _ => sq_nonneg _)] at h
         simp_all +decide [Finset.sum_eq_zero_iff_of_nonneg]
         exact hg₂ (by ext i; simp +decide [h, Matrix.mulVec, dotProduct])
-      · apply_fun (fun x => U.val *ᵥ x) at H; simp_all +decide [← Matrix.mul_assoc]
+      · let s : ℝ := Real.sqrt (∑ i : Quantum.NQubitBasis n, ‖v i‖ ^ 2)
+        let A : Matrix (Quantum.NQubitBasis n) (Quantum.NQubitBasis n) ℂ :=
+          star U.val * (g.toMatrix * U.val)
+        have hscale : s • A *ᵥ (s⁻¹ • v) = A *ᵥ v := by
+          ext i
+          simp [Matrix.mulVec, dotProduct, Finset.mul_sum, s, h, mul_left_comm, mul_comm]
+        have Hleft : s • A *ᵥ (s⁻¹ • v) = (1 : ℝ) • v := by
+          dsimp [s, A]
+          exact H
+        have Hinner : A *ᵥ v = (1 : ℝ) • v :=
+          hscale.symm.trans Hleft
+        apply hg₂
+        calc
+          (g.toMatrix * U.val) *ᵥ v = U.val *ᵥ (A *ᵥ v) := by
+            simp [A, Matrix.mulVec_mulVec, ← Matrix.mul_assoc, U.2.2]
+          _ = U.val *ᵥ v := by
+            rw [Hinner]
+            ext i
+            simp [Matrix.mulVec, dotProduct]
 
 /-- If U is in the normalizer of S, then U⁻¹ is also in the normalizer. -/
 lemma inv_isInStabilizerNormalizer (U : NQubitGate n) (S : StabilizerGroup n)

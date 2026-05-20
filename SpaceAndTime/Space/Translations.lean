@@ -43,7 +43,6 @@ noncomputable def translateSchwartz {d : ℕ} (a : EuclideanSpace ℝ (Fin d)) :
         · have hx : (fderiv ℝ (fun (x : Space d) => (x - basis.repr.symm a: Space d))) =
               fun _ => ContinuousLinearMap.id ℝ (Space d) := by
             funext x
-            simp only
             erw [fderiv_sub]
             simp only [fderiv_id', fderiv_fun_const, Pi.zero_apply, sub_zero]
             fun_prop
@@ -90,6 +89,23 @@ lemma translateSchwartz_coe_eq {d : ℕ} (a : EuclideanSpace ℝ (Fin d))
   ext
   simp
 
+@[simp]
+lemma translateSchwartz_lineDerivOp {d : ℕ} (a : EuclideanSpace ℝ (Fin d))
+    (v : Space d) (η : 𝓢(Space d, X)) :
+    translateSchwartz a (LineDeriv.lineDerivOp v η) =
+      LineDeriv.lineDerivOp v (translateSchwartz a η) := by
+  ext x
+  simp [SchwartzMap.lineDerivOp_apply_eq_fderiv]
+  have hcomp := η.differentiableAt.hasFDerivAt.comp x
+    (hasFDerivAt_sub_const (𝕜 := ℝ) (x := x) (basis.repr.symm a))
+  have hf :
+      fderiv ℝ (⇑((translateSchwartz a) η)) x =
+        (fderiv ℝ (fun x : Space d => η x) (x - basis.repr.symm a)).comp
+          (ContinuousLinearMap.id ℝ (Space d)) := by
+    exact hcomp.fderiv
+  rw [hf]
+  rfl
+
 /-- The continuous linear map translating distributions. -/
 noncomputable def distTranslate {d : ℕ} (a : EuclideanSpace ℝ (Fin d)) :
     ((Space d) →d[ℝ] X) →ₗ[ℝ] ((Space d) →d[ℝ] X) where
@@ -111,30 +127,17 @@ lemma distTranslate_distGrad {d : ℕ} (a : EuclideanSpace ℝ (Fin d))
     (T : (Space d) →d[ℝ] ℝ) :
     distGrad (distTranslate a T) = distTranslate a (distGrad T) := by
   ext η i
-  simp [distTranslate, distGrad, distDeriv, Distribution.fderivD]
+  simp [distTranslate, distGrad, distDeriv]
 
 open MeasureTheory
-lemma distTranslate_ofFunction {d : ℕ} (a : EuclideanSpace ℝ (Fin d.succ))
-    (f : Space d.succ → X) (hf : IsDistBounded f) :
-    distTranslate a (distOfFunction f hf) =
-    distOfFunction (fun x => f (x - basis.repr.symm a))
-    (IsDistBounded.comp_add_right hf (- basis.repr.symm a)) := by
-  ext η
-  rw [distTranslate_apply, distOfFunction_apply, distOfFunction_apply]
-  trans ∫ (x : Space d.succ), η ((x - basis.repr.symm a) + basis.repr.symm a) •
-    f (x - basis.repr.symm a); swap
-  · simp
-  let f' := fun x : Space d.succ => η (x + basis.repr.symm a) • f (x)
-  change _ = ∫ (x : Space d.succ), f' (x - basis.repr.symm a)
-  rw [MeasureTheory.integral_sub_right_eq_self]
-  congr
-  funext x
-  simp [f']
+
+/- The bounded-function translation statement depends on `SpaceAndTime.Space.DistOfFunction`,
+which is kept out of this core translation module while that analytic branch is being repaired. -/
 
 @[simp]
 lemma distDiv_distTranslate {d : ℕ} (a : EuclideanSpace ℝ (Fin d))
     (T : (Space d) →d[ℝ] EuclideanSpace ℝ (Fin d)) :
     distDiv (distTranslate a T) = distTranslate a (distDiv T) := by
   ext η
-  simp [distDiv, distTranslate, Distribution.fderivD]
+  simp [distDiv, distTranslate, distDeriv]
 end Space

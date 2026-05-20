@@ -406,8 +406,7 @@ theorem le_smul_one_of_eigenvalues_iff (hA : A.IsHermitian) (c : ℝ) :
   rw [← Algebra.algebraMap_eq_smul_one c]
   rw [le_algebraMap_iff_spectrum_le (a := A) (r := c) (ha := hA)]
   constructor
-  · intro h
-    intro x hx
+  · intro h x hx
     rw [hA.spectrum_real_eq_range_eigenvalues] at hx
     rcases hx with ⟨i, rfl⟩
     exact h i
@@ -419,8 +418,7 @@ theorem smul_one_le_of_eigenvalues_iff (hA : A.IsHermitian) (c : ℝ) :
   rw [← Algebra.algebraMap_eq_smul_one c]
   rw [algebraMap_le_iff_le_spectrum (a := A) (r := c) (ha := hA)]
   constructor
-  · intro h
-    intro x hx
+  · intro h x hx
     rw [hA.spectrum_real_eq_range_eigenvalues] at hx
     rcases hx with ⟨i, rfl⟩
     exact h i
@@ -689,9 +687,14 @@ theorem PosSemidef.rsmul {n : Type*} [Fintype n] {M : Matrix n n ℂ} (hM : M.Po
   rw [Matrix.posSemidef_iff_dotProduct_mulVec] at hM ⊢
   constructor
   · exact hM.1.smul_real c
-  · peel hM.2
-    rw [smul_mulVec, dotProduct_smul]
-    positivity
+  · intro x
+    have hx : 0 ≤ star x ⬝ᵥ M *ᵥ x := hM.2 x
+    have hmul : (c • M) *ᵥ x = c • (M *ᵥ x) := Matrix.smul_mulVec (b := c) M x
+    rw [hmul]
+    have hdot : star x ⬝ᵥ (c • (M *ᵥ x)) = c • (star x ⬝ᵥ M *ᵥ x) :=
+      dotProduct_smul c (star x) (M *ᵥ x)
+    rw [hdot]
+    exact smul_nonneg hc hx
 
 theorem PosDef.Convex {n 𝕜 : Type*} [Fintype n] [RCLike 𝕜] : Convex ℝ (Matrix.PosDef (n := n) (R := 𝕜)) := by
   intro A hA B hB a b ha hb hab
@@ -831,29 +834,79 @@ theorem cfc_diagonal (g : d → ℝ) (f : ℝ → ℝ) :
   have h_self_adjoint : _root_.IsSelfAdjoint (diagonal (fun x => (g x : 𝕜))) := by
       change Matrix.conjTranspose _ = _
       simp [Matrix.conjTranspose]
+  let A : Matrix d d 𝕜 := Matrix.diagonal fun x ↦ (g x : 𝕜)
+  have hmem (i : d) : g i ∈ spectrum ℝ A := by
+    simp only [A, spectrum, resolventSet, Set.mem_compl_iff, Set.mem_setOf_eq]
+    intro h
+    have hspec := congr_arg (fun M : Matrix d d 𝕜 => M i i) h.exists_left_inv.choose_spec
+    simp [algebraMap_eq_diagonal] at hspec
+  let φ : C(spectrum ℝ A, ℝ) → Matrix d d 𝕜 :=
+    fun u ↦ Matrix.diagonal fun i ↦ (u ⟨g i, hmem i⟩ : 𝕜)
+  have hφ_cont : Continuous φ := by
+    apply continuous_matrix
+    intro i j
+    by_cases hij : i = j
+    · subst j
+      unfold φ
+      simp only [diagonal_apply]
+      change Continuous fun u : C(spectrum ℝ A, ℝ) ↦ (u ⟨g i, hmem i⟩ : 𝕜)
+      fun_prop
+    · unfold φ
+      simpa only [diagonal_apply, if_neg hij] using
+        (continuous_const : Continuous fun _ : C(spectrum ℝ A, ℝ) => (0 : 𝕜))
   --TODO cfc_cont_tac
   rw [cfc, dif_pos ⟨h_self_adjoint, continuousOn_iff_continuous_restrict.mpr <| by fun_prop⟩]
   rw [cfcHom_eq_of_continuous_of_map_id]
   rotate_left
   · refine' { .. }
-    use fun f ↦ Matrix.diagonal fun x ↦ f ⟨g x, (by
-      simpa [algebraMap_eq_diagonal, diagonal_apply] using
-        congr_arg (· x x) ·.exists_left_inv.choose_spec
-      )⟩
-    · simp
-    · simp [diagonal, ← Matrix.ext_iff, mul_apply]
-      grind
-    · simp
-    · simp [diagonal, funext_iff]
-      grind [add_zero]
-    · simp [← ext_iff, diagonal]
+    use φ
+    · ext i j
+      by_cases hij : i = j
+      · subst j
+        simp [φ, diagonal]
+      · simp [φ, diagonal, hij]
+    · intro x y
+      ext i j
+      by_cases hij : i = j
+      · subst j
+        norm_num [φ, diagonal, mul_apply, ContinuousMap.mul_apply, map_mul]
+      · simp [φ, diagonal, mul_apply, hij]
+    · ext i j
+      by_cases hij : i = j
+      · subst j
+        simp [φ, diagonal]
+      · simp [φ, diagonal, hij]
+    · intro x y
+      ext i j
+      by_cases hij : i = j
+      · subst j
+        norm_num [φ, diagonal, ContinuousMap.add_apply, map_add]
+      · simp [φ, diagonal, hij]
+    · simp [← ext_iff, φ, diagonal]
       exact fun r i j ↦ rfl
-    · simp [← ext_iff, diagonal]
-      grind [RCLike.conj_ofReal]
-  · dsimp [diagonal]
-    continuity
-  · simp [diagonal]
-  · simp [diagonal]
+    · intro x
+      ext i j
+      by_cases hij : i = j
+      · subst j
+        norm_num [φ, diagonal, Matrix.star_apply, ContinuousMap.star_apply, RCLike.conj_ofReal]
+      · simp [φ, diagonal, Matrix.star_apply, hij, Ne.symm hij]
+  · exact hφ_cont
+  · ext i j
+    by_cases hij : i = j
+    · subst j
+      change φ (ContinuousMap.restrict (spectrum ℝ A) (ContinuousMap.id ℝ)) i i = A i i
+      rfl
+    · change φ (ContinuousMap.restrict (spectrum ℝ A) (ContinuousMap.id ℝ)) i j = A i j
+      simp [φ, A, diagonal, hij]
+  · ext i j
+    by_cases hij : i = j
+    · subst j
+      change φ ({ toFun := (spectrum ℝ A).restrict f, continuous_toFun := _ } :
+          C(spectrum ℝ A, ℝ)) i i = diagonal (RCLike.ofReal ∘ f ∘ g) i i
+      rfl
+    · change φ ({ toFun := (spectrum ℝ A).restrict f, continuous_toFun := _ } :
+          C(spectrum ℝ A, ℝ)) i j = diagonal (RCLike.ofReal ∘ f ∘ g) i j
+      simp [φ, A, diagonal, hij]
 
 theorem PosSemidef.pos_of_mem_spectrum {A : Matrix d d 𝕜} (hA : A.PosSemidef) (r : ℝ) :
     r ∈ spectrum ℝ A → 0 ≤ r := by
@@ -1210,21 +1263,26 @@ lemma iInf_eigenvalues_le_of_posSemidef
   · simp
   contrapose! hAB
   rw [posSemidef_iff_dotProduct_mulVec]
-  push_neg
+  push Not
   intro _
   apply exists_lt_of_ciInf_lt at hAB
   rcases hAB with ⟨i, hi⟩
   use WithLp.ofLp (hB.eigenvectorBasis i)
   simp only [sub_mulVec, dotProduct_sub, sub_nonneg]
   rw [hB.mulVec_eigenvectorBasis i]
-  simp only [dotProduct_smul, Complex.real_smul]
+  simp only
   nth_rw 2 [dotProduct_comm]
   rw [← EuclideanSpace.inner_eq_star_dotProduct]
   intro h
   replace h := (iInf_eigenvalues_le_dotProduct_mulVec hA _).trans h
   rw [dotProduct_comm, ← EuclideanSpace.inner_eq_star_dotProduct] at h
-  simp only [OrthonormalBasis.inner_eq_one, mul_one, Complex.real_le_real] at h
-  order
+  simp only [OrthonormalBasis.inner_eq_one, mul_one] at h
+  have hreal : iInf hA.eigenvalues ≤ hB.eigenvalues i := by
+    change ((iInf hA.eigenvalues : ℝ) : ℂ) ≤
+      inner ℂ (hB.eigenvectorBasis i) (((hB.eigenvalues i : ℂ) • hB.eigenvectorBasis i)) at h
+    rw [inner_smul_right, OrthonormalBasis.inner_eq_one] at h
+    simpa using h
+  exact (not_lt_of_ge hreal) hi
 
 open MatrixOrder in
 lemma iInf_eigenvalues_le (hAB : A ≤ B) (hA : A.IsHermitian) (hB : B.IsHermitian) :
@@ -1241,19 +1299,31 @@ end iInf_iSup
 
 section matrix_order
 
---Shortcut instances. Having these around speeds things out considerably, in some cases?
+-- Local order instances used by `gcongr` in matrix-order arguments.
 open MatrixOrder
 
 variable {d : Type*} [Fintype d]
 
-lemma _shortcut_posSMulMono : PosSMulMono ℝ (Matrix d d ℂ) :=
-  inferInstance
+lemma instPosSMulMono_complexMatrix : PosSMulMono ℝ (Matrix d d ℂ) :=
+  ⟨fun {a} ha {b₁ b₂} hb ↦ by
+    rw [Matrix.le_iff] at hb ⊢
+    have h : (a • (b₂ - b₁)).PosSemidef := PosSemidef.rsmul hb ha
+    convert h using 1
+    ext i j
+    exact (smul_sub a (b₂ i j) (b₁ i j)).symm⟩
 
-lemma _shortcut_posSmulReflectLE : PosSMulReflectLE ℝ (Matrix d d ℂ) :=
-  inferInstance
+omit [Fintype d] in
+lemma instPosSmulReflectLE_complexMatrix : PosSMulReflectLE ℝ (Matrix d d ℂ) :=
+  ⟨fun {a} ha {b₁ b₂} hb ↦ by
+    rw [Matrix.le_iff] at hb ⊢
+    have h : (a • (b₂ - b₁)).PosSemidef := by
+      convert hb using 1
+      ext i j
+      exact smul_sub a (b₂ i j) (b₁ i j)
+    convert PosSemidef.pos_smul (𝕜 := ℂ) h (c := (a : ℂ)) (by exact_mod_cast ha) using 1⟩
 
-scoped[MatrixOrder] attribute [instance] Matrix._shortcut_posSMulMono
-scoped[MatrixOrder] attribute [instance] Matrix._shortcut_posSmulReflectLE
+scoped[MatrixOrder] attribute [instance] Matrix.instPosSMulMono_complexMatrix
+scoped[MatrixOrder] attribute [instance] Matrix.instPosSmulReflectLE_complexMatrix
 
 end matrix_order
 
@@ -1393,7 +1463,7 @@ theorem IsHermitian.spectrum_subset_Iic_of_sub {d 𝕜 : Type*} [Fintype d] [Dec
     convert h
     rw [iInf, iSup, ← spectrum_real_eq_range_eigenvalues, ← spectrum_real_eq_range_eigenvalues]
     rw [← spectrum.neg_eq, csInf_neg ?_ (A.finite_real_spectrum.bddAbove), neg_neg]
-    exact IsSelfAdjoint.spectrum_nonempty hA
+    exact ContinuousFunctionalCalculus.spectrum_nonempty A hA
   · convert hl using 1
     abel
 

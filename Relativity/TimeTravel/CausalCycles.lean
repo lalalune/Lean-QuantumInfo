@@ -29,7 +29,7 @@ theorem admitsBackwardSignal_iff_admitsCausalCycle {d : ℕ} (accepts : MessageP
 theorem weakBackwardBitProtocol_implies_admitsCausalCycle {d : ℕ} {accepts : MessagePolicy d}
     (hWeak : WeakBackwardBitProtocol accepts) :
     AdmitsCausalCycle accepts := by
-  let sender : Event d := fun _ => 0
+  let sender : Event d := originEvent d
   rcases (hWeak sender).1 with ⟨m, hmAcc, _, _, hmBack⟩
   exact ⟨m, hmAcc, sentBackOneNanosecond_implies_backwardCausal hmBack, hmBack⟩
 
@@ -42,7 +42,7 @@ theorem chronology_preserving_forbids_causal_cycle_protocol {d : ℕ}
 
 theorem ctc_accepts_admits_causal_cycle {d : ℕ} (D : CTCBitDevice d) :
     AdmitsCausalCycle D.accepts := by
-  let sender : Event d := fun _ => 0
+  let sender : Event d := originEvent d
   refine ⟨D.emit true sender, ?_, ?_, ?_⟩
   · exact ⟨true, sender, rfl⟩
   · exact sentBackOneNanosecond_implies_backwardCausal (D.exact_shift true sender)

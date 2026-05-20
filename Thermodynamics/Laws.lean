@@ -35,15 +35,9 @@ structure ThermodynamicState where
   particleNumber : ℕ
   temperature : Temperature
   pressure : ℝ
+  chemicalPotential : ℝ
   entropy_nonneg : 0 ≤ entropy
   volume_pos : 0 < volume
-
-namespace ThermodynamicState
-
-/-- Chemical potential μ = (∂U/∂N)_{S,V}. Requires thermodynamic potential formalism. -/
-noncomputable def chemicalPotential (_ : ThermodynamicState) : ℝ := 0
-
-end ThermodynamicState
 
 /-- A thermodynamic process transforms one state to another. -/
 structure ThermodynamicProcess where

@@ -53,36 +53,24 @@ def equivEuclid (d : ℕ) :
     CoVector d ≃ₗ[ℝ] EuclideanSpace ℝ (Fin 1 ⊕ Fin d) :=
   (WithLp.linearEquiv _ _ _).symm
 
-instance (d : ℕ) : Norm (CoVector d) where
-  norm := fun v => ‖equivEuclid d v‖
-
 lemma norm_eq_equivEuclid (d : ℕ) (v : CoVector d) :
     ‖v‖ = ‖equivEuclid d v‖ := rfl
 
-instance isNormedAddCommGroup (d : ℕ) : NormedAddCommGroup (CoVector d) where
-  dist_self x := by simp [norm_eq_equivEuclid]
-  dist_comm x y := by
-    simpa [norm_eq_equivEuclid] using dist_comm ((equivEuclid d) x) _
-  dist_triangle x y z := by
-    simpa [norm_eq_equivEuclid] using dist_triangle
-      ((equivEuclid d) x) ((equivEuclid d) y) ((equivEuclid d) z)
-  eq_of_dist_eq_zero {x y} := by
-    simp only [norm_eq_equivEuclid, map_sub]
-    intro h
-    apply (equivEuclid d).injective
-    exact (eq_of_dist_eq_zero h)
-
-instance isNormedSpace (d : ℕ) : NormedSpace ℝ (CoVector d) where
-  norm_smul_le c v := by
-    simp only [norm_eq_equivEuclid, map_smul]
-    exact norm_smul_le c (equivEuclid d v)
 open InnerProductSpace
+
+instance (d : ℕ) : NormedAddCommGroup (CoVector d) :=
+  NormedAddCommGroup.induced (CoVector d) (EuclideanSpace ℝ (Fin 1 ⊕ Fin d))
+    (equivEuclid d).toAddMonoidHom (equivEuclid d).injective
+
+instance (d : ℕ) : NormedSpace ℝ (CoVector d) :=
+  NormedSpace.induced ℝ (CoVector d) (EuclideanSpace ℝ (Fin 1 ⊕ Fin d)) (equivEuclid d)
 
 instance (d : ℕ) : Inner ℝ (CoVector d) where
   inner := fun v w => ⟪equivEuclid d v, equivEuclid d w⟫_ℝ
 
 lemma inner_eq_equivEuclid (d : ℕ) (v w : CoVector d) :
     ⟪v, w⟫_ℝ = ⟪equivEuclid d v, equivEuclid d w⟫_ℝ := rfl
+
 /-- The Euclidean inner product structure on `CoVector`. -/
 instance innerProductSpace (d : ℕ) : InnerProductSpace ℝ (CoVector d) where
   norm_sq_eq_re_inner v := by

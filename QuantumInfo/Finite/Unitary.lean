@@ -81,7 +81,9 @@ of a matrix are always canonically sorted, this is actually an equality.
 @[simp]
 theorem U_conj_spectrum_eq (ρ : MState d) (U : 𝐔[d]) :
     (ρ.U_conj U).spectrum = ρ.spectrum := by
-  simp [spectrum, U_conj]
+  ext x
+  change (ρ.M.conj U.val).H.eigenvalues x = ρ.M.H.eigenvalues x
+  rw [HermitianMat.eigenvalues_conj]
 
 @[simp]
 theorem inner_U_conj (ρ σ : MState d) (U : 𝐔[d]) : ⟪U ◃ ρ, U ◃ σ⟫_Prob = ⟪ρ, σ⟫_Prob := by

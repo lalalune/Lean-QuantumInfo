@@ -39,8 +39,8 @@ structure OpticalMedium where
 
 /-- Fermat's principle: light travels along paths of stationary optical path length.
     OPL = ∫ n(x) ds -/
-noncomputable def opticalPathLength (medium : OpticalMedium) (path : ℝ → (Fin 3 → ℝ))
-    (t₁ t₂ : ℝ) : ℝ :=
+noncomputable def opticalPathLength (_medium : OpticalMedium) (_path : ℝ → (Fin 3 → ℝ))
+    (_t₁ _t₂ : ℝ) : ℝ :=
   0
 
 /-- Snell's law of refraction: n₁ sin θ₁ = n₂ sin θ₂ -/
@@ -54,16 +54,16 @@ structure SnellLaw where
   law : n₁ * Real.sin θ₁ = n₂ * Real.sin θ₂
 
 /-- Total internal reflection occurs when n₁ sin θ₁ > n₂ -/
-theorem total_internal_reflection (s : SnellLaw) (h : s.n₁ > s.n₂)
+theorem total_internal_reflection (s : SnellLaw) (_h : s.n₁ > s.n₂)
     (hθ : Real.sin s.θ₁ > s.n₂ / s.n₁) : s.n₁ * Real.sin s.θ₁ > s.n₂ := by
   have hmul : s.n₁ * Real.sin s.θ₁ > s.n₁ * (s.n₂ / s.n₁) :=
     mul_lt_mul_of_pos_left hθ s.n₁_pos
   have hsimpl : s.n₁ * (s.n₂ / s.n₁) = s.n₂ := by
     field_simp [ne_of_gt s.n₁_pos]
-  linarith [hmul, hsimpl, h]
+  linarith [hmul, hsimpl]
 
 /-- Critical angle for total internal reflection: θ_c = arcsin(n₂/n₁) -/
-def criticalAngle (n₁ n₂ : ℝ) (h : n₂ < n₁) : ℝ :=
+def criticalAngle (n₁ n₂ : ℝ) (_h : n₂ < n₁) : ℝ :=
   Real.arcsin (n₂ / n₁)
 
 /-- Thin lens equation: 1/f = 1/s + 1/s' -/
@@ -96,7 +96,7 @@ theorem object_at_infinity_image_at_focus (f : ℝ) (hf : f ≠ 0) :
     { f := f, f_ne_zero := hf, s := 0, s' := f, equation := ?_ },
     rfl, rfl
   ⟩
-  simp [hf]
+  simp
 
 end ThinLens
 
@@ -132,13 +132,19 @@ def propagation (d : ℝ) : RayTransferMatrix where
   D := 1
   det_condition := by ring
 
+@[simp]
+theorem propagation_C (d : ℝ) : (propagation d).C = 0 := rfl
+
 /-- Thin lens with focal length f -/
-def thinLens (f : ℝ) (hf : f ≠ 0) : RayTransferMatrix where
+def thinLens (f : ℝ) (_hf : f ≠ 0) : RayTransferMatrix where
   A := 1
   B := 0
   C := -(1 / f)
   D := 1
   det_condition := by ring
+
+@[simp]
+theorem thinLens_B (f : ℝ) (hf : f ≠ 0) : (thinLens f hf).B = 0 := rfl
 
 /-- Composition of optical systems by matrix multiplication -/
 def comp (m₁ m₂ : RayTransferMatrix) : RayTransferMatrix where

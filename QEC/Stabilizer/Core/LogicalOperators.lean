@@ -50,7 +50,7 @@ theorem isPauliLogicalOperator_implies_isLogicalGate (g : NQubitPauliGroupElemen
     calc
       s.toMatrix * g.toMatrix = (s * g).toMatrix := by
         simpa using (NQubitPauliGroupElement.toMatrix_mul s g).symm
-      _ = (g * s).toMatrix := by simpa [h_comm]
+      _ = (g * s).toMatrix := by simp [h_comm]
       _ = g.toMatrix * s.toMatrix := by
         simpa using (NQubitPauliGroupElement.toMatrix_mul g s)
   -- s stabilizes ψ

@@ -210,7 +210,7 @@ theorem ergosphere_forces_rotation (p : KerrParams) (x : BoyerLindquistCoords)
         sq_pos_of_pos (add_pos_of_pos_of_nonneg (sq_pos_of_pos hr) (sq_nonneg _))
       linarith
     · -- Case Δ > 0: use sin²θ ≤ 1
-      push_neg at hΔ
+      push Not at hΔ
       have h_sin_le : (Real.sin x.θ)^2 ≤ 1 := Real.sin_sq_le_one x.θ
       have h_a2Δ_nonneg : p.a^2 * (x.r^2 - 2*p.M*x.r + p.a^2) ≥ 0 := by
         apply mul_nonneg

@@ -1,0 +1,34 @@
+/-
+Copyright (c) 2025 Iván Renison. All rights reserved.
+Authors: Iván Renison
+-/
+import Mathlib.LinearAlgebra.Trace
+import Mathlib.Analysis.RCLike.Basic
+
+/-!
+This file defines the partial trace.
+-/
+
+namespace TensorProduct
+
+variable (𝕜 E F : Type*) [RCLike 𝕜]
+
+variable [AddCommGroup E] [Module 𝕜 E] [FiniteDimensional 𝕜 E]
+variable [AddCommGroup F] [Module 𝕜 F] [FiniteDimensional 𝕜 F]
+
+
+noncomputable def tr1_aux1 : (E →ₗ[𝕜] E) →ₗ[𝕜] (F →ₗ[𝕜] F) →ₗ[𝕜] F →ₗ[𝕜] F :=
+  LinearMap.lsmul 𝕜 (F →ₗ[𝕜] F) ∘ₗ LinearMap.trace 𝕜 E
+
+noncomputable def tr1_aux2 : (E →ₗ[𝕜] E) ⊗[𝕜] (F →ₗ[𝕜] F) →ₗ[𝕜] F →ₗ[𝕜] F :=
+  lift (tr1_aux1 𝕜 E F)
+
+noncomputable def tr1 : ((E ⊗[𝕜] F) →ₗ[𝕜] (E ⊗[𝕜] F)) →ₗ[𝕜] F →ₗ[𝕜] F :=
+  tr1_aux2 𝕜 E F ∘ₗ (homTensorHomEquiv 𝕜 E F E F).symm
+
+noncomputable def tr2 : ((E ⊗[𝕜] F) →ₗ[𝕜] (E ⊗[𝕜] F)) →ₗ[𝕜] E →ₗ[𝕜] E :=
+  tr1 𝕜 F E ∘ₗ LinearEquiv.arrowCongr (σ₁₁' := RingHom.id 𝕜) (σ₁₂ := RingHom.id 𝕜) (σ₁'₂' := RingHom.id 𝕜)
+    (e₁ := TensorProduct.comm 𝕜 E F) (TensorProduct.comm 𝕜 E F)
+
+end TensorProduct
+

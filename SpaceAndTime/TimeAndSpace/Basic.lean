@@ -643,10 +643,51 @@ lemma distSpaceDiv_apply_eq_sum_distSpaceDeriv {d}
 /-- The curl of a distribution dependent on time and space. -/
 noncomputable def distSpaceCurl : ((Time × Space 3) →d[ℝ] (EuclideanSpace ℝ (Fin 3))) →ₗ[ℝ]
     (Time × Space 3) →d[ℝ] (EuclideanSpace ℝ (Fin 3)) where
-  toFun _ := 0
+  toFun f :=
+    let curlLin :
+        (Time × Space 3 →L[ℝ] (EuclideanSpace ℝ (Fin 3))) →ₗ[ℝ]
+          EuclideanSpace ℝ (Fin 3) :=
+      {
+        toFun := fun dfdx =>
+          WithLp.toLp 2 fun i =>
+            match i with
+            | 0 => dfdx (0, basis 2) 1 - dfdx (0, basis 1) 2
+            | 1 => dfdx (0, basis 0) 2 - dfdx (0, basis 2) 0
+            | 2 => dfdx (0, basis 1) 0 - dfdx (0, basis 0) 1
+        map_add' := by
+          intro v1 v2
+          ext i
+          fin_cases i
+          · simp [Fin.isValue, sub_eq_add_neg, add_assoc, add_left_comm, add_comm]
+          · simp [Fin.isValue, sub_eq_add_neg, add_assoc, add_left_comm, add_comm]
+          · simp [Fin.isValue, sub_eq_add_neg, add_assoc, add_left_comm, add_comm]
+        map_smul' := by
+          intro a v
+          ext i
+          fin_cases i
+          · simp [Fin.isValue, sub_eq_add_neg]
+            ring
+          · simp [Fin.isValue, sub_eq_add_neg]
+            ring
+          · simp [Fin.isValue, sub_eq_add_neg]
+            ring
+      }
+    let curl :
+        (Time × Space 3 →L[ℝ] (EuclideanSpace ℝ (Fin 3))) →L[ℝ]
+          EuclideanSpace ℝ (Fin 3) :=
+      ⟨curlLin, LinearMap.continuous_of_finiteDimensional curlLin⟩
+    curl.comp (Distribution.fderivD ℝ f)
   map_add' f1 f2 := by
-    simp
+    ext η i
+    fin_cases i
+    · simp [Distribution.fderivD]
+    · simp [Distribution.fderivD]
+    · simp [Distribution.fderivD]
   map_smul' a f := by
-    simp
+    ext η i
+    fin_cases i
+    · simp [Distribution.fderivD]
+    · simp [Distribution.fderivD]
+    · simp [Distribution.fderivD]
 
 end Space

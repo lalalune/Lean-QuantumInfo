@@ -47,9 +47,9 @@ theorem transition_matrix_eq_inner_mul_inner (A B : HermitianMat d ℂ) (i j : d
       (starRingEnd ℂ) (∑ k, star (A.H.eigenvectorBasis i k) * B.H.eigenvectorBasis j k) =
         inner ℂ (B.H.eigenvectorBasis j) (A.H.eigenvectorBasis i) := by
     rw [h_inner]
-    simpa using inner_conj_symm (A.H.eigenvectorBasis i) (B.H.eigenvectorBasis j)
+    simp
   rw [h_conj, h_inner]
-  simpa [mul_comm]
+  simp [mul_comm]
 
 theorem transition_row_sum (A B : HermitianMat d ℂ) (i : d) :
     ∑ j : d, _root_.HermitianMat.transition_matrix A B i j = 1 := by
@@ -67,7 +67,7 @@ theorem transition_row_sum (A B : HermitianMat d ℂ) (i : d) :
     _ = inner ℂ (A.H.eigenvectorBasis i) (A.H.eigenvectorBasis i) := by
           rw [B.H.eigenvectorBasis.sum_inner_mul_inner]
     _ = 1 := by
-          simpa using A.H.eigenvectorBasis.orthonormal.1 i
+          simp
 
 theorem transition_col_sum (A B : HermitianMat d ℂ) (j : d) :
     ∑ i : d, _root_.HermitianMat.transition_matrix A B i j = 1 := by
@@ -87,7 +87,7 @@ theorem transition_col_sum (A B : HermitianMat d ℂ) (j : d) :
             (A.H.eigenvectorBasis.sum_inner_mul_inner (B.H.eigenvectorBasis j)
               (B.H.eigenvectorBasis j))
     _ = 1 := by
-          simpa using B.H.eigenvectorBasis.orthonormal.1 j
+          simp
 
 set_option maxHeartbeats 3000000
 
@@ -142,12 +142,11 @@ theorem inner_cfc_cross (A B : HermitianMat d ℂ) (f : ℝ → ℝ) :
     _ = ↑(∑ i : d, ∑ j : d,
           A.H.eigenvalues i * f (B.H.eigenvalues j) *
             _root_.HermitianMat.transition_matrix A B i j) := by
-      simp [Matrix.trace_sum, Matrix.trace_smul, Finset.sum_mul, Finset.mul_sum]
+      simp only [Matrix.trace_sum, Finset.sum_mul, Finset.mul_sum]
+      norm_num
       rw [Finset.sum_comm]
-      refine Finset.sum_congr rfl ?_
-      intro i _
-      refine Finset.sum_congr rfl ?_
-      intro j _
+      refine Finset.sum_congr rfl (fun i _ => ?_)
+      refine Finset.sum_congr rfl (fun j _ => ?_)
       have htrace :
           Matrix.trace
               (Matrix.vecMulVec (A.H.eigenvectorBasis i) (star (A.H.eigenvectorBasis i)) *
@@ -164,8 +163,38 @@ theorem inner_cfc_cross (A B : HermitianMat d ℂ) (f : ℝ → ℝ) :
                     (v := B.H.eigenvectorBasis j))
           _ = (_root_.HermitianMat.transition_matrix A B i j : ℂ) := by
             rw [mul_comm, ← transition_matrix_eq_inner_mul_inner]
+      have hsmul :
+          f (B.H.eigenvalues j) • A.H.eigenvalues i •
+              (Matrix.vecMulVec (A.H.eigenvectorBasis i) (star (A.H.eigenvectorBasis i)) *
+                Matrix.vecMulVec (B.H.eigenvectorBasis j) (star (B.H.eigenvectorBasis j))) =
+            (f (B.H.eigenvalues j) * A.H.eigenvalues i) •
+              (Matrix.vecMulVec (A.H.eigenvectorBasis i) (star (A.H.eigenvectorBasis i)) *
+                Matrix.vecMulVec (B.H.eigenvectorBasis j) (star (B.H.eigenvectorBasis j))) := by
+        ext a b
+        simp [Matrix.smul_apply, mul_assoc]
+      let M : Matrix d d ℂ :=
+        Matrix.vecMulVec (A.H.eigenvectorBasis i) (star (A.H.eigenvectorBasis i)) *
+          Matrix.vecMulVec (B.H.eigenvectorBasis j) (star (B.H.eigenvectorBasis j))
+      rw [hsmul]
+      change Matrix.trace ((f (B.H.eigenvalues j) * A.H.eigenvalues i) • M) =
+        (A.H.eigenvalues i : ℂ) * (f (B.H.eigenvalues j) : ℂ) *
+          (_root_.HermitianMat.transition_matrix A B i j : ℂ)
+      rw [show Matrix.trace ((f (B.H.eigenvalues j) * A.H.eigenvalues i) • M) =
+          (f (B.H.eigenvalues j) * A.H.eigenvalues i) • Matrix.trace M by
+            exact Matrix.trace_smul (f (B.H.eigenvalues j) * A.H.eigenvalues i) M]
+      change (f (B.H.eigenvalues j) * A.H.eigenvalues i : ℝ) •
+          Matrix.trace
+            (Matrix.vecMulVec (A.H.eigenvectorBasis i) (star (A.H.eigenvectorBasis i)) *
+              Matrix.vecMulVec (B.H.eigenvectorBasis j) (star (B.H.eigenvectorBasis j))) =
+        (A.H.eigenvalues i : ℂ) * (f (B.H.eigenvalues j) : ℂ) *
+          (_root_.HermitianMat.transition_matrix A B i j : ℂ)
       rw [htrace]
-      ring_nf
+      change ((f (B.H.eigenvalues j) * A.H.eigenvalues i : ℝ) : ℂ) *
+          (_root_.HermitianMat.transition_matrix A B i j : ℂ) =
+        (A.H.eigenvalues i : ℂ) * (f (B.H.eigenvalues j) : ℂ) *
+          (_root_.HermitianMat.transition_matrix A B i j : ℂ)
+      rw [Complex.ofReal_mul]
+      ring
 
 theorem transition_matrix_self (A : HermitianMat d ℂ) (i j : d) :
     _root_.HermitianMat.transition_matrix A A i j = if i = j then 1 else 0 := by
@@ -173,8 +202,7 @@ theorem transition_matrix_self (A : HermitianMat d ℂ) (i j : d) :
   rw [transition_matrix_eq_inner_mul_inner]
   by_cases hij : i = j
   · subst hij
-    simpa using (A.H.eigenvectorBasis.orthonormal.1 j : inner ℂ (A.H.eigenvectorBasis j)
-      (A.H.eigenvectorBasis j) = 1)
+    simp
   · have horth : inner ℂ (A.H.eigenvectorBasis i) (A.H.eigenvectorBasis j) = 0 := by
       simpa using A.H.eigenvectorBasis.orthonormal.2 hij
     simp [hij, horth]
@@ -189,7 +217,8 @@ private theorem transition_matrix_eq_zero_of_right_eigenvalue_zero
     (hi : A.H.eigenvalues i ≠ 0) (hj : B.H.eigenvalues j = 0) :
     _root_.HermitianMat.transition_matrix A B i j = 0 := by
   have hB_mul : B.mat.mulVec (B.H.eigenvectorBasis j) = 0 := by
-    simpa [hj] using B.H.mulVec_eigenvectorBasis j
+    rw [B.H.mulVec_eigenvectorBasis j, hj]
+    exact zero_smul ℝ (B.H.eigenvectorBasis j).ofLp
   have hB_ker : B.H.eigenvectorBasis j ∈ B.ker := by
     exact (HermitianMat.mem_ker_iff_mulVec_zero B (B.H.eigenvectorBasis j)).mpr hB_mul
   have hA_ker : B.H.eigenvectorBasis j ∈ A.ker := h_ker hB_ker
@@ -292,7 +321,7 @@ theorem klein_algebraic_bound (A B : HermitianMat d ℂ) (hA : 0 ≤ A) (hB : 0 
         exact hlog_filter
       have hs_nonempty : s.Nonempty := by
         by_contra hs
-        simpa [Finset.not_nonempty_iff_eq_empty.mp hs] using hweights
+        simp [Finset.not_nonempty_iff_eq_empty.mp hs] at hweights
       obtain ⟨j, hj⟩ := hs_nonempty
       have hjw_pos : 0 < _root_.HermitianMat.transition_matrix A B i j := by
         refine lt_of_le_of_ne (transition_matrix_nonneg A B i j) ?_
@@ -393,7 +422,8 @@ theorem klein_algebraic_bound (A B : HermitianMat d ℂ) (hA : 0 ≤ A) (hB : 0 
                 _root_.HermitianMat.transition_matrix A B i j := by
                   rw [hdouble]
       _ = ⟪A, A.log - B.log⟫ := by
-            rw [inner_sub_right, HermitianMat.log, HermitianMat.log, inner_cfc_self, inner_cfc_cross]
+            rw [HermitianMat.inner_sub_left, HermitianMat.log, HermitianMat.log, inner_cfc_self,
+              inner_cfc_cross]
   rw [hleft, hright] at hsum
   exact hsum
 

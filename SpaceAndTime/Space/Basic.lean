@@ -315,13 +315,14 @@ noncomputable instance {d} : SeminormedAddCommGroup (Space d) where
     obtain ⟨v1, rfl⟩ := eq_vadd_zero x
     obtain ⟨v2, rfl⟩ := eq_vadd_zero y
     obtain ⟨v3, rfl⟩ := eq_vadd_zero z
-    simp [vadd_zero_sub_vadd_zero, norm_vadd_zero]
-    exact norm_sub_le_norm_sub_add_norm_sub v1 v2 v3
+    simpa [dist_eq_norm, norm_eq, EuclideanSpace.norm_eq, vadd_apply, sub_eq_add_neg, add_comm,
+      add_left_comm, add_assoc] using
+      dist_triangle v3 v2 v1
 
 @[simp]
 lemma dist_eq {d} (p q : Space d) :
     dist p q = ‖p - q‖ := by
-  rfl
+  simp [dist_eq_norm]
 
 noncomputable instance : NormedAddCommGroup (Space d) where
   eq_of_dist_eq_zero := by
@@ -332,6 +333,8 @@ noncomputable instance : NormedAddCommGroup (Space d) where
     simp only [vadd_zero_sub_vadd_zero, norm_vadd_zero] at h
     congr
     exact eq_of_dist_eq_zero h
+  dist_eq x y := by
+    rfl
 
 instance {d} : Inner ℝ (Space d) where
   inner p q := ∑ i, p i * q i
@@ -379,7 +382,7 @@ instance {d} : InnerProductSpace ℝ (Space d) where
 
 -/
 
-instance {d : ℕ} : MeasurableSpace (Space d) := borel (Space d)
+noncomputable instance {d : ℕ} : MeasurableSpace (Space d) := borel (Space d)
 
 instance {d : ℕ} : BorelSpace (Space d) where
   measurable_eq := by rfl
@@ -483,7 +486,7 @@ lemma basis_repr_inner_eq {d} (p : Space d) (v : EuclideanSpace ℝ (Fin d)) :
   exact LinearIsometryEquiv.inner_map_eq_flip basis.repr p v
 
 instance {d : ℕ} : FiniteDimensional ℝ (Space d) :=
-  FiniteDimensional.of_fintype_basis basis.toBasis
+  Module.Basis.finiteDimensional_of_finite basis.toBasis
 
 @[simp]
 lemma finrank_eq_dim {d : ℕ} : Module.finrank ℝ (Space d) = d := by
@@ -566,7 +569,7 @@ lemma eval_contDiff {d n} (i : Fin d) :
   simp [coordCLM_apply, coord]
 
 /-- The continuous linear equivalence between `Space d` and the corresponding `Pi` type. -/
-def equivPi (d : ℕ) :
+noncomputable def equivPi (d : ℕ) :
     Space d ≃L[ℝ] Π (_ : Fin d), ℝ := LinearEquiv.toContinuousLinearEquiv <|
   {
     toFun := fun p i => p i

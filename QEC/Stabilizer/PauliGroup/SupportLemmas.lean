@@ -1,6 +1,6 @@
 import Mathlib.Tactic
 import QEC.Stabilizer.PauliGroup.NQubitOperator
-import QEC.Stabilizer.Core.CSSPredicates
+import QEC.Stabilizer.Core.CSS
 import QEC.Stabilizer.PauliGroup.Commutation
 
 namespace Quantum
@@ -111,4 +111,3 @@ lemma anticommutesAt_iff_mem_support_both_of_XZType
 
 end NQubitPauliGroupElement
 end Quantum
-

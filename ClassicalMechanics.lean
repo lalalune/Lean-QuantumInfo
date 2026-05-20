@@ -2,8 +2,10 @@ import ClassicalMechanics.Basic
 import ClassicalMechanics.CanonicalTransformations.Basic
 import ClassicalMechanics.CentralForce.Basic
 import ClassicalMechanics.DampedHarmonicOscillator.Basic
+import ClassicalMechanics.DampedHarmonicOscillator.Solution
 import ClassicalMechanics.EulerLagrange
 import ClassicalMechanics.FluidDynamics.Basic
+import ClassicalMechanics.FreeParticle.Basic
 import ClassicalMechanics.HamiltonJacobi.Basic
 import ClassicalMechanics.HamiltonsEquations
 import ClassicalMechanics.HarmonicOscillator.Basic
@@ -12,6 +14,7 @@ import ClassicalMechanics.HarmonicOscillator.Solution
 import ClassicalMechanics.Kinematics.Basic
 import ClassicalMechanics.Lagrangian.TotalDerivativeEquivalence
 import ClassicalMechanics.Mass.MassUnit
+import ClassicalMechanics.OrbitalMechanics.VisViva
 import ClassicalMechanics.Pendulum.CoplanarDoublePendulum
 import ClassicalMechanics.Pendulum.MiscellaneousPendulumPivotMotions
 import ClassicalMechanics.Pendulum.SlidingPendulum

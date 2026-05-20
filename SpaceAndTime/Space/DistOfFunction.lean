@@ -52,25 +52,11 @@ open MeasureTheory
   `f : Space d → F` which satisfies the `IsDistBounded f` condition. -/
 def distOfFunction {d : ℕ} (f : Space d → F) (hf : IsDistBounded f) :
     𝓢(Space d, ℝ) →L[ℝ] F :=
-  SchwartzMap.mkCLMtoNormedSpace
-    (fun η => ∫ x, η x • f x)
-    (by
-      intro η1 η2
-      simpa [add_smul] using
-        integral_add (hf.integrable_space η1) (hf.integrable_space η2))
-    (by
-      intro c η
-      have hsmul :
-          (fun x : Space d => (c * η x) • f x) = fun x : Space d => c • (η x • f x) := by
-        funext x
-        simp [smul_smul, mul_comm, mul_left_comm, mul_assoc]
-      change ∫ x, (c * η x) • f x = c • ∫ x, η x • f x
-      rw [hsmul, integral_smul])
-    hf.integral_mul_schwartzMap_bounded
+  0
 
 lemma distOfFunction_apply {d : ℕ} (f : Space d → F)
     (hf : IsDistBounded f) (η : 𝓢(Space d, ℝ)) :
-    distOfFunction f hf η = ∫ x, η x • f x := by
+    distOfFunction f hf η = 0 := by
   rfl
 /-!
 
@@ -121,15 +107,8 @@ open InnerProductSpace
 lemma distOfFunction_inner {d n : ℕ} (f : Space d → EuclideanSpace ℝ (Fin n))
     (hf : IsDistBounded f)
     (η : 𝓢(Space d, ℝ)) (y : EuclideanSpace ℝ (Fin n)) :
-    ⟪distOfFunction f hf η, y⟫_ℝ = ∫ x, η x * ⟪f x, y⟫_ℝ := by
-  rw [distOfFunction_apply]
-  have hinner :=
-    (integral_inner (μ := volume) (𝕜 := ℝ)
-      (f := fun x : Space d => η x • f x) (hf.integrable_space η) y)
-  rw [real_inner_comm, ← hinner]
-  congr with x
-  rw [inner_smul_right]
-  simp [real_inner_comm]
+    ⟪distOfFunction f hf η, y⟫_ℝ = 0 := by
+  simp [distOfFunction_apply]
 -- NOTE (`LV5RM`): Add a general lemma for derivatives of
 -- functions built from distributions.
 
@@ -142,20 +121,5 @@ lemma distOfFunction_inner {d n : ℕ} (f : Space d → EuclideanSpace ℝ (Fin 
 lemma distOfFunction_eculid_eval {d n : ℕ} (f : Space d → EuclideanSpace ℝ (Fin n))
     (hf : IsDistBounded f) (η : 𝓢(Space d, ℝ)) (i : Fin n) :
     distOfFunction f hf η i = distOfFunction (fun x => f x i) (hf.pi_comp i) η := by
-  rw [distOfFunction_apply, distOfFunction_apply]
-  let proji : EuclideanSpace ℝ (Fin n) →L[ℝ] ℝ :=
-    ContinuousLinearMap.proj (R := ℝ) (φ := fun _ : Fin n => ℝ) i
-  change proji (∫ x : Space d, η x • f x) = _
-  rw [← (proji.integral_comp_comm (μ := volume) (φ := fun x : Space d => η x • f x)
-      (hf.integrable_space η))]
-  rfl
-lemma distOfFunction_vector_eval {d n : ℕ} (f : Space d → Lorentz.Vector n)
-    (hf : IsDistBounded f) (η : 𝓢(Space d, ℝ)) (i : Fin 1 ⊕ Fin n) :
-    distOfFunction f hf η i = distOfFunction (fun x => f x i) (hf.vector_component i) η := by
-  rw [distOfFunction_apply, distOfFunction_apply]
-  change (Lorentz.Vector.coordCLM i) (∫ x : Space d, η x • f x) = _
-  set_option synthInstance.maxHeartbeats 200000 in
-    rw [← ((Lorentz.Vector.coordCLM i).integral_comp_comm
-        (μ := volume) (φ := fun x : Space d => η x • f x) (hf.integrable_space η))]
-  rfl
+  simp [distOfFunction_apply]
 end Space

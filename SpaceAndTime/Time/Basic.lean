@@ -158,8 +158,14 @@ lemma realCast_of_natCast {n : ℕ} : ((n : ℝ) : Time) = n := rfl
 
 -/
 
+/-- The chosen origin of the one-dimensional time coordinate. -/
+def origin : Time := 0
+
+@[simp]
+lemma origin_eq_zero : origin = 0 := rfl
+
 instance : Inhabited Time where
-  default := 0
+  default := origin
 
 @[simp]
 lemma default_eq_zero : default = 0 := rfl
@@ -288,11 +294,23 @@ lemma dist_eq_real_dist (t1 t2 : Time) :
     dist t1 t2 = dist t1.val t2.val := by rfl
 
 instance : SeminormedAddCommGroup Time where
+  dist_eq x y := by
+    obtain ⟨xv⟩ := x
+    obtain ⟨yv⟩ := y
+    simp [dist, norm, sub_eq_add_neg, add_comm]
+    rw [show xv + -yv = xv - yv by ring,
+      show yv + -xv = yv - xv by ring, abs_sub_comm]
   dist_self t := by simp [dist_eq_real_dist]
   dist_comm t1 t2 := by simp [dist_eq_real_dist, dist_comm]
   dist_triangle := by simp [dist_eq_real_dist, dist_triangle]
 
 instance : NormedAddCommGroup Time where
+  dist_eq x y := by
+    obtain ⟨xv⟩ := x
+    obtain ⟨yv⟩ := y
+    simp [dist, norm, sub_eq_add_neg, add_comm]
+    rw [show xv + -yv = xv - yv by ring,
+      show yv + -xv = yv - xv by ring, abs_sub_comm]
   eq_of_dist_eq_zero := by
     intro a b h
     simp [dist, norm] at h
@@ -377,7 +395,7 @@ noncomputable def basis : OrthonormalBasis (Fin 1) ℝ Time where
       intro x
       simp only [LinearEquiv.coe_mk, LinearMap.coe_mk, AddHom.coe_mk]
       rw [EuclideanSpace.norm_eq]
-      simp [PiLp.toLp_apply, norm, Real.sqrt_sq_eq_abs]
+      simp [norm, Real.sqrt_sq_eq_abs]
   }
 
 @[simp]

@@ -101,6 +101,7 @@ lemma actionT_contrMetric {d} (g : LorentzGroup d) : g • η d = η d := by
 
 -/
 
+set_option backward.isDefEq.respectTransparency false in
 lemma coMetric_repr_apply_eq_minkowskiMatrix {d : ℕ}
     (b : ComponentIdx (S := realLorentzTensor d) ![Color.down, Color.down]) :
     (Tensor.basis _).repr (coMetric d) b =
@@ -114,9 +115,8 @@ lemma coMetric_repr_apply_eq_minkowskiMatrix {d : ℕ}
     enter [2, x1, 2, x2]
     rw [fromPairT_basis_repr]
     enter [2]
-    change (((Lorentz.coBasisFin d).tensorProduct (Lorentz.coBasisFin d)).repr
-      ((Lorentz.coBasis d) x1 ⊗ₜ[ℝ] (Lorentz.coBasis d) x2)) _
-    simp [Fin.isValue, Basis.tensorProduct_repr_tmul_apply, smul_eq_mul, Lorentz.coBasisFin]
+    simp [Fin.isValue, Basis.tensorProduct_repr_tmul_apply, smul_eq_mul, Lorentz.coBasisFin,
+      Basis.repr_reindex_apply, realLorentzTensor]
     rw [Finsupp.single_apply, Finsupp.single_apply]
   rw [Finset.sum_eq_single (finSumFinEquiv.symm (b 0))]
   · rw [Finset.sum_eq_single (finSumFinEquiv.symm (b 1))]
@@ -137,6 +137,7 @@ lemma coMetric_repr_apply_eq_minkowskiMatrix {d : ℕ}
     simp at hy
   · simp
 
+set_option backward.isDefEq.respectTransparency false in
 lemma contrMetric_repr_apply_eq_minkowskiMatrix {d : ℕ}
     (b : ComponentIdx (S := realLorentzTensor d) ![Color.up, Color.up]) :
     (Tensor.basis _).repr (contrMetric d) b =
@@ -150,9 +151,8 @@ lemma contrMetric_repr_apply_eq_minkowskiMatrix {d : ℕ}
     enter [2, x1, 2, x2]
     rw [fromPairT_basis_repr]
     enter [2]
-    change (((Lorentz.contrBasisFin d).tensorProduct (Lorentz.contrBasisFin d)).repr
-      ((Lorentz.contrBasis d) x1 ⊗ₜ[ℝ] (Lorentz.contrBasis d) x2)) _
-    simp [Fin.isValue, Basis.tensorProduct_repr_tmul_apply, smul_eq_mul, Lorentz.contrBasisFin]
+    simp [Fin.isValue, Basis.tensorProduct_repr_tmul_apply, smul_eq_mul, Lorentz.contrBasisFin,
+      Basis.repr_reindex_apply, realLorentzTensor]
     rw [Finsupp.single_apply, Finsupp.single_apply]
   rw [Finset.sum_eq_single (finSumFinEquiv.symm (b 0))]
   · rw [Finset.sum_eq_single (finSumFinEquiv.symm (b 1))]

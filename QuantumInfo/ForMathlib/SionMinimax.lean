@@ -44,6 +44,21 @@ theorem BddBelow.range_min (hf : BddBelow (Set.range f)) (hg : BddBelow (Set.ran
     BddBelow (Set.range (min f g)) :=
   BddAbove.range_max (α := αᵒᵈ) hf hg
 
+theorem ciSup_sup_eq [Nonempty ι] (hf : BddAbove (Set.range f)) (hg : BddAbove (Set.range g)) :
+    ⨆ x, f x ⊔ g x = (⨆ x, f x) ⊔ ⨆ x, g x := by
+  apply le_antisymm
+  · apply ciSup_le
+    intro i
+    exact sup_le_sup (le_ciSup hf i) (le_ciSup hg i)
+  · rw [sup_le_iff]
+    exact
+      ⟨ciSup_le fun i ↦ (le_sup_left.trans <| le_ciSup (BddAbove.range_max hf hg) i),
+       ciSup_le fun i ↦ (le_sup_right.trans <| le_ciSup (BddAbove.range_max hf hg) i)⟩
+
+theorem ciInf_inf_eq [Nonempty ι] (hf : BddBelow (Set.range f)) (hg : BddBelow (Set.range g)) :
+    ⨅ x, f x ⊓ g x = (⨅ x, f x) ⊓ ⨅ x, g x :=
+  ciSup_sup_eq (α := αᵒᵈ) hf hg
+
 theorem ciInf_eq_min_cInf_inter_diff (S T : Set ι)
   [Nonempty (S ∩ T : Set ι)] [Nonempty (S \ T : Set ι)] (hf : BddBelow (f '' S)) :
     ⨅ i : S, f i = (⨅ i : (S ∩ T : Set ι), f i) ⊓ ⨅ i : (S \ T : Set ι), f i := by
@@ -68,13 +83,6 @@ variable [Nonempty ι]
 theorem lt_ciInf_iff (hf : BddBelow (Set.range f)) :
     a < iInf f ↔ ∃ b, a < b ∧ ∀ (i : ι), b ≤ f i :=
   ⟨(⟨iInf f, ·, (ciInf_le hf ·)⟩), fun ⟨_, hb₁, hb₂⟩ ↦ lt_of_lt_of_le hb₁ (le_ciInf hb₂)⟩
-
-theorem ciSup_sup_eq (hf : BddAbove (Set.range f)) (hg : BddAbove (Set.range g)) : ⨆ x, f x ⊔ g x = (⨆ x, f x) ⊔ ⨆ x, g x :=
-  le_antisymm (ciSup_le fun _ => sup_le_sup (le_ciSup hf _) <| le_ciSup hg _)
-    (sup_le (ciSup_mono (hf.range_max hg) fun _ => le_sup_left) <| ciSup_mono (hf.range_max hg) fun _ => le_sup_right)
-
-theorem ciInf_inf_eq (hf : BddBelow (Set.range f)) (hg : BddBelow (Set.range g)) : ⨅ x, f x ⊓ g x = (⨅ x, f x) ⊓ ⨅ x, g x :=
-  ciSup_sup_eq (α := αᵒᵈ) hf hg
 
 theorem sup_ciSup (hf : BddAbove (Set.range f)) : a ⊔ ⨆ x, f x = ⨆ x, a ⊔ f x := by
   rw [ciSup_sup_eq (by simp) hf, ciSup_const]

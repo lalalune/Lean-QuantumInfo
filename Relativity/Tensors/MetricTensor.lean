@@ -84,6 +84,8 @@ lemma contrT_metricTensor_metricTensor_eq_dual_unit {c : C} :
   · decide
   · rfl
 
+set_option maxHeartbeats 400000 in
+set_option backward.isDefEq.respectTransparency false in
 @[simp]
 lemma contrT_dual_metricTensor_metricTensor {c : C} :
     contrT 2 1 2 (by change _ ∧ S.τ (S.τ c) = c; simp)
@@ -99,7 +101,7 @@ lemma contrT_dual_metricTensor_metricTensor {c : C} :
   simp only [Nat.reduceAdd, Nat.succ_eq_add_one, Fin.isValue]
   conv_rhs => rw [unitTensor_eq_permT_dual]
   simp only [Fin.isValue, Nat.succ_eq_add_one, Nat.reduceAdd, permT_permT, CompTriple.comp_eq]
-  rw (transparency := .instances) [permT_permT]
+  conv_lhs => rw (transparency := .instances) [permT_permT]
   apply permT_congr
   · ext i
     fin_cases i <;> rfl

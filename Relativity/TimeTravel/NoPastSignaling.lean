@@ -16,7 +16,7 @@ theorem no_weak_backward_protocol_on_chronology_preserving_channel {d : ℕ}
     (C : ChronologyPreservingChannel d) :
     ¬ WeakBackwardBitProtocol C.accepts := by
   intro hWeak
-  let sender : Event d := fun _ => 0
+  let sender : Event d := originEvent d
   rcases (hWeak sender).1 with ⟨m, hmAcc, _, _, hmBack⟩
   exact (no_bit_to_past_one_nanosecond C hmAcc) hmBack
 

@@ -181,6 +181,9 @@ lemma mulVec_mulVec (M N : Matrix (Fin 1 ⊕ Fin d) (Fin 1 ⊕ Fin d) ℝ) (v : 
   don't want it to be applied always. -/
 def norm : NormedAddCommGroup (ContrMod d) where
   norm v := ‖v.val‖₊
+  dist_eq x y := by
+    simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using
+      (NormedAddGroup.dist_eq x.val y.val)
   dist_self x := Pi.normedAddCommGroup.dist_self x.val
   dist_triangle x y z := Pi.normedAddCommGroup.dist_triangle x.val y.val z.val
   dist_comm x y := Pi.normedAddCommGroup.dist_comm x.val y.val
@@ -233,7 +236,8 @@ lemma toSelfAdjoint_apply (x : ContrMod 3) : toSelfAdjoint x =
     apply Subtype.ext
     simp only [Fin.isValue, AddSubgroup.coe_add, selfAdjoint.val_smul, smul_neg,
       AddSubgroupClass.coe_sub]
-    simp only [add_assoc, sub_eq_add_neg]
+    ext i j
+    simp [add_assoc, sub_eq_add_neg]
   · simp_all only [Finset.coe_univ, Finsupp.supported_univ, Submodule.mem_top]
 
 lemma toSelfAdjoint_apply_coe (x : ContrMod 3) : (toSelfAdjoint x).1 =
@@ -244,32 +248,14 @@ lemma toSelfAdjoint_apply_coe (x : ContrMod 3) : (toSelfAdjoint x).1 =
   rw [toSelfAdjoint_apply]
   rfl
 
+set_option maxHeartbeats 800000 in
 lemma toSelfAdjoint_stdBasis (i : Fin 1 ⊕ Fin 3) :
     toSelfAdjoint (stdBasis i) = PauliMatrix.pauliBasis' i := by
-  rw [toSelfAdjoint_apply]
-  match i with
-  | Sum.inl 0 =>
-    simp only [stdBasis, Fin.isValue, Basis.coe_ofEquivFun, LinearEquiv.apply_symm_apply,
-      Pi.single_eq_same, one_smul, ne_eq, reduceCtorEq, not_false_eq_true, Pi.single_eq_of_ne,
-      zero_smul, sub_zero, PauliMatrix.pauliBasis', Basis.coe_mk, PauliMatrix.pauliSelfAdjoint']
-  | Sum.inr 0 =>
-    simp only [stdBasis, Fin.isValue, Basis.coe_ofEquivFun, LinearEquiv.apply_symm_apply, ne_eq,
-      reduceCtorEq, not_false_eq_true, Pi.single_eq_of_ne, zero_smul, Pi.single_eq_same, one_smul,
-      zero_sub, Sum.inr.injEq, one_ne_zero, sub_zero, Fin.reduceEq, PauliMatrix.pauliBasis',
-      Basis.coe_mk, PauliMatrix.pauliSelfAdjoint']
-    rfl
-  | Sum.inr 1 =>
-    simp only [stdBasis, Fin.isValue, Basis.coe_ofEquivFun, LinearEquiv.apply_symm_apply, ne_eq,
-      reduceCtorEq, not_false_eq_true, Pi.single_eq_of_ne, zero_smul, Sum.inr.injEq, zero_ne_one,
-      sub_self, Pi.single_eq_same, one_smul, zero_sub, Fin.reduceEq, sub_zero,
-      PauliMatrix.pauliBasis', Basis.coe_mk, PauliMatrix.pauliSelfAdjoint']
-    rfl
-  | Sum.inr 2 =>
-    simp only [stdBasis, Fin.isValue, Basis.coe_ofEquivFun, LinearEquiv.apply_symm_apply, ne_eq,
-      reduceCtorEq, not_false_eq_true, Pi.single_eq_of_ne, zero_smul, Sum.inr.injEq, Fin.reduceEq,
-      sub_self, Pi.single_eq_same, one_smul, zero_sub, PauliMatrix.pauliBasis', Basis.coe_mk,
-      PauliMatrix.pauliSelfAdjoint']
-    rfl
+  simp only [toSelfAdjoint, LinearEquiv.trans_apply]
+  change PauliMatrix.pauliBasis'.repr.symm
+      ((Finsupp.linearEquivFunOnFinite ℝ ℝ (Fin 1 ⊕ Fin 3)).symm
+        (toFin1dℝEquiv (stdBasis i))) = PauliMatrix.pauliBasis' i
+  simp [stdBasis]
 
 @[simp]
 lemma toSelfAdjoint_symm_basis (i : Fin 1 ⊕ Fin 3) :

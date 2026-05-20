@@ -126,6 +126,14 @@ noncomputable def Z_q2_2 : TwoQubitGate :=
 noncomputable def X_q1Z_q2_2 : TwoQubitGate :=
   tensorGate X Z
 
+/-- X on both qubits (X ⊗ X). -/
+noncomputable def XX_2 : TwoQubitGate :=
+  tensorGate X X
+
+/-- Z on both qubits (Z ⊗ Z). -/
+noncomputable def ZZ_2 : TwoQubitGate :=
+  tensorGate Z Z
+
 @[simp] lemma X_q1_2_on_ket00 : X_q1_2 • ket00 = ket10 := by
   vec_expand_simp [X_q1_2, Matrix.mulVec, ket00, ket10, Xmat]
 

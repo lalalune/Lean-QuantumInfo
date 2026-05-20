@@ -5,7 +5,7 @@ Authors: Tomas Skrivan
 -/
 import Mathlib.Analysis.InnerProductSpace.Trace
 import Mathematics.Calculus.AdjFDeriv
-import SpaceAndTime.TimeAndSpace.Basic
+import SpaceAndTime.Space.Basic
 /-!
 
 # Divergence
@@ -63,27 +63,6 @@ lemma divergence_eq_sum_fderiv' {ι} [Fintype ι] (b : Basis ι 𝕜 E) {f : E �
   ext x
   rw [← e.symm.sum_comp]
   simp [b']
-
-lemma divergence_eq_space_div {d} (f : Space d → Space d)
-    (h : Differentiable ℝ f) : divergence ℝ f = Space.div (Space.basis.repr ∘ f) := by
-  let b := (Space.basis (d:=d)).toBasis
-  rw[divergence_eq_sum_fderiv' b]
-  funext x
-  simp +zetaDelta only [OrthonormalBasis.coe_toBasis, OrthonormalBasis.coe_toBasis_repr_apply,
-    Space.basis_repr_apply, Space.div, Space.deriv, Function.comp_apply]
-  congr
-  funext i
-  have h1 : (fderiv ℝ (fun x => f x i) x)
-    = fderiv ℝ (Space.coordCLM i ∘ f) x := by
-    congr
-    ext j
-    simp only [Function.comp_apply]
-    rw [Space.coordCLM_apply, Space.coord_apply]
-  rw [h1]
-  rw [fderiv_comp]
-  simp [Space.coordCLM_apply, Space.coord_apply]
-  · simpa using (Space.coordCLM i).differentiableAt
-  · exact h x
 
 lemma divergence_prodMk [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 F]
     {f : E×F → E} {g : E×F → F} {xy : E×F}

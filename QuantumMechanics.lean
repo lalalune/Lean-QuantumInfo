@@ -41,6 +41,14 @@ import QuantumMechanics.BellsTheorem.TLHV.Reduction
 import QuantumMechanics.BellsTheorem.TLHV.SettingDependent
 import QuantumMechanics.BellsTheorem.TLHV.Summary
 import QuantumMechanics.BellsTheorem.TLHV.ThermalDictionary
+import QuantumMechanics.DDimensions.Operators.Multiplication
+import QuantumMechanics.DDimensions.Operators.StateObservables.ExpectedValue
+import QuantumMechanics.DDimensions.Operators.StateObservables.IsEigenvector
+import QuantumMechanics.DDimensions.Operators.StateObservables.Variance
+import QuantumMechanics.DDimensions.Operators.Unbounded
+import QuantumMechanics.DDimensions.SpaceDHilbertSpace.Basic
+import QuantumMechanics.DDimensions.SpaceDHilbertSpace.PolyBddSchwartzSubmodule
+import QuantumMechanics.DDimensions.SpaceDHilbertSpace.SchwartzSubmodule
 import QuantumMechanics.ModularTheory.KMS.Condition
 import QuantumMechanics.ModularTheory.KMS.KMSBirdge
 import QuantumMechanics.ModularTheory.KMS.Modular

@@ -4,6 +4,7 @@ import QEC.Stabilizer.PauliGroup.NQubitElement
 import QEC.Stabilizer.PauliGroup.Commutation
 import QEC.Stabilizer.PauliGroup.CommutationTactics
 import QEC.Stabilizer.PauliGroup.Representation
+import QEC.Stabilizer.PauliGroup.TransversalConjugation
 
 /-!
 # The N-Qubit Pauli Group

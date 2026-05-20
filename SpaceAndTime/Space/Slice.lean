@@ -4,7 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Joseph Tooby-Smith
 -/
 import Mathlib.Analysis.Calculus.ContDiff.FiniteDimension
-import SpaceAndTime.Space.Derivatives.Basic
+import Mathlib.Topology.Constructions.SumProd
+import SpaceAndTime.Space.Basic
 /-!
 
 # Slices of space
@@ -33,7 +34,7 @@ extracts the `i`th coordinate on `Space d.succ`.
 - https://leanprover.zulipchat.com/#narrow/channel/479953-PhysLean/topic/API.20around.20.60Space.20.28d1.20.2B.20d2.29.60.20to.20.60Space.20d1.20x.20Space.20d2.60/with/556754634
 
 -/
-open SchwartzMap NNReal
+open NNReal
 noncomputable section
 
 variable (𝕜 : Type) {E F F' : Type} [RCLike 𝕜] [NormedAddCommGroup E] [NormedAddCommGroup F]
@@ -78,7 +79,7 @@ def slice {d} (i : Fin d.succ) : Space d.succ ≃L[ℝ] ℝ × Space d where
     | (p1, p2) =>
     simp
   continuous_toFun := by
-    refine Continuous.prod_mk ?_ ?_
+    refine Continuous.prodMk ?_ ?_
     · exact Space.eval_continuous i
     · refine Space.mk_continuous.comp ?_
       refine continuous_pi ?_

@@ -134,10 +134,10 @@ theorem mix_pEnsemble_pure_iff_pure {e : PEnsemble d α} :
       intro j _
       exact (e.distr j).2.1
     have h_sum : ∑ j ∈ Finset.univ, (e.distr j : ℝ) = 1 := by
-      simpa using e.distr.normalized
+      simp
     have hi_pos : 0 < (e.distr i : ℝ) := by
       exact lt_of_le_of_ne' (h_nonneg i (Finset.mem_univ i)) (by simpa using hi)
-    simpa using MState.eq_of_sum_eq_pure h_pure hsum h_nonneg h_sum i (Finset.mem_univ i) hi_pos
+    exact MState.eq_of_sum_eq_pure h_pure hsum h_nonneg h_sum i (Finset.mem_univ i) hi_pos
   · intro hpure
     apply MState.ext_m
     rw [mix_of]
@@ -213,7 +213,7 @@ theorem mix_mEnsemble_pure_iff_pure {e : MEnsemble d α} :
       intro j _
       exact (e.distr j).2.1
     have h_sum : ∑ j ∈ Finset.univ, (e.distr j : ℝ) = 1 := by
-      simpa using e.distr.normalized
+      simp
     have hi_pos : 0 < (e.distr i : ℝ) := by
       exact lt_of_le_of_ne' (h_nonneg i (Finset.mem_univ i)) (by simpa using hi)
     simpa using MState.eq_of_sum_eq_pure h_pure hsum h_nonneg h_sum i (Finset.mem_univ i) hi_pos

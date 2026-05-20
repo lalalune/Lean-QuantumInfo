@@ -29,7 +29,8 @@ def symmMul : HermitianMat d 𝕜 :=
     by simp [selfAdjoint, IsSelfAdjoint, add_comm, Matrix.star_eq_conjTranspose]⟩
 
 theorem symmMul_comm : A.symmMul B = B.symmMul A := by
-  rw [symmMul, symmMul, Subtype.mk.injEq, add_comm]
+  ext i j
+  simp [symmMul, add_comm]
 
 @[simp]
 theorem symmMul_zero : A.symmMul 0 = 0:= by
@@ -88,7 +89,7 @@ scoped instance : CommMagma (HermitianMat d 𝕜) where
   mul := HermitianMat.symmMul
   mul_comm := HermitianMat.symmMul_comm
 
--- --Stupid shortcut that might actually help a lot
+-- Possible scoped multiplication instance for the Jordan product.
 -- scoped instance : Mul (HermitianMat d 𝕜) :=
   -- CommMagma.toMul
 

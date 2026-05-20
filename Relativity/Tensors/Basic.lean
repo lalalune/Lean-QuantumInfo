@@ -123,13 +123,13 @@ lemma update_succAbove_apply {n : ℕ} {c : Fin (n + 1) → C} [inst : Decidable
 lemma toTensor_update_add {n : ℕ} {c : Fin n → C} [inst : DecidableEq (Fin n)] (p : Pure S c)
     (i : Fin n) (x y : S.FD.obj (Discrete.mk (c i))) :
     (update p i (x + y)).toTensor = (update p i x).toTensor + (update p i y).toTensor := by
-  simp [toTensor, update]
+  exact MultilinearMap.map_update_add (PiTensorProduct.tprod k) p i x y
 
 @[simp]
 lemma toTensor_update_smul {n : ℕ} {c : Fin n → C} [inst : DecidableEq (Fin n)] (p : Pure S c)
     (i : Fin n) (r : k) (y : S.FD.obj (Discrete.mk (c i))) :
     (update p i (r • y)).toTensor = r • (update p i y).toTensor := by
-  simp [toTensor, update]
+  exact MultilinearMap.map_update_smul (PiTensorProduct.tprod k) p i r y
 
 /-- Given a list of indices `c` of length `n + 1`, a pure tensor `p` and an `i : Fin (n + 1)`, then
   `drop p i` is the tensor `p` with it's `i`th part dropped.
@@ -168,12 +168,8 @@ lemma μ_toTensor_tmul_toTensor {n1 n2} {c : Fin n1 → C} {c1 : Fin n2 → C}
     ((Functor.LaxMonoidal.μ S.F _ _).hom (t.toTensor ⊗ₜ t1.toTensor)) =
     PiTensorProduct.tprod k (fun | Sum.inl i => t i | Sum.inr i => t1 i) := by
   change lift.μModEquiv _ _ _ (t.toTensor ⊗ₜ t1.toTensor) = _
-  rw [lift.μModEquiv]
-  simp only [lift.toRep_V_carrier, Functor.id_obj]
-  rw [LinearEquiv.trans_apply]
   rw [toTensor, toTensor]
-  rw [PhysLean.PiTensorProduct.tmulEquiv_tmul_tprod]
-  simp only [tensorObj_of_left, tensorObj_of_hom, PiTensorProduct.congr_tprod]
+  rw [lift.μModEquiv_tmul_tprod]
   congr
   funext i
   match i with
@@ -338,10 +334,11 @@ lemma ofComponents_componentMap {n : ℕ} (c : Fin n → C) (t : S.Tensor c) :
     conv_lhs =>
       enter [2, x]
       rw [h1]
-    trans (PiTensorProduct.tprod k) fun i =>
-      ∑ x, ((S.basis (c i)).repr (p i)) x • (S.basis (c i)) x
-    · exact (MultilinearMap.map_sum (PiTensorProduct.tprod k) fun i j =>
-        ((S.basis (c i)).repr (p i)) j • (S.basis (c i)) j).symm
+    change (∑ x : ComponentIdx (S := S) c, (PiTensorProduct.tprod k) (fun i =>
+        ((S.basis (c i)).repr (p i)) (x i) • (S.basis (c i)) (x i))) =
+      (PiTensorProduct.tprod k) p
+    rw [← MultilinearMap.map_sum (PiTensorProduct.tprod k) fun i j =>
+      ((S.basis (c i)).repr (p i)) j • (S.basis (c i)) j]
     congr
     funext i
     exact Basis.sum_equivFun (S.basis (c i)) (p i)
@@ -412,9 +409,9 @@ lemma finrank_tensor_eq {n : ℕ} [StrongRankCondition k] (c : Fin n → C) :
 
 instance {k : Type} [Field k] {C G : Type} [Group G] (S : TensorSpecies k C G)
     {c : Fin n → C} : FiniteDimensional k (S.Tensor c) :=
-  FiniteDimensional.of_fintype_basis (Tensor.basis c)
+  Module.Basis.finiteDimensional_of_finite (Tensor.basis c)
 
-instance {k : Type} [RCLike k] {C G : Type} [Group G] (S : TensorSpecies k C G)
+noncomputable instance {k : Type} [RCLike k] {C G : Type} [Group G] (S : TensorSpecies k C G)
     {c : Fin n → C} : TopologicalSpace (S.Tensor c) :=
   moduleTopology k (S.Tensor c)
 
@@ -475,8 +472,9 @@ lemma actionT_pure {g : G} {p : Pure S c} :
     g • p.toTensor = Pure.toTensor (g • p) := by
   rw [actionT_eq, Pure.toTensor]
   simp only [F_def, lift, lift.toRepFunc, LaxBraidedFunctor.of_toFunctor]
-  rw [lift.toRep_ρ_tprod]
-  rfl
+  change ((lift.toRep S.FD (OverColor.mk c)).ρ g) ((PiTensorProduct.tprod k) p) =
+    (PiTensorProduct.tprod k) fun i => (S.FD.obj (Discrete.mk (c i))).ρ g (p i)
+  exact lift.toRep_ρ_tprod S.FD (OverColor.mk c) g p
 
 lemma actionT_add {g : G} {t1 t2 : S.Tensor c} :
     g • (t1 + t2) = g • t1 + g • t2 := by
@@ -659,25 +657,26 @@ lemma Pure.permP_basisVector {n m : ℕ} {c : Fin n → C} {c1 : Fin m → C}
   and a tensor `t`, `permT σ h t` is the tensor tensor permuted according to `σ`. -/
 noncomputable def permT {n m : ℕ} {c : Fin n → C} {c1 : Fin m → C}
     (σ : Fin m → Fin n) (h : PermCond c c1 σ) : S.Tensor c →ₗ[k] S.Tensor c1 where
-  toFun t := (ConcreteCategory.hom (S.F.map h.toHom).hom) t
+  toFun t := (S.F.map h.toHom).hom.toLinearMap t
   map_add' t1 t2 := by
-    simp
+    exact LinearMap.map_add _ _ _
   map_smul' r t := by
-    simp
+    exact LinearMap.map_smul _ _ _
 
 lemma permT_pure {n m : ℕ} {c : Fin n → C} {c1 : Fin m → C}
     {σ : Fin m → Fin n} (h : PermCond c c1 σ) (p : Pure S c) :
     permT σ h p.toTensor = (p.permP σ h).toTensor := by
-  simp only [F_def, permT, Pure.toTensor, LinearMap.coe_mk, AddHom.coe_mk]
-  rw [OverColor.lift.map_tprod]
-  rfl
+  simp only [F_def, permT, Pure.toTensor]
+  change ((OverColor.lift.obj S.FD).map h.toHom).hom ((PiTensorProduct.tprod k) p) =
+    (PiTensorProduct.tprod k) (Pure.permP σ h p)
+  exact OverColor.lift.map_tprod S.FD h.toHom p
 
 @[simp]
 lemma Pure.permP_id_self {n : ℕ} {c : Fin n → C} (p : Pure S c) :
     Pure.permP (id : Fin n → Fin n) (by simp : PermCond c c id) p = p := by
   ext i
   simp only [permP, Pure.permP]
-  rw [eqToHom_refl]
+  change (S.FD.map (eqToHom (rfl : Discrete.mk (c i) = Discrete.mk (c i)))).hom (p i) = p i
   simp
 
 @[simp]
@@ -737,6 +736,7 @@ lemma Pure.permP_permP {n m1 m2 : ℕ} {c : Fin n → C} {c1 : Fin m1 → C} {c2
     Pure.permP σ2 h2 (Pure.permP σ h p) = Pure.permP (σ ∘ σ2) (PermCond.comp h h2) p := by
   ext i
   simp [permP, Pure.permP, Function.comp_apply, map_map_apply]
+  congr
 
 @[simp]
 lemma permT_permT {n m1 m2 : ℕ} {c : Fin n → C} {c1 : Fin m1 → C} {c2 : Fin m2 → C}
@@ -815,12 +815,15 @@ lemma permT_eq_zero_iff {n m : ℕ} {c : Fin n → C} {c1 : Fin m → C}
 /-- The linear map between tensors with zero indices and the underlying field
   `k`. -/
 noncomputable def toField {c : Fin 0 → C} : S.Tensor c →ₗ[k] k :=
-  (PiTensorProduct.isEmptyEquiv (Fin 0)).toLinearMap
+  ((PiTensorProduct.isEmptyEquiv (Fin 0) :
+    (PiTensorProduct k fun i : Fin 0 => (S.FD.obj (Discrete.mk (c i))).V) ≃ₗ[k] k).toLinearMap)
 
 lemma toField_default {c : Fin 0 → C} :
     toField (Pure.toTensor default : S.Tensor c) = 1 := by
-  simp [toField, Pure.toTensor]
-  erw [PiTensorProduct.isEmptyEquiv_apply_tprod]
+  change ((PiTensorProduct.isEmptyEquiv (Fin 0) :
+    (PiTensorProduct k fun i : Fin 0 => (S.FD.obj (Discrete.mk (c i))).V) ≃ₗ[k] k)
+      ((PiTensorProduct.tprod k) default)) = 1
+  rw [PiTensorProduct.isEmptyEquiv_apply_tprod]
 
 @[simp]
 lemma toField_pure {c : Fin 0 → C} (p : Pure S c) :

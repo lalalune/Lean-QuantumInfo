@@ -157,8 +157,8 @@ structure RotatingFrame (d : ℕ) extends coordinate_system d where
 /-- The time derivative in the rotating frame, d'/dt, is the derivative
     of the components of a vector with respect to time when expressed in the
     rotating (body-fixed) frame. -/
-/- The rotating-frame derivative is intentionally left as prose here; it has not been
-introduced as a placeholder definition. -/
+/- The rotating-frame derivative is documented in prose here; no declaration is introduced
+until its analytic prerequisites are available. -/
 
 /-- For any vector field A(t), its inertial-frame time derivative equals the rotating-frame
     derivative plus the contribution from the frame rotation:

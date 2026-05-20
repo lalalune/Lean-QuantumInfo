@@ -19,6 +19,8 @@ import Electromagnetism.MaxwellEquations
 import Electromagnetism.PointParticle.OneDimension
 import Electromagnetism.PointParticle.ThreeDimension
 import Electromagnetism.Radiation.Basic
+import Electromagnetism.ThreeDimension.Basic
+import Electromagnetism.ThreeDimension.MaxwellEquations
 import Electromagnetism.Vacuum.Constant
 import Electromagnetism.Vacuum.HarmonicWave
 import Electromagnetism.Vacuum.IsPlaneWave

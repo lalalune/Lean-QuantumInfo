@@ -46,7 +46,7 @@ omit [Fintype n] in
 theorem lt_iff_posdef : A < B ↔ (B - A).mat.PosSemidef ∧ A ≠ B :=
   lt_iff_le_and_ne
 
-instance : IsStrictOrderedModule ℝ (HermitianMat n 𝕜) where
+instance instIsStrictOrderedModule : IsStrictOrderedModule ℝ (HermitianMat n 𝕜) where
   smul_lt_smul_of_pos_left a ha b b₂ hb := by
     rw [HermitianMat.lt_iff_posdef] at hb ⊢
     simp only [← smul_sub, ne_eq, smul_right_inj ha.ne']
@@ -76,8 +76,21 @@ theorem trace_pos (hA : 0 < A) : 0 < A.trace := by
   rw [RCLike.pos_iff] at h_pos
   exact h_pos.left
 
---Without these shortcut instances, `gcongr` fails to close certain goals...? Why? TODO
-instance : PosSMulMono ℝ (HermitianMat n 𝕜) := inferInstance
+-- These order instances are used by `gcongr` in Hermitian-matrix inequalities.
+instance instPosSMulMono : PosSMulMono ℝ (HermitianMat n 𝕜) where
+  smul_le_smul_of_nonneg_left {a} ha {b₁ b₂} hb := by
+    rw [HermitianMat.le_iff] at hb ⊢
+    have h : (a • (b₂ - b₁)).mat.PosSemidef := hb.smul ha
+    convert h using 1
+    ext i j
+    exact (smul_sub a (b₂ i j) (b₁ i j)).symm
+
+instance instPosSMulStrictMono : PosSMulStrictMono ℝ (HermitianMat n 𝕜) where
+  smul_lt_smul_of_pos_left {a} ha {b₁ b₂} hb := by
+    rw [HermitianMat.lt_iff_posdef] at hb ⊢
+    simp only [← smul_sub, ne_eq, smul_right_inj ha.ne']
+    exact ⟨hb.left.smul ha.le, hb.right⟩
+
 instance : SMulPosMono ℝ (HermitianMat n 𝕜) := inferInstance
 
 --Without explicitly giving this instance, Lean times out trying to find it sometimes.
@@ -313,19 +326,54 @@ example [DecidableEq n] [DecidableEq m] [Nonempty n] [Nonempty m]
   (A B : HermitianMat n ℂ) (hA : 0 ≤ A) (hB : 0 ≤ B) (M : Matrix m n ℂ) :
     0 < ((2 : ℝ) • (1 : HermitianMat (n × m) ℂ)) +
       (((3 : ℝ) • A) ⊗ₖ (Real.pi • B).conj M) := by
+  haveI : PosSMulMono ℝ (HermitianMat n ℂ) := instPosSMulMono (𝕜 := ℂ) (n := n)
+  haveI : PosSMulStrictMono ℝ (HermitianMat n ℂ) := instPosSMulStrictMono (𝕜 := ℂ) (n := n)
+  haveI : PosSMulStrictMono ℝ (HermitianMat (n × m) ℂ) :=
+    instPosSMulStrictMono (𝕜 := ℂ) (n := n × m)
   have hOne : 0 < (1 : HermitianMat (n × m) ℂ) := by
     exact HermitianMat.mat_posDef_to_pos (A := (1 : HermitianMat (n × m) ℂ)) Matrix.PosDef.one
   have hleft : 0 < (2 : ℝ) • (1 : HermitianMat (n × m) ℂ) := by
-    exact smul_pos (by norm_num) hOne
-  have hrightA : 0 ≤ (3 : ℝ) • A := smul_nonneg (by norm_num) hA
-  have hrightB : 0 ≤ (Real.pi : ℝ) • B := smul_nonneg Real.pi_pos.le hB
+    have hzero : (2 : ℝ) • (0 : HermitianMat (n × m) ℂ) = 0 := by
+      exact smul_zero (2 : ℝ)
+    have h :=
+      (instPosSMulStrictMono (𝕜 := ℂ) (n := n × m)).smul_lt_smul_of_pos_left
+        (a := (2 : ℝ)) (b₁ := 0) (b₂ := (1 : HermitianMat (n × m) ℂ))
+        (by norm_num) hOne
+    rwa [hzero] at h
+  have hrightA : 0 ≤ (3 : ℝ) • A := by
+    have hzero : (3 : ℝ) • (0 : HermitianMat n ℂ) = 0 := by
+      exact smul_zero (3 : ℝ)
+    have h :=
+      (instPosSMulMono (𝕜 := ℂ) (n := n)).smul_le_smul_of_nonneg_left
+        (a := (3 : ℝ)) (b₁ := 0) (b₂ := A) (by norm_num) hA
+    rwa [hzero] at h
+  have hrightB : 0 ≤ (Real.pi : ℝ) • B := by
+    have hzero : (Real.pi : ℝ) • (0 : HermitianMat n ℂ) = 0 := by
+      exact smul_zero (Real.pi : ℝ)
+    have h :=
+      (instPosSMulMono (𝕜 := ℂ) (n := n)).smul_le_smul_of_nonneg_left
+        (a := (Real.pi : ℝ)) (b₁ := 0) (b₂ := B) Real.pi_pos.le hB
+    rwa [hzero] at h
   have hrightConj : 0 ≤ ((Real.pi : ℝ) • B).conj M := HermitianMat.conj_nonneg M hrightB
   exact add_pos_of_pos_of_nonneg hleft (HermitianMat.kronecker_nonneg hrightA hrightConj)
 
 example (A B : HermitianMat n ℂ) (hA : 0 < A) (hB : 0 < B) :
     0 < (((37 : ℝ) • A) ⊗ₖ ((38 : ℝ) • B)).trace := by
-  have hleft : 0 < (37 : ℝ) • A := smul_pos (by norm_num) hA
-  have hright : 0 < (38 : ℝ) • B := smul_pos (by norm_num) hB
+  haveI : PosSMulStrictMono ℝ (HermitianMat n ℂ) := instPosSMulStrictMono (𝕜 := ℂ) (n := n)
+  have hleft : 0 < (37 : ℝ) • A := by
+    have hzero : (37 : ℝ) • (0 : HermitianMat n ℂ) = 0 := by
+      exact smul_zero (37 : ℝ)
+    have h :=
+      (instPosSMulStrictMono (𝕜 := ℂ) (n := n)).smul_lt_smul_of_pos_left
+        (a := (37 : ℝ)) (b₁ := 0) (b₂ := A) (by norm_num) hA
+    rwa [hzero] at h
+  have hright : 0 < (38 : ℝ) • B := by
+    have hzero : (38 : ℝ) • (0 : HermitianMat n ℂ) = 0 := by
+      exact smul_zero (38 : ℝ)
+    have h :=
+      (instPosSMulStrictMono (𝕜 := ℂ) (n := n)).smul_lt_smul_of_pos_left
+        (a := (38 : ℝ)) (b₁ := 0) (b₂ := B) (by norm_num) hB
+    rwa [hzero] at h
   exact HermitianMat.trace_pos (HermitianMat.kronecker_pos hleft hright)
 
 omit [Fintype n] in

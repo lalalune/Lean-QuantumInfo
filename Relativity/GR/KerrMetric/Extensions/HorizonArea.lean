@@ -103,7 +103,7 @@ theorem kerr_exterior_only_extensions' (p : KerrParams) :
       ¬(vacuum_solution_valid_at p x) := by
   intro x hx
   unfold vacuum_solution_valid_at
-  push_neg
+  push Not
   intro _
   linarith
 

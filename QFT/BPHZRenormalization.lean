@@ -99,10 +99,10 @@ structure Forest (G : FeynmanGraph) where
     γ₁.vertices ⊆ γ₂.vertices ∨ γ₂.vertices ⊆ γ₁.vertices ∨
     Disjoint γ₁.vertices γ₂.vertices
 
-/-- The Taylor subtraction operator t_γ of degree ω(γ). -/
-noncomputable def taylorSubtraction (G : FeynmanGraph) (_γ : Subgraph G)
-    (_integrand : ℝ) : ℝ :=
-  0 -- T^{ω(γ)}_{p=0} I_γ(p, k)
+/-- The constant Taylor subtraction term used by the finite scalar interface in this file. -/
+noncomputable def constantTaylorSubtraction (G : FeynmanGraph) (_γ : Subgraph G)
+    (integrand : ℝ) : ℝ :=
+  integrand
 
 /-- Zimmermann's forest formula for the renormalized Feynman integrand.
     R_G = ∑_{forests F} ∏_{γ ∈ F} (-t_γ) I_G -/
@@ -110,11 +110,11 @@ noncomputable def zimmermannForestFormula (G : FeynmanGraph)
     (forests : Finset (Forest G)) (integrand : ℝ) : ℝ :=
   forests.sum (fun F =>
     F.subgraphs.prod (fun γ =>
-      (-1) * taylorSubtraction G γ integrand))
+      (-1) * constantTaylorSubtraction G γ integrand))
 
-/-- Bogoliubov's R-operation: the recursive subtraction procedure. -/
-noncomputable def bogoliubovROperation (G : FeynmanGraph) (integrand : ℝ) : ℝ :=
-  integrand -- Base case; recursive case requires graph decomposition
+/-- Bogoliubov's R-operation in the scalar interface represented here. -/
+noncomputable def bogoliubovROperation (_G : FeynmanGraph) (integrand : ℝ) : ℝ :=
+  integrand
 
 /-- Renormalization conditions: different schemes choose the finite parts. -/
 structure RenormalizationScheme where

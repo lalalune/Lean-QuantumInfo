@@ -36,6 +36,13 @@ noncomputable def toMatrix : PauliOperator → Matrix QubitBasis QubitBasis ℂ
   | .Y => Ymat
   | .Z => Zmat
 
+/-- Swap X and Z, fixing I and Y. -/
+def swapXZ : PauliOperator → PauliOperator
+  | .I => .I
+  | .X => .Z
+  | .Y => .Y
+  | .Z => .X
+
 /-- Connection between `toGate` and `toMatrix` for operators. -/
 @[simp] lemma toGate_val (P : PauliOperator) : (P.toGate).val = P.toMatrix := by
   cases P <;> simp [toGate, toMatrix, Quantum.coe_I, Quantum.coe_X
