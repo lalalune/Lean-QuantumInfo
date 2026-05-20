@@ -1,6 +1,6 @@
 /-
 Copyright (c) 2026 Alex Meiburg. All rights reserved.
-Released under MIT license as described in the file LICENSE.
+Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Alex Meiburg
 -/
 import Mathlib
@@ -24,47 +24,6 @@ open Finset BigOperators Matrix
 variable {d : Type*} [Fintype d] [DecidableEq d]
 
 noncomputable section
-
-private lemma List.Perm.exists_get_equiv {l₁ l₂ : List ℝ} (h : l₁.Perm l₂) :
-    ∃ σ : Fin l₁.length ≃ Fin l₂.length, ∀ i, l₁.get i = l₂.get (σ i) := by
-  induction' h with l₁ l₂ h ih <;> simp_all
-  · obtain ⟨σ, hσ⟩ := ‹∃ σ : Fin l₂.length ≃ Fin h.length,
-      ∀ i : Fin l₂.length, l₂[i] = h[σ i]›
-    use Equiv.ofBijective (fun i => Fin.cases 0 (fun i => Fin.succ (σ i)) i)
-      ⟨by
-        intro i j hij
-        revert j
-        refine i.cases ?_ ?_
-        · intro j
-          refine j.cases ?_ ?_
-          · intro _; rfl
-          · intro j h
-            cases h
-        · intro i j
-          refine j.cases ?_ ?_
-          · intro h
-            simp at h
-          · intro j h
-            exact congr_arg Fin.succ (σ.injective (Fin.succ_injective _ h)),
-       by
-        intro i
-        refine i.cases ?_ ?_
-        · exact ⟨0, rfl⟩
-        · intro i
-          exact ⟨Fin.succ (σ.symm i), by simp⟩⟩
-    intro i
-    refine i.cases ?_ ?_
-    · rfl
-    · intro i
-      simpa using hσ i
-  · refine' ⟨Equiv.swap ⟨0, by simp⟩ ⟨1, by simp⟩, _⟩
-    simp [Fin.forall_fin_succ]
-    aesop
-  · rename_i h₁ h₂ h₃ h₄
-    obtain ⟨σ₁, hσ₁⟩ := h₃
-    obtain ⟨σ₂, hσ₂⟩ := h₄
-    use σ₁.trans σ₂
-    simp [hσ₁, hσ₂]
 
 /-! ## Sorted singular values -/
 
@@ -308,6 +267,34 @@ lemma compoundMatrix_diagonal (f : d → ℂ) (k : ℕ) :
       rw [Matrix.det_eq_zero_of_row_eq_zero j]; aesop
     convert h_det_zero using 1
 
+/-- The compound matrix of a unitary matrix is unitary. -/
+lemma compoundMatrix_unitary (U : Matrix d d ℂ)
+    (hU : U ∈ Matrix.unitaryGroup d ℂ) (k : ℕ) :
+    compoundMatrix U k ∈ Matrix.unitaryGroup {S : Finset d // S.card = k} ℂ := by
+  rw [Matrix.mem_unitaryGroup_iff', Matrix.star_eq_conjTranspose,
+    ← compoundMatrix_conjTranspose, ← compoundMatrix_mul,
+    show Uᴴ * U = 1 by simpa using Matrix.mem_unitaryGroup_iff'.mp hU]
+  simpa using compoundMatrix_diagonal (1 : d → ℂ) k
+
+/-- The `k`-th compound matrix bundled as a unitary. -/
+noncomputable def compoundUnitary (U : Matrix.unitaryGroup d ℂ) (k : ℕ) :
+    Matrix.unitaryGroup {S : Finset d // S.card = k} ℂ :=
+  ⟨compoundMatrix U.val k, compoundMatrix_unitary U.val U.property k⟩
+
+omit [DecidableEq d] in
+/-- The index set of the `k`-th compound matrix is nonempty when `k ≤ card d`. -/
+lemma compound_card_pos (k : ℕ) (hk : k ≤ Fintype.card d) :
+    0 < Fintype.card {S : Finset d // S.card = k} := by
+  classical
+  obtain ⟨S, _, hScard⟩ := Finset.exists_subset_card_eq (s := (Finset.univ : Finset d)) hk
+  exact Fintype.card_pos_iff.mpr ⟨⟨S, hScard⟩⟩
+
+/-- The canonical zero index in `Fin (Fintype.card {S : Finset d // S.card = k})`,
+witnessed by `compound_card_pos`. -/
+def compoundZero (k : ℕ) (hk : k ≤ Fintype.card d) :
+    Fin (Fintype.card {S : Finset d // S.card = k}) :=
+  ⟨0, compound_card_pos k hk⟩
+
 /--
 The eigenvalues of the compound matrix of a Hermitian matrix are the products
 of eigenvalues over k-subsets. More precisely, the singular values of
@@ -325,23 +312,7 @@ lemma singularValues_compoundMatrix_eq (M : Matrix d d ℂ) (k : ℕ) :
     apply IsHermitian.eigenvalues_eq_of_unitary_similarity_diagonal
     rotate_right
     exact compoundMatrix (Matrix.IsHermitian.eigenvectorUnitary (isHermitian_mul_conjTranspose_self M.conjTranspose)) k
-    · have h_unitary : ∀ (U : Matrix d d ℂ), U ∈ unitaryGroup d ℂ → compoundMatrix U k ∈ unitaryGroup {S : Finset d // S.card = k} ℂ := by
-        intro U hU
-        have h_unitary : (compoundMatrix U k).conjTranspose * compoundMatrix U k = 1 := by
-          have h_unitary : (compoundMatrix U k).conjTranspose * compoundMatrix U k = compoundMatrix (U.conjTranspose * U) k := by
-            rw [← compoundMatrix_conjTranspose, ← compoundMatrix_mul]
-          have h_unitary : Uᴴ * U = 1 := by
-            exact hU.1.symm ▸ by simp
-          -- Since the identity matrix's compound matrix is the identity matrix, we can conclude that the product is the identity matrix.
-          have h_id : compoundMatrix (1 : Matrix d d ℂ) k = 1 := by
-            convert compoundMatrix_diagonal (fun _ => 1) k using 1; aesop
-          grind
-        have h_unitary' : compoundMatrix U k * (compoundMatrix U k).conjTranspose = 1 := by
-          rw [← mul_eq_one_comm, h_unitary]
-        exact ⟨by
-        exact h_unitary, by
-          exact h_unitary'⟩
-      exact h_unitary _ (by simp [unitaryGroup])
+    · exact compoundMatrix_unitary _ (by simp [Matrix.unitaryGroup]) _
     · have h_compoundMatrix_mul : compoundMatrix (M.conjTranspose * M) k = compoundMatrix M.conjTranspose k * compoundMatrix M k := by
         exact compoundMatrix_mul _ _ _
       have h_compoundMatrix_conjTranspose : compoundMatrix M.conjTranspose k = (compoundMatrix M k).conjTranspose := by
@@ -455,20 +426,7 @@ lemma singularValues_compoundMatrix_perm (M : Matrix d d ℂ) (k : ℕ) :
     apply IsHermitian.eigenvalues_eq_of_unitary_similarity_diagonal
     rotate_right
     exact compoundMatrix (Matrix.IsHermitian.eigenvectorUnitary (isHermitian_mul_conjTranspose_self M.conjTranspose)) k
-    · have h_unitary : ∀ (U : Matrix d d ℂ), U ∈ unitaryGroup d ℂ → compoundMatrix U k ∈ unitaryGroup {S : Finset d // S.card = k} ℂ := by
-        intro U hU
-        have h_unitary : (compoundMatrix U k).conjTranspose * compoundMatrix U k = 1 := by
-          have h_unitary : (compoundMatrix U k).conjTranspose * compoundMatrix U k = compoundMatrix (U.conjTranspose * U) k := by
-            rw [← compoundMatrix_conjTranspose, ← compoundMatrix_mul]
-          have h_unitary : Uᴴ * U = 1 := by
-            exact hU.1.symm ▸ by simp
-          have h_id : compoundMatrix (1 : Matrix d d ℂ) k = 1 := by
-            convert compoundMatrix_diagonal (fun _ => 1) k using 1; aesop
-          grind
-        have h_unitary' : compoundMatrix U k * (compoundMatrix U k).conjTranspose = 1 := by
-          rw [← mul_eq_one_comm, h_unitary]
-        exact ⟨by exact h_unitary, by exact h_unitary'⟩
-      exact h_unitary _ (by simp [unitaryGroup])
+    · exact compoundMatrix_unitary _ (by simp [Matrix.unitaryGroup]) _
     · have h_compoundMatrix_mul : compoundMatrix (M.conjTranspose * M) k = compoundMatrix M.conjTranspose k * compoundMatrix M k := by
         exact compoundMatrix_mul _ _ _
       have h_compoundMatrix_conjTranspose : compoundMatrix M.conjTranspose k = (compoundMatrix M k).conjTranspose := by
@@ -499,6 +457,7 @@ lemma singularValues_compoundMatrix_rev (M : Matrix d d ℂ) (k : ℕ)
   obtain ⟨σ, hσ⟩ := singularValues_compoundMatrix_perm M k
   exact ⟨σ.symm j, by rw [← hσ]; simp⟩
 
+set_option backward.isDefEq.respectTransparency false in
 /-- There exists a bijection `σ : Fin (card d) ≃ d` such that
     `singularValues M (σ i) = singularValuesSorted M i` for all `i`. -/
 lemma exists_sorting_equiv (M : Matrix d d ℂ) :
@@ -520,7 +479,23 @@ lemma exists_sorting_equiv (M : Matrix d d ℂ) :
     have h_perm : List.Perm (List.ofFn (singularValuesSorted M)) (List.ofFn (singularValues M ∘ (Fintype.equivFin d).symm)) := by
       exact Multiset.coe_eq_coe.mp h_perm
     have h_perm : ∃ σ : Fin (Fintype.card d) ≃ Fin (Fintype.card d), ∀ i, singularValuesSorted M i = singularValues M (Fintype.equivFin d |>.symm (σ i)) := by
-      obtain ⟨σ, hσ⟩ := h_perm.exists_get_equiv
+      have h_perm : ∀ {l1 l2 : List ℝ}, l1.Perm l2 → ∃ σ : Fin l1.length ≃ Fin l2.length, ∀ i, l1.get i = l2.get (σ i) := by
+        intros l1 l2 h_perm; induction' h_perm with l1 l2 h_perm ih <;> simp_all
+        · obtain ⟨σ, hσ⟩ := ‹∃ σ : Fin l2.length ≃ Fin h_perm.length, ∀ i : Fin l2.length, l2[i] = h_perm[σ i]›; use Equiv.ofBijective (fun i => Fin.cases 0 (fun i => Fin.succ (σ i)) i) ⟨fun i j hij => ?_, fun i => ?_⟩
+          simp_all [Fin.forall_fin_succ]
+          · rcases i with ⟨_ | i, hi⟩ <;> rcases j with ⟨_ | j, hj⟩ <;> simp_all [Fin.ext_iff]
+            simpa [Fin.ext_iff] using σ.injective (Fin.ext hij)
+          · refine i.cases ?_ ?_
+            · simp [Fin.exists_fin_succ]
+            · simp only [Fin.exists_fin_succ, Fin.cases_zero, Fin.cases_succ, Fin.succ_inj]
+              exact fun i => Or.inr ⟨σ.symm i, by simp⟩
+        · refine' ⟨Equiv.swap ⟨0, by simp⟩ ⟨1, by simp⟩, _⟩; simp [Fin.forall_fin_succ]; aesop
+        · rename_i h₁ h₂ h₃ h₄
+          obtain ⟨σ₁, hσ₁⟩ := h₃
+          obtain ⟨σ₂, hσ₂⟩ := h₄
+          use σ₁.trans σ₂
+          simp [hσ₁, hσ₂]
+      obtain ⟨σ, hσ⟩ := h_perm ‹_›
       refine ⟨Equiv.ofBijective (fun i => ⟨σ ⟨i, ?_⟩, ?_⟩) ⟨?_, ?_⟩, ?_⟩
       · simp
       · exact lt_of_lt_of_le (Fin.is_lt _) (by simp)
@@ -556,6 +531,7 @@ lemma prod_singularValues_subset_le_sorted_prod (M : Matrix d d ℂ) (k : ℕ)
   intro i j hij
   simpa [g] using congr_arg σ hij
 
+set_option backward.isDefEq.respectTransparency false in
 set_option maxHeartbeats 800000 in
 lemma exists_subset_prod_eq_sorted_prod (M : Matrix d d ℂ) (k : ℕ)
     (hk : k ≤ Fintype.card d) :
@@ -589,17 +565,35 @@ lemma exists_subset_prod_eq_sorted_prod (M : Matrix d d ℂ) (k : ℕ)
     have h_perm : List.Perm (List.ofFn (singularValuesSorted M)) (List.ofFn (singularValues M ∘ (Fintype.equivFin d).symm)) := by
       exact Multiset.coe_eq_coe.mp h_perm
     have h_perm : ∃ σ : Fin (Fintype.card d) ≃ Fin (Fintype.card d), List.ofFn (singularValuesSorted M) = List.map (fun i => singularValues M ((Fintype.equivFin d).symm (σ i))) (List.finRange (Fintype.card d)) := by
-      obtain ⟨σ, hσ⟩ := h_perm.exists_get_equiv
-      have hlen₁ : (List.ofFn (singularValuesSorted M)).length = Fintype.card d := by simp
-      have hlen₂ : (List.ofFn (singularValues M ∘ (Fintype.equivFin d).symm)).length = Fintype.card d := by simp
-      let τ : Fin (Fintype.card d) ≃ Fin (Fintype.card d) :=
-        (finCongr hlen₁.symm).trans (σ.trans (finCongr hlen₂))
-      refine ⟨τ, ?_⟩
-      apply List.ext_get
-      · simp
-      · intro n hn₁ hn₂
-        have h := hσ ((finCongr hlen₁.symm) ⟨n, by simpa using hn₁⟩)
-        simpa [τ, List.get_eq_getElem, List.getElem_finRange, hlen₁, hlen₂] using h
+      have := h_perm
+      have h_perm : ∀ {l₁ l₂ : List ℝ}, List.Perm l₁ l₂ → ∃ σ : Fin l₁.length ≃ Fin l₂.length, l₁ = List.map (fun i => l₂.get (σ i)) (List.finRange l₁.length) := by
+        intro l₁ l₂ h_perm
+        induction' h_perm with l₁ l₂ h_perm ih
+        · aesop
+        · rename_i a_ih
+          obtain ⟨σ, hσ⟩ := a_ih
+          use Equiv.ofBijective (fun i => Fin.cases ⟨0, by simp⟩ (fun i => Fin.succ (σ i)) i) ⟨fun i j hij => ?_, fun i => ?_⟩
+          · simp [List.finRange_succ] at *
+            exact hσ
+          · rcases i with ⟨_ | i, hi⟩ <;> rcases j with ⟨_ | j, hj⟩ <;> simp [Fin.ext_iff] at hij ⊢
+            simpa [Fin.ext_iff] using σ.injective (Fin.ext hij) |> fun h => by simpa [Fin.ext_iff] using h;
+          · rcases i with ⟨_ | i, hi⟩
+            · exact ⟨⟨0, by simp⟩, rfl⟩
+            · exact ⟨Fin.succ (σ.symm ⟨i, by simpa using hi⟩), by simp⟩
+        · use Equiv.swap ⟨0, by simp⟩ ⟨1, by simp⟩; simp [List.finRange_succ]
+          refine' List.ext_get _ _ <;> simp [Function.comp]
+          intro n hn hn'; rcases n with (_ | _ | n) <;> trivial
+        · rename_i h₁ h₂ h₃ h₄
+          obtain ⟨σ₁, hσ₁⟩ := h₃
+          obtain ⟨σ₂, hσ₂⟩ := h₄
+          use σ₁.trans σ₂
+          simp [hσ₁, hσ₂]
+      obtain ⟨σ, hσ⟩ := h_perm ‹_›
+      simp [List.ofFn_eq_map] at hσ ⊢
+      generalize_proofs at *; (
+      exact ⟨Equiv.ofBijective (fun i => ⟨σ ⟨i, by simp⟩, by solve_by_elim⟩) ⟨fun i j hij => by simpa [Fin.ext_iff] using σ.injective (Fin.ext <| by simpa [Fin.ext_iff] using hij), fun i => by
+        obtain ⟨a, ha⟩ := σ.surjective ⟨i, by simp⟩
+        exact ⟨⟨a, by simpa using a.2⟩, Fin.ext <| by simpa [Fin.ext_iff] using congr_arg Fin.val ha⟩⟩, fun i => by simpa [Fin.ext_iff] using congr_arg (fun l => l[i]!) hσ⟩)
     obtain ⟨σ, hσ⟩ := h_perm
     use Equiv.ofBijective (fun i => (Fintype.equivFin d).symm (σ i)) ⟨fun i j hij => by simpa [Fin.ext_iff] using σ.injective (by simpa [Fin.ext_iff] using hij), fun i => by
       exact ⟨σ.symm (Fintype.equivFin d i), by simp⟩;⟩
@@ -845,6 +839,7 @@ For the direct induction approach on n:
 Hmm, this doesn't work cleanly because log(y_i/x_i) can be negative for some i.
 Better approach: prove it directly using the Abel summation identity and nonnegativity of each term.
 -/
+set_option backward.isDefEq.respectTransparency false in
 lemma sum_mul_log_nonneg_of_weak_log_maj {n : ℕ}
     {x y : Fin n → ℝ}
     (hx_pos : ∀ i, 0 < x i) (hy_pos : ∀ i, 0 < y i)
@@ -881,12 +876,8 @@ lemma sum_mul_log_nonneg_of_weak_log_maj {n : ℕ}
     convert h_abel ⟨n, Nat.lt_succ_self _⟩ using 1
     · rw [show (Iic ⟨n, Nat.lt_succ_self _⟩ : Finset (Fin (n + 1))) = Finset.univ from Finset.eq_univ_of_forall fun i => Finset.mem_Iic.mpr (Nat.le_of_lt_succ i.2)]
     · refine' congr rfl (Finset.sum_bij (fun i hi => ⟨i, by omega⟩) _ _ _ _) <;> simp [Fin.add_def, Nat.mod_eq_of_lt]
-      · intro i _ j _ h
-        exact Fin.ext h
-      · intro i hi
-        refine ⟨⟨i, by linarith [Fin.is_lt i, show (i : ℕ) < n from hi]⟩, ?_, ?_⟩
-        · exact Finset.mem_univ _
-        · simp
+      · exact fun i j h => Fin.ext h
+      · exact fun i hi => ⟨⟨i, by linarith [Fin.is_lt i, show (i : ℕ) < n from hi]⟩, rfl⟩
   -- Since $D_k \geq 0$ for all $k$, we have $x_{n-1} D_{n-1} \geq 0$ and $(x_i - x_{i+1}) D_i \geq 0$ for all $i$.
   have h_nonneg : ∀ k : Fin n, 0 ≤ D k := by
     intro k
@@ -984,6 +975,7 @@ lemma sum_rpow_singularValues_mul_le (A B : Matrix d d ℂ) {r : ℝ} (hr : 0 < 
 
 /-! ## Hölder inequality for singular values -/
 
+set_option backward.isDefEq.respectTransparency false in
 /--
 The finite-sum Hölder inequality applied to sequences of r-th powers of
 sorted singular values.
