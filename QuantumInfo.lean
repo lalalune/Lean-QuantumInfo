@@ -8,6 +8,7 @@ import QuantumInfo.ForMathlib
 import QuantumInfo.ForMathlib.ComplexLaplaceTransform
 
 --Code
+import ClassicalInfo
 import QuantumInfo.Finite.Channel.DegradableOrder
 import QuantumInfo.Finite.CPTPMap
 import QuantumInfo.Finite.Distance
