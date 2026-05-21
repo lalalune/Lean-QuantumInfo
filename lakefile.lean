@@ -34,5 +34,6 @@ lean_lib CondensedMatter
 lean_lib Cosmology
 lean_lib StringTheory
 lean_lib Physics
+lean_lib EUVLithography
 
 lean_lib Test
