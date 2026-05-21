@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 OUT_FILE="${1:-docs/THEOREM_INDEX.md}"
+mkdir -p "$(dirname "$OUT_FILE")"
 TMP_FILE="$(mktemp)"
 TMP_RAW="$(mktemp)"
 trap 'rm -f "$TMP_FILE" "$TMP_RAW"' EXIT
