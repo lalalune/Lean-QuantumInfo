@@ -3,8 +3,10 @@ Copyright (c) 2025 PhysLean contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import Mathlib.Analysis.SpecialFunctions.Exp
+import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+import Mathlib.Analysis.Calculus.Deriv.Mul
 
 /-!
 
@@ -85,6 +87,15 @@ def filmGrowthRate : ℝ := d.tinFlux * d.V_atom
 theorem filmGrowthRate_pos : 0 < d.filmGrowthRate :=
   mul_pos d.tinFlux_pos d.V_atom_pos
 
+/-- Film thickness after starting from a clean mirror and growing at constant flux. -/
+def filmThicknessFromClean (t : ℝ) : ℝ := d.filmGrowthRate * t
+
+/-- The clean-start thickness model has derivative equal to the film growth rate. -/
+theorem filmThicknessFromClean_derivative (t : ℝ) :
+    HasDerivAt d.filmThicknessFromClean d.filmGrowthRate t := by
+  unfold filmThicknessFromClean
+  simpa using (hasDerivAt_id t).const_mul d.filmGrowthRate
+
 /-- Reflectivity with Sn contamination layer of thickness h:
     R(h) = R₀ exp(-4π k_Sn h / lam) -/
 def reflectivity (h : ℝ) : ℝ :=
@@ -95,6 +106,19 @@ theorem reflectivity_at_zero : d.reflectivity 0 = d.R₀ := by
 
 theorem reflectivity_pos (h : ℝ) : 0 < d.reflectivity h :=
   mul_pos d.R₀_pos (exp_pos _)
+
+/-- The exponential tin-film reflectivity model satisfies `dR/dh = -α R`. -/
+theorem reflectivity_derivative (h : ℝ) :
+    HasDerivAt d.reflectivity
+      (-(4 * π * d.k_Sn / d.lam) * d.reflectivity h) h := by
+  unfold reflectivity
+  convert (((hasDerivAt_id h).const_mul (-(4 * π * d.k_Sn / d.lam))).exp.const_mul
+    d.R₀) using 1
+  · funext y
+    simp only [id_eq]
+    ring_nf
+  · simp only [id_eq]
+    ring_nf
 
 theorem reflectivity_le_bare {h : ℝ} (hh : 0 ≤ h) : d.reflectivity h ≤ d.R₀ := by
   unfold reflectivity
@@ -149,6 +173,15 @@ theorem steadyState_balance : c.cleaningRate c.steadyStateDensity = c.Phi_Sn := 
   have h : c.k_clean * c.n_H ^ 4 ≠ 0 :=
     ne_of_gt (mul_pos c.k_clean_pos (pow_pos c.n_H_pos 4))
   field_simp [h, ne_of_gt c.k_clean_pos, ne_of_gt c.n_H_pos]
+
+/-- Net tin surface-density balance: deposition minus hydrogen cleaning. -/
+def surfaceDensityRHS (n_Sn : ℝ) : ℝ := c.Phi_Sn - c.cleaningRate n_Sn
+
+/-- At steady state, the net tin surface-density RHS is zero. -/
+theorem steadyState_rhs_zero : c.surfaceDensityRHS c.steadyStateDensity = 0 := by
+  unfold surfaceDensityRHS
+  rw [c.steadyState_balance]
+  ring
 
 /-- More H radicals → lower steady-state Sn density -/
 theorem more_H_cleaner {c₁ c₂ : HydrogenCleaning}

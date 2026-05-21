@@ -1,5 +1,7 @@
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Analysis.SpecialFunctions.Sqrt
+import Mathlib.Analysis.Calculus.Deriv.Mul
+import Mathlib.Analysis.Calculus.Deriv.Pow
 
 /-!
 # EUV Lithography: Tin Droplet Geometry and Kinematics
@@ -32,8 +34,34 @@ theorem dropletDiameter_pos {D_jet : ℝ} (hD : 0 < D_jet) :
 /-- Horizontal droplet trajectory. -/
 def dropletX (v₀ t : ℝ) : ℝ := v₀ * t
 
+/-- The horizontal droplet velocity is constant. -/
+theorem dropletX_derivative (v₀ t : ℝ) :
+    HasDerivAt (dropletX v₀) v₀ t := by
+  unfold dropletX
+  simpa using (hasDerivAt_id t).const_mul v₀
+
 /-- Vertical droplet trajectory under gravity, with launch height chosen as zero. -/
 def dropletY (g t : ℝ) : ℝ := -(1 / 2) * g * t ^ 2
+
+/-- Vertical droplet velocity under gravity is `-g t`. -/
+theorem dropletY_derivative (g t : ℝ) :
+    HasDerivAt (dropletY g) (-(g * t)) t := by
+  unfold dropletY
+  convert ((hasDerivAt_id t).pow 2).const_mul (-(1 / 2) * g) using 1
+  simp only [id_eq]
+  ring
+
+/-- The vertical velocity derivative is the constant acceleration `-g`. -/
+def dropletVerticalVelocity (g t : ℝ) : ℝ := -(g * t)
+
+theorem dropletVerticalVelocity_derivative (g t : ℝ) :
+    HasDerivAt (dropletVerticalVelocity g) (-g) t := by
+  unfold dropletVerticalVelocity
+  convert (hasDerivAt_id t).const_mul (-g) using 1
+  · funext y
+    simp only [id_eq]
+    ring
+  · ring
 
 theorem dropletY_nonpos {g t : ℝ} (hg : 0 ≤ g) :
     dropletY g t ≤ 0 := by

@@ -116,20 +116,17 @@ lemma radiusRegPowOperator_comp_eq (hε : 0 < ε) (s t : ℝ) :
 lemma radiusRegPowOperator_zero (hε : 0 < ε) :
     𝐫[ε,0] = ContinuousLinearMap.id ℂ 𝓢(Space d, ℂ) := by
   ext ψ x
-  rw [radiusRegPowOperator_apply hε, zero_div, Real.rpow_zero, one_smul,
-    ContinuousLinearMap.coe_id', id_eq]
+  simp [radiusRegPowOperator_apply hε]
 
 lemma positionOperatorSqr_eq (hε : 0 < ε) : ∑ i, 𝐱[i] ∘L 𝐱[i] =
     𝐫[ε,2] - ε ^ 2 • ContinuousLinearMap.id ℂ 𝓢(Space d, ℂ) := by
   ext ψ x
   simp only [ContinuousLinearMap.coe_sum', Finset.sum_apply, SchwartzMap.sum_apply,
-    ContinuousLinearMap.comp_apply, ContinuousLinearMap.sub_apply, SchwartzMap.sub_apply,
-    ContinuousLinearMap.smul_apply, ContinuousLinearMap.id_apply, SchwartzMap.smul_apply]
-  simp only [positionOperator_apply_fun, radiusRegPowOperator_apply_fun hε]
-  simp only [← mul_assoc, ← Finset.sum_mul, ← Complex.ofReal_mul]
-  rw [div_self (by norm_num), Real.rpow_one, ← sub_smul, add_sub_cancel_right]
-  rw [Space.norm_sq_eq, Complex.real_smul, Complex.ofReal_sum]
-  simp only [pow_two]
+    ContinuousLinearMap.comp_apply, ContinuousLinearMap.sub_apply, SchwartzMap.sub_apply]
+  rw [show ((ε ^ 2 • ContinuousLinearMap.id ℂ 𝓢(Space d, ℂ)) ψ) x =
+    (ε ^ 2 : ℝ) • ψ x by rfl]
+  simp [positionOperator_apply, radiusRegPowOperator_apply hε, Space.norm_sq_eq, add_mul,
+    ← mul_assoc, ← pow_two, Finset.sum_mul, Complex.real_smul]
 
 end
 end QuantumMechanics

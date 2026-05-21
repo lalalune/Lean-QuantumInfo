@@ -5,6 +5,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 import Mathlib.Analysis.SpecialFunctions.Exp
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
+import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+import Mathlib.Data.Fintype.Basic
+import Mathlib.Tactic
 
 /-!
 
@@ -34,6 +37,7 @@ at 13.5 nm requires optimal population of Sn⁸⁺–Sn¹⁴⁺.
 noncomputable section
 
 open Real
+open Finset BigOperators
 
 /-- Parameters for evaluating the Saha ionization equation -/
 structure SahaParams where
@@ -131,5 +135,57 @@ theorem euv_photon_energy_approx :
   norm_num
 
 end SahaParams
+
+/-- Number density of ion charge state `z` from total tin density and charge-state fraction. -/
+def ionDensityFromFraction {N : ℕ} (n_total : ℝ) (alpha : Fin N → ℝ) (z : Fin N) : ℝ :=
+  n_total * alpha z
+
+/-- Total tin ion density reconstructed from charge-state fractions. -/
+def totalIonDensityFromFractions {N : ℕ} (n_total : ℝ) (alpha : Fin N → ℝ) : ℝ :=
+  ∑ z : Fin N, ionDensityFromFraction n_total alpha z
+
+/-- Electron density from charge-state fractions:
+    `n_e = n_total * Σ_z z α_z`. -/
+def electronDensityFromFractions {N : ℕ} (n_total : ℝ) (alpha : Fin N → ℝ) : ℝ :=
+  n_total * ∑ z : Fin N, ((z : ℕ) : ℝ) * alpha z
+
+/-- Electron density from explicit ion number densities:
+    `n_e = Σ_z z n_z`. -/
+def electronDensityFromIonDensities {N : ℕ} (n : Fin N → ℝ) : ℝ :=
+  ∑ z : Fin N, ((z : ℕ) : ℝ) * n z
+
+/-- If charge-state fractions sum to one, their reconstructed density is the total density. -/
+theorem totalIonDensityFromFractions_eq_total {N : ℕ} (n_total : ℝ) (alpha : Fin N → ℝ)
+    (halpha : (∑ z : Fin N, alpha z) = 1) :
+    totalIonDensityFromFractions n_total alpha = n_total := by
+  unfold totalIonDensityFromFractions ionDensityFromFraction
+  rw [← mul_sum, halpha, mul_one]
+
+/-- The charge-neutrality expression using fractions agrees with summing `z n_z`. -/
+theorem electronDensity_fraction_form {N : ℕ} (n_total : ℝ) (alpha : Fin N → ℝ) :
+    electronDensityFromIonDensities (ionDensityFromFraction n_total alpha) =
+      electronDensityFromFractions n_total alpha := by
+  unfold electronDensityFromIonDensities electronDensityFromFractions ionDensityFromFraction
+  rw [mul_sum]
+  apply Finset.sum_congr rfl
+  intro z _hz
+  ring
+
+/-- If fractions are nonnegative, each ion density reconstructed from them is nonnegative. -/
+theorem ionDensityFromFraction_nonneg {N : ℕ} {n_total : ℝ} {alpha : Fin N → ℝ}
+    (hn : 0 ≤ n_total) (halpha : ∀ z, 0 ≤ alpha z) (z : Fin N) :
+    0 ≤ ionDensityFromFraction n_total alpha z := by
+  unfold ionDensityFromFraction
+  exact mul_nonneg hn (halpha z)
+
+/-- Under nonnegative fractions, the charge-neutrality electron density is nonnegative. -/
+theorem electronDensityFromFractions_nonneg {N : ℕ} {n_total : ℝ} {alpha : Fin N → ℝ}
+    (hn : 0 ≤ n_total) (halpha : ∀ z, 0 ≤ alpha z) :
+    0 ≤ electronDensityFromFractions n_total alpha := by
+  unfold electronDensityFromFractions
+  apply mul_nonneg hn
+  apply Finset.sum_nonneg
+  intro z _hz
+  exact mul_nonneg (Nat.cast_nonneg z) (halpha z)
 
 end

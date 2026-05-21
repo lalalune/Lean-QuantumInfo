@@ -3,6 +3,9 @@ Copyright (c) 2025 PhysLean contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
+-- Positive physical constants and light/quantum energy identities
+import EUVLithography.Constants
+
 -- Source domain: CO₂ laser optics, tin target, and EUV emission
 import EUVLithography.Source.GaussianBeam
 import EUVLithography.Source.AblationPressure

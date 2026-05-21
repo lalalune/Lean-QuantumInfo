@@ -1,82 +1,68 @@
 # The Leaning Of Everything
 
-## Physlib Note
+A Lean 4 formal library covering quantum information theory, quantum mechanics, relativity,
+field theory, and the mathematical infrastructure that ties them together.
 
-This repository contains much Lean formalization of quantum information theory. In March 2026, it
-merged with PhysLean, previously known as HEPLean, to form
-[Physlib](https://github.com/leanprover-community/physlib), now under the
-`leanprover-community` organization. New development of that quantum information line is expected
-to continue there.
+## Relationship to Physlib
 
-`TheLeaningOfEverything` is a Lean 4 project for building a checked foundation of mathematics
-and mathematical physics. The goal is to prove the structural results that let major areas of
-mathematics explain each other: algebra, analysis, geometry, probability, information theory,
-quantum theory, relativity, statistical mechanics, field theory, and the connective tissue between
-them.
+In March 2026, this repository's quantum information line merged with PhysLean/HEPLean to form
+[Physlib](https://github.com/leanprover-community/physlib) under `leanprover-community`. All
+content from the May 2026 snapshot of physlib has since been fully integrated here. New development
+on the physics-formalization side continues upstream in physlib.
 
-The repository started from finite-dimensional quantum information theory. It is now growing into a
-broader formal library: a place where foundational definitions, theorem statements, and proofs are
-made precise enough that Lean can check them.
+This repository remains the primary home for:
 
-## What This Is
+- the **Generalized Quantum Stein's Lemma** proof and its dependencies
+- **Quantum Error Correction** formalization (absent from physlib)
+- **Classical Information Theory** (absent from physlib)
+- **Statistical Mechanics** (more extensive coverage than physlib)
+- ongoing work in quantum mechanics, field theory, and cosmology that extends beyond physlib
 
-This project is not a collection of informal notes. It is a proof engineering effort.
+## Flagship Result
 
-The intended standard is:
+The guiding goal of this repository was a machine-checked proof of the
+[Generalized Quantum Stein's Lemma](https://arxiv.org/abs/2408.02722v1).
+The full proof — every lemma checked — was completed in April 2026.
 
-- state concepts in reusable mathematical language
-- prove the lemmas needed to move between fields
-- keep definitions close to mathlib conventions when possible
-- isolate reusable infrastructure under `ForMathlib` namespaces
-- replace sketchy theorem shells with Lean-checked proofs before treating code as part of the
-  supported surface
+```
+QuantumInfo/Finite/ResourceTheory/SteinsLemma.lean
+  limit_hypotesting_eq_limit_rel_entropy
+```
 
-The long-term ambition is a unified formal account of major mathematics: not separate islands of
-formalization, but a network of shared foundations that can support serious theorem proving across
-physics, information, and pure mathematics.
+See [arXiv:2510.08672](https://arxiv.org/abs/2510.08672) for the accompanying report.
+Thanks to Leonardo Lessa, Rodolfo Soldati, and Hayata Yamasaki for substantial contributions.
 
-## Major Accomplishment: Generalized Quantum Stein's Lemma
+## What We Have That Physlib Doesn't
 
-The initial guiding goal of this repository was completing a proof of the
-[Generalized Quantum Stein's Lemma](https://arxiv.org/abs/2408.02722v1), following the proof in the
-linked paper. The first milestone was formalizing all the arguments in that paper while relying on
-standard or obvious results, which was completed in October 2025. The project was completed when the
-other standard results were formalized as well, which was completed in April 2026.
+| Area | ~Decls | ~Lines | Notes |
+|------|-------:|-------:|-------|
+| `QEC` | 1 280 | 25 500 | Quantum error correction: stabilizer codes, fault tolerance, threshold theorems |
+| `ClassicalInfo` | 113 | 1 200 | Classical channels, Shannon entropy, capacity |
+| `StatMech` | 330 | 5 200 | Partition functions, thermodynamic limits |
+| Extended `QuantumInfo` | 2 050 | 36 200 | Full Stein's Lemma chain, sandwiched Rényi entropy, SSA, resource theories |
+| Extended `QuantumMechanics` | 2 260 | 46 700 | Infinite-dimensional operators, hydrogen atom, Laplace-Runge-Lenz vector |
+| `EUVLithography` | — | 3 300 | Applied semiconductor physics (EUV source, plasma, resist, optics) |
 
-The final theorem is stated as `limit_hypotesting_eq_limit_rel_entropy` in
-`QuantumInfo/Finite/ResourceTheory/SteinsLemma.lean`.
+## Scope
 
-## Current Scope
+**~15 000 declarations, ~440 000 lines of Lean** across:
 
-The active library surface includes:
-
-- `QuantumInfo`: finite-dimensional quantum states, channels, entropy, capacity, entanglement,
-  resource theory, and supporting operator facts
-- `ClassicalInfo`: probability distributions, classical channels, entropy, and capacity
-- `StatMech`: statistical mechanics foundations and examples
-- `Mathematics`, `Units`, and `Meta`: shared infrastructure, dimensional analysis, and project
-  tooling
-- physics-oriented libraries including `QuantumMechanics`, `Relativity`, `QFT`, `QEC`,
-  `ClassicalMechanics`, `Electromagnetism`, `Thermodynamics`, `Particles`, `Cosmology`,
-  `CondensedMatter`, `Optics`, `SpaceAndTime`, and `StringTheory`
-
-Some areas are mature enough to serve as dependencies for other files. Others are active
-formalization fronts. The build is the source of truth: code that is imported by `lakefile.lean`
-must elaborate under Lean.
-
-As of May 5, 2026, approximate project counts were 2143 theorem-like declarations, 423 definitions,
-and 38105 lines of Lean code.
-
-## Repository Layout
-
-- `QuantumInfo/ForMathlib/`: reusable matrix, Hermitian, unitary, convexity, and analysis facts that
-  are candidates for eventual upstreaming or mathlib-style reuse
-- `QuantumInfo/Finite/`: finite-dimensional quantum information theory
-- `ClassicalInfo/`: classical information theory
-- `StatMech/`: statistical mechanics
-- domain folders such as `Relativity/`, `QFT/`, `QuantumMechanics/`, `Units/`, and
-  `Mathematics/`: broader formalization targets
-- `lakefile.lean`: the authoritative list of Lean libraries built by the package
+- `QuantumInfo` — quantum states, channels, entropy, resource theory, capacity
+- `QEC` — quantum error correction codes and threshold bounds
+- `ClassicalInfo` — classical Shannon theory
+- `StatMech` — statistical mechanics foundations
+- `QuantumMechanics` — infinite-dimensional Hilbert space operators, hydrogen atom
+- `Relativity` — Lorentz tensors, spinors, real and complex tensor species
+- `QFT` — perturbation theory, Wick algebra
+- `SpaceAndTime` — Schwartz space, distributions, spatial/spacetime derivatives
+- `Mathematics` — variational calculus, distributions, special functions
+- `ClassicalMechanics` — Lagrangian/Hamiltonian mechanics, harmonic oscillator
+- `Electromagnetism` — EM potential, Maxwell theory
+- `Cosmology` — FLRW metric, Friedmann equations, Hubble parameter
+- `Particles` — Standard Model, SUSY, anomaly cancellation
+- `StringTheory` — F-theory charge assignments
+- `Thermodynamics`, `CondensedMatter`, `Optics`, `ClassicalFieldTheory` — early coverage
+- `Mathematics`, `Units`, `Meta` — shared infrastructure, dimensional analysis, linting
 
 ## Build
 
@@ -85,49 +71,46 @@ lake exe cache get
 lake build
 ```
 
-Useful targeted builds:
+Targeted builds:
 
 ```bash
 lake build QuantumInfo
+lake build QEC
 lake build ClassicalInfo
-lake build StatMech
 ```
 
-The project tracks Lean through `lean-toolchain` and dependency revisions through
-`lake-manifest.json`.
+## Repository Layout
 
-## Direction
-
-The near-term work is to keep extracting reusable proof infrastructure while tightening the proof
-standard:
-
-- remove or replace unfinished theorem shells
-- prove the analytic and order-theoretic lemmas needed by entropy and information theory
-- make finite-dimensional quantum information a stable core library
-- connect physics-facing definitions back to shared mathematical foundations
-- upstream broadly useful lemmas when they are clean enough for mathlib
-
-The long-term goal is simple to state and hard to execute: make the foundations of major
-mathematics and mathematical physics explicit, composable, and checked by Lean.
+```
+QuantumInfo/ForMathlib/   HermitianMat, MatrixNorm, analysis facts — candidates for mathlib
+QuantumInfo/Finite/       Finite-dimensional QI: states, channels, entropy, resource theory
+QEC/                      Quantum error correction
+ClassicalInfo/            Classical information theory
+StatMech/                 Statistical mechanics
+QuantumMechanics/         Infinite-dimensional QM: operators, hydrogen atom
+Relativity/               Lorentz tensors, spinors, SL(2,C)
+QFT/                      Quantum field theory
+SpaceAndTime/             Schwartz space, distributions, spatial derivatives
+Mathematics/              Variational calculus, distributions, special functions
+ClassicalMechanics/       Lagrangian/Hamiltonian mechanics
+Electromagnetism/         EM potential and kinematics
+Cosmology/                FLRW metric, Friedmann equations
+Particles/                Particle physics: SM, MSSM, anomaly cancellation
+StringTheory/             F-theory charges
+EUVLithography/           Applied EUV semiconductor physics
+Units/                    Dimensional analysis
+Meta/                     Project tooling and linting
+```
 
 ## License and Citation
 
-This repository is released under the MIT License; see [LICENSE](./LICENSE).
-
-If you cite the repository, use:
+Released under the MIT License; see [LICENSE](./LICENSE).
 
 ```bibtex
 @misc{theleaningofeverything,
-  author = {Meiburg, Alex and contributors},
-  title = {The Leaning Of Everything},
-  year = {2026},
-  publisher = {GitHub},
-  journal = {GitHub repository},
+  author       = {Meiburg, Alex and contributors},
+  title        = {The Leaning Of Everything},
+  year         = {2026},
   howpublished = {\url{https://github.com/lalalune/TheLeaningOfEverything}},
 }
 ```
-
-For the Stein's Lemma work in particular, cite
-[the report](https://arxiv.org/abs/2510.08672). Thanks to all contributors, especially Leonardo
-Lessa and Rodolfo Soldati. Thanks also to Hayata Yamasaki, who contributed substantial operator
-inequality code that was ported into this repository.

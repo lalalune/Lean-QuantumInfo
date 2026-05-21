@@ -3,6 +3,7 @@ Copyright (c) 2025 PhysLean contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import Mathlib.Analysis.SpecialFunctions.Exp
+import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Sqrt
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
@@ -104,6 +105,24 @@ theorem inhibitorConc_mono {D₁ D₂ : ℝ} (hD : D₁ < D₂) (hM₀ : 0 < r.M
 /-- At zero dose, M = M₀ -/
 theorem inhibitorConc_zero_dose : r.inhibitorConc 0 = r.M₀ := by
   simp [inhibitorConc]
+
+/-- The closed-form Dill inhibitor concentration satisfies `dM/dD = -C M`. -/
+theorem hasDerivAt_inhibitorConc (D : ℝ) :
+    HasDerivAt r.inhibitorConc (-(r.C) * r.inhibitorConc D) D := by
+  unfold inhibitorConc
+  convert (((hasDerivAt_id D).const_mul (-(r.C))).exp.const_mul r.M₀) using 1
+  · funext y
+    simp
+  · simp
+    ring_nf
+
+/-- Right-hand side of the Dill exposure ODE. -/
+def dillExposureRHS (M : ℝ) : ℝ := -(r.C) * M
+
+/-- Equivalently, `M(D) = M₀ exp(-CD)` solves the exposure ODE. -/
+theorem inhibitorConc_solves_dill_ode (D : ℝ) :
+    HasDerivAt r.inhibitorConc (r.dillExposureRHS (r.inhibitorConc D)) D := by
+  simpa [dillExposureRHS] using r.hasDerivAt_inhibitorConc D
 
 /-- Acid generated = PAG × (1 - M(D)/M₀) -/
 def acidConcentration (D : ℝ) : ℝ :=
@@ -267,5 +286,21 @@ theorem arrheniusRate_le_prefactor {A E_a k_B T : ℝ}
   apply mul_le_of_le_one_right hA
   rw [exp_le_one_iff]
   exact neg_nonpos.mpr (div_nonneg hEa (mul_pos hkB hT).le)
+
+/-- PEB deprotection RHS for fixed reaction rate and acid concentration. -/
+def pebDeprotectionRHS (k_PEB H M : ℝ) : ℝ := -(k_PEB * H) * M
+
+/-- Closed-form PEB deprotection under constant acid: `M(t) = M₀ exp(-(kH)t)`. -/
+def pebDeprotectionSolution (M₀ k_PEB H t : ℝ) : ℝ :=
+  M₀ * exp (-(k_PEB * H) * t)
+
+/-- The constant-acid PEB closed form solves `dM/dt = -k[H⁺]M`. -/
+theorem pebDeprotectionSolution_solves_ode (M₀ k_PEB H t : ℝ) :
+    HasDerivAt (pebDeprotectionSolution M₀ k_PEB H)
+      (pebDeprotectionRHS k_PEB H (pebDeprotectionSolution M₀ k_PEB H t)) t := by
+  unfold pebDeprotectionSolution pebDeprotectionRHS
+  convert (((hasDerivAt_id t).const_mul (-(k_PEB * H))).exp.const_mul M₀) using 1
+  simp
+  ring_nf
 
 end
