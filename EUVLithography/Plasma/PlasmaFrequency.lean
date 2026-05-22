@@ -107,6 +107,25 @@ theorem criticalDensity_wavelength_form {lambda_L : ℝ} (hlambda : lambda_L ≠
   field_simp [hlambda]
   ring
 
+/-- Critical density decreases as laser wavelength increases (`n_c ∝ 1/λ²`). -/
+theorem criticalDensity_decreases_with_wavelength {lambda₁ lambda₂ : ℝ}
+    (hlambda₁ : 0 < lambda₁) (hlambda : lambda₁ < lambda₂) :
+    pc.criticalDensity (pc.angularFrequencyFromWavelength lambda₂) <
+      pc.criticalDensity (pc.angularFrequencyFromWavelength lambda₁) := by
+  rw [pc.criticalDensity_wavelength_form (ne_of_gt (lt_trans hlambda₁ hlambda)),
+    pc.criticalDensity_wavelength_form (ne_of_gt hlambda₁)]
+  have hnum : 0 < 4 * π ^ 2 * pc.ε₀ * pc.m_e * pc.c ^ 2 :=
+    mul_pos (mul_pos (mul_pos (mul_pos (by norm_num) (sq_pos_of_pos pi_pos)) pc.ε₀_pos)
+      pc.m_e_pos) (sq_pos_of_pos pc.c_pos)
+  have he2 : 0 < pc.e ^ 2 := sq_pos_of_pos pc.e_pos
+  have hden1 : 0 < lambda₁ ^ 2 * pc.e ^ 2 := mul_pos (sq_pos_of_pos hlambda₁) he2
+  have hlambda2sq : lambda₁ ^ 2 < lambda₂ ^ 2 := by
+    nlinarith [mul_pos hlambda₁ hlambda₁, mul_lt_mul_of_pos_left hlambda hlambda₁,
+      mul_lt_mul_of_pos_right hlambda (lt_trans hlambda₁ hlambda)]
+  have hden : lambda₁ ^ 2 * pc.e ^ 2 < lambda₂ ^ 2 * pc.e ^ 2 :=
+    mul_lt_mul_of_pos_right hlambda2sq he2
+  exact div_lt_div_of_pos_left hnum hden1 hden
+
 /-- Characterization: ω_p(n_c) = ω_L -/
 theorem critical_density_characterization {ω_L : ℝ} (hω : 0 < ω_L) :
     pc.plasmaFrequency (pc.criticalDensity ω_L) = ω_L := by

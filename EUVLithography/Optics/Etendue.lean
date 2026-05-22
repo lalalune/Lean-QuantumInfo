@@ -74,6 +74,11 @@ theorem etendue_pos {A Ω : ℝ} (hA : 0 < A) (hΩ : 0 < Ω) : 0 < etendue A Ω 
 def collectionEfficiency (θ_max : ℝ) : ℝ :=
   solidAngleCap θ_max / (4 * π)
 
+/-- Collection efficiency including mirror reflectivity:
+    `η_coll = Ω_coll/(4π) × R_mirror`. -/
+def collectionEfficiencyWithReflectivity (θ_max R_mirror : ℝ) : ℝ :=
+  collectionEfficiency θ_max * R_mirror
+
 /-- Solid angle corresponding to a collection fraction of the full sphere. -/
 def solidAngleFromFullSphereFraction (fraction : ℝ) : ℝ :=
   fraction * (4 * π)
@@ -87,8 +92,35 @@ theorem collectionFraction_of_solidAngleFromFullSphereFraction {fraction : ℝ} 
   unfold solidAngleFromFullSphereFraction
   field_simp [pi_ne_zero]
 
+theorem collectionFractionWithReflectivity_of_solidAngleFromFullSphereFraction
+    {fraction R_mirror : ℝ} :
+    solidAngleFromFullSphereFraction fraction / (4 * π) * R_mirror = fraction * R_mirror := by
+  rw [collectionFraction_of_solidAngleFromFullSphereFraction]
+
+/-- Report check: 17% geometric collection with 70% collector reflectivity gives 11.9%. -/
+example : solidAngleFromFullSphereFraction 0.17 / (4 * π) * 0.70 = 0.119 := by
+  rw [collectionFractionWithReflectivity_of_solidAngleFromFullSphereFraction]
+  norm_num
+
 theorem collectionEfficiency_nonneg (θ_max : ℝ) : 0 ≤ collectionEfficiency θ_max :=
   div_nonneg (solidAngleCap_nonneg θ_max) (mul_pos (by norm_num) pi_pos).le
+
+theorem collectionEfficiencyWithReflectivity_nonneg {θ_max R_mirror : ℝ}
+    (hR : 0 ≤ R_mirror) :
+    0 ≤ collectionEfficiencyWithReflectivity θ_max R_mirror := by
+  unfold collectionEfficiencyWithReflectivity
+  exact mul_nonneg (collectionEfficiency_nonneg θ_max) hR
+
+theorem collectionEfficiencyWithReflectivity_le_one {θ_max R_mirror : ℝ}
+    (hR0 : 0 ≤ R_mirror) (hR1 : R_mirror ≤ 1) :
+    collectionEfficiencyWithReflectivity θ_max R_mirror ≤ 1 := by
+  unfold collectionEfficiencyWithReflectivity collectionEfficiency
+  have hden : 0 < 4 * π := mul_pos (by norm_num) pi_pos
+  have hfrac : solidAngleCap θ_max / (4 * π) ≤ 1 :=
+    (div_le_one hden).2 (solidAngleCap_le_4pi θ_max)
+  calc solidAngleCap θ_max / (4 * π) * R_mirror
+      ≤ 1 * 1 := mul_le_mul hfrac hR1 hR0 (by norm_num)
+    _ = 1 := by ring
 
 theorem collectionEfficiency_lt_one {θ_max : ℝ} (hθ : 0 < θ_max) (hθ_pi : θ_max < π) :
     collectionEfficiency θ_max < 1 := by

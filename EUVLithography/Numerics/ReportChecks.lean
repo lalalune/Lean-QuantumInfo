@@ -1,6 +1,10 @@
+import EUVLithography.Constants
 import EUVLithography.Source.EUVEmission
+import EUVLithography.Source.TinDroplet
 import EUVLithography.Contamination.MirrorPhysics
+import EUVLithography.GasPhysics.BeerLambert
 import EUVLithography.Optics.Etendue
+import EUVLithography.Optics.BraggCondition
 import EUVLithography.ImageFormation.Mask
 import EUVLithography.ImageFormation.ProjectionOptics
 import EUVLithography.Resist.AcidDiffusion
@@ -17,9 +21,50 @@ Machine-checked arithmetic for selected numeric examples in the report.
 noncomputable section
 
 open Real
+open EUVConstants
 
 theorem report_euv_power_30kW_6pct :
     (0.06 : ℝ) * 30000 = 1800 := by norm_num
+
+theorem report_planck_constant_table_rounding :
+    |(planckConstantSI : ℝ) - 6.626e-34| < (0.001e-34 : ℝ) := by
+  norm_num [planckConstantSI]
+
+theorem report_reduced_planck_table_rounding :
+    |(ReducedPlanckConstant.si : ℝ) - 1.055e-34| < (0.001e-34 : ℝ) := by
+  norm_num [ReducedPlanckConstant.si]
+
+theorem report_elementary_charge_table_rounding :
+    |(elementaryChargeSI : ℝ) - 1.602e-19| < (0.001e-19 : ℝ) := by
+  norm_num [elementaryChargeSI]
+
+theorem report_electron_mass_table_rounding :
+    |(electronMassSI : ℝ) - 9.109e-31| < (0.001e-31 : ℝ) := by
+  norm_num [electronMassSI]
+
+theorem report_tin118_mass_table_value :
+    (tin118MassSI : ℝ) = (1.975e-25 : ℝ) := by
+  norm_num [tin118MassSI]
+
+theorem report_boltzmann_constant_table_rounding :
+    |(BoltzmannConstant.si : ℝ) - 1.381e-23| < (0.001e-23 : ℝ) := by
+  norm_num [BoltzmannConstant.si]
+
+theorem report_vacuum_permittivity_table_rounding :
+    |(vacuumPermittivitySI : ℝ) - 8.854e-12| < (0.001e-12 : ℝ) := by
+  norm_num [vacuumPermittivitySI]
+
+theorem report_vacuum_permeability_table_rounding :
+    |(vacuumPermeabilitySI : ℝ) - 1.257e-6| < (0.001e-6 : ℝ) := by
+  norm_num [vacuumPermeabilitySI]
+
+theorem report_avogadro_table_rounding :
+    |(avogadroNumberSI : ℝ) - 6.022e23| < (0.001e23 : ℝ) := by
+  norm_num [avogadroNumberSI]
+
+theorem report_ce_energy_ratio_numeric :
+    EUVSource.conversionEfficiencyFromEnergies 1800 30000 = (0.06 : ℝ) := by
+  norm_num [EUVSource.conversionEfficiencyFromEnergies]
 
 theorem report_collected_power_17pct :
     (1800 : ℝ) * 0.17 = 306 := by norm_num
@@ -51,9 +96,48 @@ theorem report_tin_droplet_diameter_high_numeric :
     (1.89 : ℝ) * 20 = 37.8 := by
   norm_num
 
+theorem report_timing_jitter_displacement_low_numeric :
+    timingJitterDisplacement 50 (1e-9) * 1e9 = (50 : ℝ) := by
+  norm_num [timingJitterDisplacement]
+
+theorem report_timing_jitter_displacement_high_numeric :
+    timingJitterDisplacement 70 (1e-9) * 1e9 = (70 : ℝ) := by
+  norm_num [timingJitterDisplacement]
+
+theorem report_volume_conserving_disk_thickness_10x_30um :
+    volumeConservingDiskThickness 10 30 = (0.2 : ℝ) := by
+  norm_num [volumeConservingDiskThickness]
+
+theorem report_10nm_square_area_cm2 :
+    ((10 : ℝ) * 1e-7) ^ 2 = 1e-12 := by
+  norm_num
+
 theorem report_photon_count_numeric :
     |photonCount 40 (100e-14) 91.8 - 2720| < 5 := by
   norm_num [photonCount]
+
+theorem report_euv_photon_energy_joule_from_eV :
+    |eVToJoule ElectronVolt.si 91.8 - 1.470798150012e-17| < (1e-29 : ℝ) := by
+  norm_num [eVToJoule, ElectronVolt.si]
+
+theorem report_shot_noise_fraction_2700_between_1_9_and_2_percent :
+    (0.019 : ℝ) < 1 / sqrt 2700 ∧ 1 / sqrt 2700 < (0.02 : ℝ) := by
+  have hsqrt_pos : 0 < sqrt (2700 : ℝ) := sqrt_pos_of_pos (by norm_num)
+  have hsqrt_sq : (sqrt (2700 : ℝ)) ^ 2 = 2700 := by
+    rw [sq_sqrt (by norm_num)]
+  constructor
+  · rw [lt_div_iff₀ hsqrt_pos]
+    have hprod_nonneg : 0 ≤ (0.019 : ℝ) * sqrt 2700 := by positivity
+    have hsq : ((0.019 : ℝ) * sqrt 2700) ^ 2 < (1 : ℝ) ^ 2 := by
+      nlinarith
+    have habs := sq_lt_sq.mp hsq
+    rwa [abs_of_nonneg hprod_nonneg, abs_of_pos one_pos] at habs
+  · rw [div_lt_iff₀ hsqrt_pos]
+    have hprod_pos : 0 < (0.02 : ℝ) * sqrt 2700 := by positivity
+    have hsq : (1 : ℝ) ^ 2 < ((0.02 : ℝ) * sqrt 2700) ^ 2 := by
+      nlinarith
+    have habs := sq_lt_sq.mp hsq
+    rwa [abs_of_pos one_pos, abs_of_pos hprod_pos] at habs
 
 theorem report_ponderomotive_numeric :
     |IBParams.ponderomotiveEnergyEV ((10 : ℝ) ^ 10) 10.6 - 0.10483188| < 0.00000001 := by
@@ -77,9 +161,51 @@ theorem report_focused_waist_numeric :
   · linarith
   · linarith
 
+theorem report_focused_intensity_numeric :
+    |(2 * 30000 / (π * (14.8e-6 : ℝ) ^ 2) / 1e4) - 8.7e9| < 0.1e9 := by
+  have hden : 0 < (π * (14.8e-6 : ℝ) ^ 2) := mul_pos pi_pos (by norm_num)
+  have hupper : (2 * 30000 / (π * (14.8e-6 : ℝ) ^ 2) / 1e4) < 8.8e9 := by
+    rw [div_lt_iff₀ (by norm_num : (0 : ℝ) < 1e4)]
+    rw [div_lt_iff₀ hden]
+    nlinarith [Real.pi_gt_d2]
+  have hlower : (8.6e9 : ℝ) < 2 * 30000 / (π * (14.8e-6 : ℝ) ^ 2) / 1e4 := by
+    rw [lt_div_iff₀ (by norm_num : (0 : ℝ) < 1e4)]
+    rw [lt_div_iff₀ hden]
+    nlinarith [Real.pi_lt_d2]
+  rw [abs_sub_lt_iff]
+  constructor
+  · linarith
+  · linarith
+
+theorem report_bragg_period_normal_numeric :
+    (13.5 : ℝ) / 2 = 6.75 := by
+  norm_num
+
+theorem report_mo_si_nominal_period_numeric :
+    (2.8 : ℝ) + 4.1 = 6.9 := by
+  norm_num
+
+theorem report_euv_bandwidth_one_percent_halfwidth :
+    EUVSource.wavelengthHalfBandwidth 0.01 13.5 = (0.135 : ℝ) := by
+  norm_num [EUVSource.wavelengthHalfBandwidth]
+
+theorem report_euv_bandwidth_two_percent_fullwidth :
+    EUVSource.wavelengthFullBandwidth 0.01 13.5 = (0.27 : ℝ) := by
+  norm_num [EUVSource.wavelengthFullBandwidth, EUVSource.wavelengthHalfBandwidth]
+
 theorem report_vacuum_pressure_requirement_numeric :
     (10 ^ 5 : ℝ) * (0.2 * 10 ^ (-3 : ℤ)) / 10 = 2 := by
   norm_num
+
+theorem report_h2_absorption_length_stp_numeric :
+    |h2At135nm.absorptionLength 101325 - 0.63| < (0.01 : ℝ) := by
+  norm_num [GasAttenuation.absorptionLength, GasAttenuation.attenuationCoeff,
+    GasAttenuation.massDensity, h2At135nm]
+
+theorem report_h2_absorption_length_standard_atmosphere_numeric :
+    |h2At135nm.absorptionLength (StandardAtmosphere.si : ℝ) - 0.63| < (0.01 : ℝ) := by
+  norm_num [GasAttenuation.absorptionLength, GasAttenuation.attenuationCoeff,
+    GasAttenuation.massDensity, h2At135nm, StandardAtmosphere.si]
 
 theorem report_rayleigh_resolution_NA033_numeric :
     |0.3 * 13.5 / 0.33 - 12.3| < (0.1 : ℝ) := by
@@ -117,5 +243,13 @@ theorem report_acid_diffusion_numeric :
   constructor
   · linarith
   · linarith
+
+theorem report_resist_absorption_depth_low_alpha_nm :
+    absorptionDepthFromCoeff 4 * 1000 = (250 : ℝ) := by
+  norm_num [absorptionDepthFromCoeff]
+
+theorem report_resist_absorption_depth_high_alpha_nm :
+    |absorptionDepthFromCoeff 6 * 1000 - 166.66666666666666| < (0.001 : ℝ) := by
+  norm_num [absorptionDepthFromCoeff]
 
 end

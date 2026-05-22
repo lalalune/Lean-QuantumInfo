@@ -120,6 +120,21 @@ theorem gaussianPointSource3D_linear_in_source {N₁ N₂ r : ℝ}
   · apply Real.rpow_pos_of_pos
     exact mul_pos (mul_pos (mul_pos (by norm_num) pi_pos) p.D_pos) p.t_PEB_pos
 
+/-- The point-source Gaussian acid cloud is radially decreasing away from the source. -/
+theorem gaussianPointSource3D_decreases_with_radius {N₀ r₁ r₂ : ℝ}
+    (hN₀ : 0 < N₀) (hr₁ : 0 ≤ r₁) (hr : r₁ < r₂) :
+    p.gaussianPointSource3D N₀ r₂ < p.gaussianPointSource3D N₀ r₁ := by
+  unfold gaussianPointSource3D
+  apply mul_lt_mul_of_pos_left
+  · apply exp_lt_exp.mpr
+    apply neg_lt_neg
+    have hden : 0 < 4 * p.D * p.t_PEB :=
+      mul_pos (mul_pos (by norm_num) p.D_pos) p.t_PEB_pos
+    have hsqr : r₁ ^ 2 < r₂ ^ 2 := sq_lt_sq' (by linarith) hr
+    exact div_lt_div_of_pos_right hsqr hden
+  · exact div_pos hN₀ (Real.rpow_pos_of_pos
+      (mul_pos (mul_pos (mul_pos (by norm_num) pi_pos) p.D_pos) p.t_PEB_pos) _)
+
 /-- Contrast attenuation (Gaussian OTF) at pitch p: exp(-2π²σ²/p²) -/
 def contrastAttenuation (pitch : ℝ) : ℝ :=
   exp (-(2 * π ^ 2 * p.diffusionLength ^ 2 / pitch ^ 2))
@@ -146,6 +161,20 @@ theorem contrastAttenuation_mono_in_sigma {σ₁ σ₂ pitch : ℝ}
   apply div_lt_div_of_pos_right _ (sq_pos_of_pos hpitch)
   apply mul_lt_mul_of_pos_left _ (mul_pos two_pos (sq_pos_of_pos pi_pos))
   exact sq_lt_sq' (by linarith) hσ
+
+/-- At fixed diffusion length, larger pitch suffers less Gaussian contrast attenuation. -/
+theorem contrastAttenuation_increases_with_pitch {pitch₁ pitch₂ : ℝ}
+    (hpitch₁ : 0 < pitch₁) (hpitch : pitch₁ < pitch₂) :
+    p.contrastAttenuation pitch₁ < p.contrastAttenuation pitch₂ := by
+  unfold contrastAttenuation
+  apply exp_lt_exp.mpr
+  apply neg_lt_neg
+  have hnum : 0 < 2 * π ^ 2 * p.diffusionLength ^ 2 :=
+    mul_pos (mul_pos two_pos (sq_pos_of_pos pi_pos)) (sq_pos_of_pos p.diffusionLength_pos)
+  have hpitch2sq : pitch₁ ^ 2 < pitch₂ ^ 2 := by
+    nlinarith [mul_pos hpitch₁ hpitch₁, mul_lt_mul_of_pos_left hpitch hpitch₁,
+      mul_lt_mul_of_pos_right hpitch (lt_trans hpitch₁ hpitch)]
+  exact div_lt_div_of_pos_left hnum (sq_pos_of_pos hpitch₁) hpitch2sq
 
 end AcidDiffusionParams
 

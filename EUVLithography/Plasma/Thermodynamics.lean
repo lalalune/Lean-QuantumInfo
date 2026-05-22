@@ -35,6 +35,28 @@ theorem plasmaPressure_forms_equal {Z n_i n_e kT : ℝ}
   rw [hne]
   field_simp [hZ]
 
+/-- Plasma pressure increases with ion density at fixed charge state and temperature. -/
+theorem plasmaPressureIon_increases_with_density {Z n₁ n₂ kT : ℝ}
+    (hZ : 0 < Z) (hn : n₁ < n₂) (hkT : 0 < kT) :
+    plasmaPressureIon Z n₁ kT < plasmaPressureIon Z n₂ kT := by
+  unfold plasmaPressureIon
+  exact mul_lt_mul_of_pos_right (mul_lt_mul_of_pos_left hn (by linarith)) hkT
+
+/-- Plasma pressure increases with electron temperature at fixed charge state and density. -/
+theorem plasmaPressureIon_increases_with_temperature {Z n_i kT₁ kT₂ : ℝ}
+    (hZ : 0 < Z) (hni : 0 < n_i) (hkT : kT₁ < kT₂) :
+    plasmaPressureIon Z n_i kT₁ < plasmaPressureIon Z n_i kT₂ := by
+  unfold plasmaPressureIon
+  exact mul_lt_mul_of_pos_left hkT (mul_pos (by linarith) hni)
+
+/-- Plasma pressure increases with mean ion charge at fixed ion density and temperature. -/
+theorem plasmaPressureIon_increases_with_charge {Z₁ Z₂ n_i kT : ℝ}
+    (hZ : Z₁ < Z₂) (hni : 0 < n_i) (hkT : 0 < kT) :
+    plasmaPressureIon Z₁ n_i kT < plasmaPressureIon Z₂ n_i kT := by
+  unfold plasmaPressureIon
+  have hZ' : Z₁ + 1 < Z₂ + 1 := by linarith
+  exact mul_lt_mul_of_pos_right (mul_lt_mul_of_pos_right hZ' hni) hkT
+
 /-- Electron-ion equilibration-time scaling from the report. -/
 def electronIonEquilibrationTime
     (m_e m_i n_e Z e lnΛ kT_e kT_i fourPiEps0Sq : ℝ) : ℝ :=
@@ -69,5 +91,37 @@ theorem coupling_terms_cancel (kappaIB I n_e cve T_e T_i tau_ei conduction : ℝ
     kappaIB * I + conduction := by
   unfold electronTemperatureRHS ionTemperatureRHS
   ring
+
+/-- When electron and ion temperatures are equal, there is no ion heating from equilibration. -/
+theorem ionTemperatureRHS_eq_zero_at_equal_temperature (n_e cve T tau_ei : ℝ) :
+    ionTemperatureRHS n_e cve T T tau_ei = 0 := by
+  unfold ionTemperatureRHS
+  ring
+
+/-- When electrons are hotter than ions, the coupling term heats ions. -/
+theorem ionTemperatureRHS_pos_of_electron_hotter {n_e cve T_e T_i tau_ei : ℝ}
+    (hne : 0 < n_e) (hcve : 0 < cve) (hT : T_i < T_e) (htau : 0 < tau_ei) :
+    0 < ionTemperatureRHS n_e cve T_e T_i tau_ei := by
+  unfold ionTemperatureRHS
+  exact div_pos (mul_pos (mul_pos hne hcve) (sub_pos.mpr hT)) htau
+
+/-- With equal electron and ion temperatures, electron RHS is just absorption plus conduction. -/
+theorem electronTemperatureRHS_eq_absorption_plus_conduction_at_equal_temperature
+    (kappaIB I n_e cve T tau_ei conduction : ℝ) :
+    electronTemperatureRHS kappaIB I n_e cve T T tau_ei conduction =
+      kappaIB * I + conduction := by
+  unfold electronTemperatureRHS
+  ring
+
+/-- If electrons are hotter, equilibration lowers the electron RHS below absorption plus conduction. -/
+theorem electronTemperatureRHS_lt_absorption_plus_conduction_of_electron_hotter
+    {kappaIB I n_e cve T_e T_i tau_ei conduction : ℝ}
+    (hne : 0 < n_e) (hcve : 0 < cve) (hT : T_i < T_e) (htau : 0 < tau_ei) :
+    electronTemperatureRHS kappaIB I n_e cve T_e T_i tau_ei conduction <
+      kappaIB * I + conduction := by
+  unfold electronTemperatureRHS
+  have hpos : 0 < n_e * cve * (T_e - T_i) / tau_ei :=
+    div_pos (mul_pos (mul_pos hne hcve) (sub_pos.mpr hT)) htau
+  linarith
 
 end

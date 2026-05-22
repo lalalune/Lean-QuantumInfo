@@ -66,6 +66,14 @@ def period : ℝ := m.d_Mo + m.d_Si
 theorem period_pos : 0 < m.period :=
   add_pos m.d_Mo_pos m.d_Si_pos
 
+/-- The Mo/Si bilayer period is the sum of Mo and Si layer thicknesses. -/
+theorem period_eq_mo_plus_si : m.period = m.d_Mo + m.d_Si := rfl
+
+/-- Report arithmetic: `2.8 nm + 4.1 nm = 6.9 nm`, close to the 6.75 nm Bragg period. -/
+theorem mo_si_nominal_period_numeric :
+    (2.8 : ℝ) + 4.1 = 6.9 := by
+  norm_num
+
 /-- Bragg condition: 2d cos θ = n·λ (n = diffraction order) -/
 def satisfiesBragg (θ : ℝ) (n : ℕ) : Prop :=
   2 * m.period * cos θ = n * m.lam
@@ -85,6 +93,18 @@ theorem optimalPeriodNormal_pos : 0 < m.optimalPeriodNormal :=
 theorem bragg_first_order_normal :
     2 * m.optimalPeriodNormal = 1 * m.lam := by
   simp [optimalPeriodNormal]; ring
+
+/-- First-order normal-incidence Bragg condition is equivalent to `d = λ/2`. -/
+theorem bragg_first_order_normal_iff :
+    m.satisfiesBragg 0 1 ↔ m.period = m.lam / 2 := by
+  rw [bragg_normal_incidence]
+  constructor
+  · intro h
+    norm_num at h
+    linarith
+  · intro h
+    rw [h]
+    ring
 
 /-- EUV mirror: period ≈ λ/2 = 6.75 nm for λ = 13.5 nm -/
 theorem euv_period_approx : m.optimalPeriodNormal = m.lam / 2 := rfl
@@ -129,15 +149,71 @@ theorem debyeWaller_lt_one_of_roughness (hσ : 0 < m.σ_r) :
   apply exp_lt_exp.mpr
   nlinarith [sq_pos_of_pos (div_pos (mul_pos (mul_pos two_pos pi_pos) hσ) m.lam_pos)]
 
+/-- Larger interface roughness gives a smaller Debye-Waller reflectivity factor. -/
+theorem debyeWaller_decreases_with_roughness {m₁ m₂ : MultilayerMirror}
+    (hlam : m₁.lam = m₂.lam) (hσ₁ : 0 < m₁.σ_r) (hσ : m₁.σ_r < m₂.σ_r) :
+    m₂.debyeWallerFactor < m₁.debyeWallerFactor := by
+  unfold debyeWallerFactor
+  rw [← hlam]
+  apply exp_lt_exp.mpr
+  have harg : 2 * π * m₁.σ_r / m₁.lam < 2 * π * m₂.σ_r / m₁.lam := by
+    exact div_lt_div_of_pos_right (mul_lt_mul_of_pos_left hσ (mul_pos two_pos pi_pos))
+      m₁.lam_pos
+  have harg_pos : 0 < 2 * π * m₁.σ_r / m₁.lam :=
+    div_pos (mul_pos (mul_pos two_pos pi_pos) hσ₁) m₁.lam_pos
+  have hsq : (2 * π * m₁.σ_r / m₁.lam) ^ 2 <
+      (2 * π * m₂.σ_r / m₁.lam) ^ 2 :=
+    sq_lt_sq' (by linarith [harg_pos, harg]) harg
+  nlinarith
+
 /-- Single-interface reflectance amplitude r₁₂ for Mo/Si -/
 def interfaceReflectance (δ_Mo δ_Si : ℝ) : ℝ :=
   (δ_Mo - δ_Si) / (2 * (1 - (δ_Mo + δ_Si) / 2))
 
 /-- Peak reflectivity estimate for N bilayers (tanh approximation):
-    R_peak ≈ tanh²(N · |r₁₂| · Γ)
+    R_peak ≈ tanh²(N · |r₁₂|/2 · Γ)
     Since tanh < 1, we have R < 1. -/
+def peakReflectivityArgument (r12 : ℝ) : ℝ :=
+  m.N * (|r12| / 2) * m.debyeWallerFactor
+
 def peakReflectivity (r12 : ℝ) : ℝ :=
-  Real.tanh (m.N * |r12| * m.debyeWallerFactor) ^ 2
+  Real.tanh (m.peakReflectivityArgument r12) ^ 2
+
+theorem peakReflectivity_argument_nonneg {r12 : ℝ} :
+    0 ≤ m.peakReflectivityArgument r12 := by
+  unfold peakReflectivityArgument
+  exact
+  mul_nonneg
+    (mul_nonneg (Nat.cast_nonneg m.N) (div_nonneg (abs_nonneg r12) two_pos.le))
+    m.debyeWaller_pos.le
+
+/-- No interface contrast gives zero peak-reflectivity argument. -/
+theorem peakReflectivityArgument_zero_of_no_contrast :
+    m.peakReflectivityArgument 0 = 0 := by
+  simp [peakReflectivityArgument]
+
+/-- The peak-reflectivity argument is positive when there is nonzero interface contrast. -/
+theorem peakReflectivityArgument_pos_of_contrast {r12 : ℝ} (hr : r12 ≠ 0) :
+    0 < m.peakReflectivityArgument r12 := by
+  unfold peakReflectivityArgument
+  exact mul_pos
+    (mul_pos (Nat.cast_pos.mpr m.N_pos) (div_pos (abs_pos.mpr hr) two_pos))
+    m.debyeWaller_pos
+
+/-- More bilayers increase the tanh-approximation stack-strength argument at fixed interface
+contrast and roughness factor. -/
+theorem peakReflectivityArgument_increases_with_bilayers {N₁ N₂ : ℕ} {r12 Γ : ℝ}
+    (hN : N₁ < N₂) (hr : r12 ≠ 0) (hΓ : 0 < Γ) :
+    (N₁ : ℝ) * (|r12| / 2) * Γ < (N₂ : ℝ) * (|r12| / 2) * Γ := by
+  exact mul_lt_mul_of_pos_right
+    (mul_lt_mul_of_pos_right (Nat.cast_lt.mpr hN) (div_pos (abs_pos.mpr hr) two_pos)) hΓ
+
+/-- Rougher interfaces lower the tanh-approximation stack-strength argument through Γ. -/
+theorem peakReflectivityArgument_decreases_with_roughness_factor {N : ℕ} {r12 Γ₁ Γ₂ : ℝ}
+    (hN : 0 < N) (hr : r12 ≠ 0) (hΓ : Γ₁ < Γ₂) :
+    (N : ℝ) * (|r12| / 2) * Γ₁ < (N : ℝ) * (|r12| / 2) * Γ₂ := by
+  exact mul_lt_mul_of_pos_left hΓ
+    (mul_pos (Nat.cast_pos.mpr hN) (div_pos (abs_pos.mpr hr) two_pos))
 
 theorem peakReflectivity_nonneg {r12 : ℝ} :
     0 ≤ m.peakReflectivity r12 := sq_nonneg _
@@ -145,7 +221,17 @@ theorem peakReflectivity_nonneg {r12 : ℝ} :
 theorem peakReflectivity_lt_one {r12 : ℝ} :
     m.peakReflectivity r12 < 1 := by
   unfold peakReflectivity
-  exact Real.tanh_sq_lt_one (m.N * |r12| * m.debyeWallerFactor)
+  exact Real.tanh_sq_lt_one (m.peakReflectivityArgument r12)
+
+/-- With no index contrast there is no Bragg-stack reflection in the tanh approximation. -/
+theorem peakReflectivity_zero_of_no_contrast :
+    m.peakReflectivity 0 = 0 := by
+  simp [peakReflectivity, peakReflectivityArgument]
+
+/-- Perfect interfaces remove the Debye-Waller roughness penalty in the peak-reflectivity estimate. -/
+theorem peakReflectivity_perfect_interfaces {r12 : ℝ} (hσ : m.σ_r = 0) :
+    m.peakReflectivity r12 = Real.tanh (m.N * (|r12| / 2)) ^ 2 := by
+  simp [peakReflectivity, peakReflectivityArgument, debyeWallerFactor, hσ]
 
 /-- Spectral bandwidth: Δλ/λ ≈ 1/(2N) -/
 def relBandwidth : ℝ := 1 / (2 * m.N)

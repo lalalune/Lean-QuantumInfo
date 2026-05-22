@@ -10,9 +10,9 @@ import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 
 Small positive-constant wrappers and light/quantum-energy identities used by
 the EUV source and plasma calculations.  The positive-wrapper style follows the
-useful constants pattern in `leanprover-community/physlib` for `ℏ`, `kB`, and
-`SpeedOfLight`, while keeping this project independent of the full external
-library.
+useful constants pattern in `leanprover-community/physlib` for `ℏ`, `kB`,
+`SpeedOfLight`, `electronVolt`, and `standardAtmosphere`, while keeping this
+project independent of the full external library.
 
 -/
 
@@ -21,6 +21,49 @@ noncomputable section
 open Real
 
 namespace EUVConstants
+
+/-- A positive real-valued physical constant used for table-level constants. -/
+structure PositiveConstant where
+  /-- Underlying SI value. -/
+  val : ℝ
+  /-- Positivity of the physical constant. -/
+  pos : 0 < val
+
+namespace PositiveConstant
+
+instance : Coe PositiveConstant ℝ := ⟨PositiveConstant.val⟩
+
+@[simp]
+theorem val_pos (x : PositiveConstant) : 0 < (x : ℝ) := x.pos
+
+@[simp]
+theorem val_nonneg (x : PositiveConstant) : 0 ≤ (x : ℝ) := le_of_lt x.pos
+
+@[simp]
+theorem val_ne_zero (x : PositiveConstant) : (x : ℝ) ≠ 0 := ne_of_gt x.pos
+
+end PositiveConstant
+
+/-- Planck constant `h`, SI value in J s. -/
+def planckConstantSI : PositiveConstant := ⟨6.62607015e-34, by norm_num⟩
+
+/-- Elementary charge `e`, SI value in coulombs. -/
+def elementaryChargeSI : PositiveConstant := ⟨1.602176634e-19, by norm_num⟩
+
+/-- Electron rest mass `m_e`, SI value in kg. -/
+def electronMassSI : PositiveConstant := ⟨9.1093837015e-31, by norm_num⟩
+
+/-- Approximate mass of the 118Sn isotope used in the report, SI value in kg. -/
+def tin118MassSI : PositiveConstant := ⟨1.975e-25, by norm_num⟩
+
+/-- Vacuum permittivity `ε₀`, SI value in F/m. -/
+def vacuumPermittivitySI : PositiveConstant := ⟨8.8541878128e-12, by norm_num⟩
+
+/-- Vacuum permeability `μ₀`, SI value in H/m. -/
+def vacuumPermeabilitySI : PositiveConstant := ⟨1.25663706212e-6, by norm_num⟩
+
+/-- Avogadro number `N_A`, SI value in mol⁻¹. -/
+def avogadroNumberSI : PositiveConstant := ⟨6.02214076e23, by norm_num⟩
 
 /-- Reduced Planck constant `ℏ` as a positive real. -/
 structure ReducedPlanckConstant where
@@ -97,6 +140,81 @@ def si : BoltzmannConstant := ⟨1.380649e-23, by norm_num⟩
 
 end BoltzmannConstant
 
+/-- Electron volt as a positive number of joules.
+    This mirrors physlib's `Units.WithDim.Energy.electronVolt` SI value. -/
+structure ElectronVolt where
+  /-- Underlying value of one eV in joules. -/
+  val : ℝ
+  /-- Positivity of the eV-to-joule conversion. -/
+  pos : 0 < val
+
+namespace ElectronVolt
+
+instance : Coe ElectronVolt ℝ := ⟨ElectronVolt.val⟩
+
+@[simp]
+theorem val_pos (eV : ElectronVolt) : 0 < (eV : ℝ) := eV.pos
+
+@[simp]
+theorem val_nonneg (eV : ElectronVolt) : 0 ≤ (eV : ℝ) := le_of_lt eV.pos
+
+@[simp]
+theorem val_ne_zero (eV : ElectronVolt) : (eV : ℝ) ≠ 0 := ne_of_gt eV.pos
+
+/-- Exact SI value of one electron volt, in joules. -/
+def si : ElectronVolt := ⟨1.602176634e-19, by norm_num⟩
+
+end ElectronVolt
+
+/-- Standard atmosphere as a positive pressure in pascals.
+    This mirrors physlib's `Units.WithDim.Pressure.standardAtmosphere` SI value. -/
+structure StandardAtmosphere where
+  /-- Underlying value of one atmosphere in pascals. -/
+  val : ℝ
+  /-- Positivity of atmospheric pressure. -/
+  pos : 0 < val
+
+namespace StandardAtmosphere
+
+instance : Coe StandardAtmosphere ℝ := ⟨StandardAtmosphere.val⟩
+
+@[simp]
+theorem val_pos (atm : StandardAtmosphere) : 0 < (atm : ℝ) := atm.pos
+
+@[simp]
+theorem val_nonneg (atm : StandardAtmosphere) : 0 ≤ (atm : ℝ) := le_of_lt atm.pos
+
+@[simp]
+theorem val_ne_zero (atm : StandardAtmosphere) : (atm : ℝ) ≠ 0 := ne_of_gt atm.pos
+
+/-- Exact SI value of a standard atmosphere, in Pa. -/
+def si : StandardAtmosphere := ⟨101325, by norm_num⟩
+
+end StandardAtmosphere
+
+/-- Convert an energy in electron volts to joules. -/
+def eVToJoule (eV : ElectronVolt) (energy_eV : ℝ) : ℝ :=
+  energy_eV * (eV : ℝ)
+
+theorem eVToJoule_pos (eV : ElectronVolt) {energy_eV : ℝ} (hE : 0 < energy_eV) :
+    0 < eVToJoule eV energy_eV := by
+  unfold eVToJoule
+  exact mul_pos hE eV.pos
+
+/-- Convert an energy in joules to electron volts. -/
+def jouleToEV (eV : ElectronVolt) (energy_J : ℝ) : ℝ :=
+  energy_J / (eV : ℝ)
+
+theorem jouleToEV_pos (eV : ElectronVolt) {energy_J : ℝ} (hE : 0 < energy_J) :
+    0 < jouleToEV eV energy_J := by
+  unfold jouleToEV
+  exact div_pos hE eV.pos
+
+theorem jouleToEV_eVToJoule (eV : ElectronVolt) (energy_eV : ℝ) :
+    jouleToEV eV (eVToJoule eV energy_eV) = energy_eV := by
+  unfold jouleToEV eVToJoule
+  field_simp [eV.val_ne_zero]
+
 /-- Planck constant generated from reduced Planck constant: `h = 2πℏ`. -/
 def planckFromReduced (hbar : ReducedPlanckConstant) : ℝ :=
   2 * π * (hbar : ℝ)
@@ -128,5 +246,46 @@ theorem hbar_omega_eq_hc_over_lambda (hbar : ReducedPlanckConstant) (c : SpeedOf
   unfold photonEnergyAngular angularFrequencyFromWavelength planckFromReduced
   field_simp [hlambda]
 
-end EUVConstants
+/-- Angular frequency decreases as wavelength increases. -/
+theorem angularFrequency_decreases_with_wavelength (c : SpeedOfLight)
+    {lambda₁ lambda₂ : ℝ} (hlambda₁ : 0 < lambda₁) (hlambda : lambda₁ < lambda₂) :
+    angularFrequencyFromWavelength c lambda₂ <
+      angularFrequencyFromWavelength c lambda₁ := by
+  unfold angularFrequencyFromWavelength
+  exact div_lt_div_of_pos_left (mul_pos (mul_pos two_pos pi_pos) c.pos) hlambda₁ hlambda
 
+/-- Photon energy `E = hc/λ` decreases as wavelength increases. -/
+theorem photonEnergy_decreases_with_wavelength (hbar : ReducedPlanckConstant)
+    (c : SpeedOfLight) {lambda₁ lambda₂ : ℝ}
+    (hlambda₁ : 0 < lambda₁) (hlambda : lambda₁ < lambda₂) :
+    planckFromReduced hbar * (c : ℝ) / lambda₂ <
+      planckFromReduced hbar * (c : ℝ) / lambda₁ := by
+  exact div_lt_div_of_pos_left (mul_pos (planckFromReduced_pos hbar) c.pos) hlambda₁ hlambda
+
+/-- Photon energy using direct Planck constant: `E = hc/λ`. -/
+def photonEnergyFromWavelength (h c : PositiveConstant) (lambda : ℝ) : ℝ :=
+  (h : ℝ) * (c : ℝ) / lambda
+
+theorem photonEnergyFromWavelength_pos (h c : PositiveConstant) {lambda : ℝ}
+    (hlambda : 0 < lambda) :
+    0 < photonEnergyFromWavelength h c lambda := by
+  unfold photonEnergyFromWavelength
+  exact div_pos (mul_pos h.pos c.pos) hlambda
+
+theorem photonEnergyFromWavelength_decreases_with_wavelength (h c : PositiveConstant)
+    {lambda₁ lambda₂ : ℝ} (hlambda₁ : 0 < lambda₁) (hlambda : lambda₁ < lambda₂) :
+    photonEnergyFromWavelength h c lambda₂ <
+      photonEnergyFromWavelength h c lambda₁ := by
+  unfold photonEnergyFromWavelength
+  exact div_lt_div_of_pos_left (mul_pos h.pos c.pos) hlambda₁ hlambda
+
+/-- The direct-`h` photon-energy formula agrees with the reduced-Planck formula when `h = 2πℏ`. -/
+theorem photonEnergyFromWavelength_eq_reduced
+    (h : PositiveConstant) (hbar : ReducedPlanckConstant) (c : SpeedOfLight) {lambda : ℝ}
+    (hh : (h : ℝ) = planckFromReduced hbar) :
+    photonEnergyFromWavelength h ⟨(c : ℝ), c.pos⟩ lambda =
+      planckFromReduced hbar * (c : ℝ) / lambda := by
+  unfold photonEnergyFromWavelength
+  rw [hh]
+
+end EUVConstants

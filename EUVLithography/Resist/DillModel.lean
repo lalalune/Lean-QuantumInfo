@@ -140,6 +140,16 @@ theorem acidConc_lt_PAG {D : ℝ} (_hD : 0 ≤ D) : r.acidConcentration D < r.PA
   have hexp : 0 < exp (-(r.C * D)) := exp_pos _
   nlinarith [mul_pos r.PAG_pos hexp]
 
+/-- Acid concentration strictly increases with exposure dose. -/
+theorem acidConc_mono {D₁ D₂ : ℝ} (hD : D₁ < D₂) :
+    r.acidConcentration D₁ < r.acidConcentration D₂ := by
+  unfold acidConcentration
+  apply mul_lt_mul_of_pos_left _ r.PAG_pos
+  have hexp : exp (-(r.C * D₂)) < exp (-(r.C * D₁)) := by
+    apply exp_lt_exp.mpr
+    nlinarith [mul_lt_mul_of_pos_left hD r.C_pos]
+  linarith
+
 /-- Acid and inhibitor are complementary: [H⁺]/[PAG] + M(D)/M₀ = 1 (when M₀ = 1) -/
 theorem acid_inhibitor_complementary (D : ℝ) (hM₀ : r.M₀ = 1) :
     r.acidConcentration D / r.PAG + r.inhibitorConc D = 1 := by
@@ -209,6 +219,12 @@ theorem dissolutionRate_at_one : r.dissolutionRate 1 = 0 := by
   have hn : r.n ≠ 0 := ne_of_gt (show (0 : ℝ) < r.n by linarith [r.n_ge_two])
   simp only [sub_self, Real.zero_rpow hn, mul_zero, zero_div, mul_zero]
 
+/-- The Mack threshold value is given by substituting `M_th` into the report formula. -/
+theorem dissolutionRate_at_threshold :
+    r.dissolutionRate r.M_th =
+      r.R_max * ((r.mackParameter + 1) * (1 - r.M_th) ^ r.n /
+        (r.mackParameter + (1 - r.M_th) ^ r.n)) := rfl
+
 /-- Dissolution rate ≤ R_max always -/
 theorem dissolutionRate_le_max {M : ℝ} (hM0 : 0 ≤ M) (hM1 : M ≤ 1) :
     r.dissolutionRate M ≤ r.R_max := by
@@ -222,6 +238,12 @@ theorem dissolutionRate_le_max {M : ℝ} (hM0 : 0 ≤ M) (hM1 : M ≤ 1) :
   rw [div_le_one hdenom_pos]
   have := mul_le_of_le_one_right ha.le hq_le
   linarith
+
+/-- At the Mack threshold, the dissolution rate remains inside the physical rate interval. -/
+theorem dissolutionRate_threshold_in_range :
+    0 ≤ r.dissolutionRate r.M_th ∧ r.dissolutionRate r.M_th ≤ r.R_max :=
+  ⟨r.dissolutionRate_nonneg (le_of_lt r.M_th_pos) (le_of_lt r.M_th_lt_one),
+    r.dissolutionRate_le_max (le_of_lt r.M_th_pos) (le_of_lt r.M_th_lt_one)⟩
 
 end ResistParams
 
@@ -271,6 +293,25 @@ theorem acidYieldPerPhoton_eq_mul {n_secondary mean_secondary_E W_PAG : ℝ}
   unfold acidYieldPerPhoton
   field_simp [hE]
 
+/-- More secondary electrons increase acid-generation yield per EUV photon. -/
+theorem acidYieldPerPhoton_increases_with_secondaries
+    {n₁ n₂ mean_secondary_E W_PAG : ℝ}
+    (hn : n₁ < n₂) (hE : 0 < mean_secondary_E) (hW : 0 < W_PAG) :
+    acidYieldPerPhoton n₁ mean_secondary_E W_PAG <
+      acidYieldPerPhoton n₂ mean_secondary_E W_PAG := by
+  unfold acidYieldPerPhoton
+  exact div_lt_div_of_pos_right hn (div_pos hE hW)
+
+/-- Larger PAG activation energy lowers acid yield for fixed secondary-electron energy. -/
+theorem acidYieldPerPhoton_increases_with_activation_energy
+    {n_secondary mean_secondary_E W₁ W₂ : ℝ}
+    (hn : 0 < n_secondary) (hE : 0 < mean_secondary_E) (hW : W₁ < W₂) :
+    acidYieldPerPhoton n_secondary mean_secondary_E W₁ <
+      acidYieldPerPhoton n_secondary mean_secondary_E W₂ := by
+  rw [acidYieldPerPhoton_eq_mul (ne_of_gt hE),
+    acidYieldPerPhoton_eq_mul (ne_of_gt hE)]
+  exact div_lt_div_of_pos_right (mul_lt_mul_of_pos_left hW hn) hE
+
 /-- Arrhenius post-exposure-bake reaction rate: `k(T) = A exp(-E_a/(k_B T))`. -/
 def arrheniusRate (A E_a k_B T : ℝ) : ℝ :=
   A * exp (-(E_a / (k_B * T)))
@@ -286,6 +327,17 @@ theorem arrheniusRate_le_prefactor {A E_a k_B T : ℝ}
   apply mul_le_of_le_one_right hA
   rw [exp_le_one_iff]
   exact neg_nonpos.mpr (div_nonneg hEa (mul_pos hkB hT).le)
+
+/-- Higher bake temperature increases the Arrhenius reaction rate. -/
+theorem arrheniusRate_increases_with_temperature {A E_a k_B T₁ T₂ : ℝ}
+    (hA : 0 < A) (hEa : 0 < E_a) (hkB : 0 < k_B) (hT₁ : 0 < T₁) (hT : T₁ < T₂) :
+    arrheniusRate A E_a k_B T₁ < arrheniusRate A E_a k_B T₂ := by
+  unfold arrheniusRate
+  apply mul_lt_mul_of_pos_left _ hA
+  apply exp_lt_exp.mpr
+  have hden₁ : 0 < k_B * T₁ := mul_pos hkB hT₁
+  have hden : k_B * T₁ < k_B * T₂ := mul_lt_mul_of_pos_left hT hkB
+  exact neg_lt_neg (div_lt_div_of_pos_left hEa hden₁ hden)
 
 /-- PEB deprotection RHS for fixed reaction rate and acid concentration. -/
 def pebDeprotectionRHS (k_PEB H M : ℝ) : ℝ := -(k_PEB * H) * M

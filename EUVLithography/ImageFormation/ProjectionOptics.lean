@@ -6,6 +6,7 @@ import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Data.Complex.Basic
+import Mathlib.Data.Fintype.BigOperators
 
 /-!
 
@@ -36,6 +37,7 @@ EUV projection optics with 4–6 aspheric mirrors.
 noncomputable section
 
 open Real
+open scoped BigOperators
 
 /-- Parameters for an EUV projection optical system.
     Field `lambda` holds the wavelength (avoiding Lean's `λ` keyword). -/
@@ -76,6 +78,30 @@ theorem abbeLimit_pos : 0 < ps.abbeLimit :=
 /-- Rayleigh resolution = 2 k₁ × Abbe limit -/
 theorem rayleigh_vs_abbe : ps.rayleighResolution = 2 * ps.k₁ * ps.abbeLimit := by
   unfold rayleighResolution abbeLimit; field_simp
+
+/-- Higher NA lowers the Abbe diffraction limit at fixed wavelength. -/
+theorem abbeLimit_decreases_with_NA {NA₁ NA₂ : ℝ} (hNA₁ : 0 < NA₁)
+    (hNA : NA₁ < NA₂)
+    (ps₁ ps₂ : ProjectionSystem)
+    (h_lam : ps₁.lambda = ps₂.lambda)
+    (h_NA₁ : ps₁.NA = NA₁) (h_NA₂ : ps₂.NA = NA₂) :
+    ps₂.abbeLimit < ps₁.abbeLimit := by
+  unfold abbeLimit
+  rw [h_NA₁, h_NA₂, h_lam]
+  apply div_lt_div_of_pos_left ps₂.lambda_pos
+  · exact mul_pos two_pos hNA₁
+  exact mul_lt_mul_of_pos_left hNA two_pos
+
+/-- Shorter wavelength lowers the Abbe diffraction limit at fixed NA. -/
+theorem abbeLimit_decreases_with_wavelength {lam₁ lam₂ : ℝ}
+    (hlam : lam₁ < lam₂)
+    (ps₁ ps₂ : ProjectionSystem)
+    (h_NA : ps₁.NA = ps₂.NA)
+    (h_lam₁ : ps₁.lambda = lam₁) (h_lam₂ : ps₂.lambda = lam₂) :
+    ps₁.abbeLimit < ps₂.abbeLimit := by
+  unfold abbeLimit
+  rw [h_NA, h_lam₁, h_lam₂]
+  exact div_lt_div_of_pos_right hlam (mul_pos two_pos ps₂.NA_pos)
 
 /-- Higher NA → better (smaller) resolution -/
 theorem higher_NA_better_resolution {NA₁ NA₂ : ℝ} (hNA₁ : 0 < NA₁)
@@ -122,6 +148,21 @@ theorem doF_scales_as_NA_squared {NA₁ NA₂ : ℝ} (hNA₁ : 0 < NA₁) (hNA�
   rw [h_NA₁, h_NA₂, h_lam, h_k₂]
   field_simp [ne_of_gt hNA₁, ne_of_gt hNA₂, ne_of_gt ps₂.k₂_pos, ne_of_gt ps₂.lambda_pos]
 
+/-- Higher NA reduces depth of focus at fixed wavelength and k₂. -/
+theorem higher_NA_smaller_depthOfFocus {NA₁ NA₂ : ℝ} (hNA₁ : 0 < NA₁)
+    (hNA : NA₁ < NA₂)
+    (ps₁ ps₂ : ProjectionSystem)
+    (h_lam : ps₁.lambda = ps₂.lambda)
+    (h_k₂ : ps₁.k₂ = ps₂.k₂)
+    (h_NA₁ : ps₁.NA = NA₁) (h_NA₂ : ps₂.NA = NA₂) :
+    ps₂.depthOfFocus < ps₁.depthOfFocus := by
+  unfold depthOfFocus
+  rw [h_NA₁, h_NA₂, h_lam, h_k₂]
+  apply div_lt_div_of_pos_left (mul_pos ps₂.k₂_pos ps₂.lambda_pos)
+  · exact sq_pos_of_pos hNA₁
+  nlinarith [mul_pos hNA₁ hNA₁, mul_lt_mul_of_pos_left hNA hNA₁,
+    mul_lt_mul_of_pos_right hNA (lt_trans hNA₁ hNA)]
+
 /-- Strehl ratio: S = exp(-(2π W_rms/λ)²) — Maréchal approximation -/
 def strehlRatio : ℝ := exp (-(2 * π * ps.W_rms / ps.lambda) ^ 2)
 
@@ -131,6 +172,13 @@ theorem strehlRatio_le_one : ps.strehlRatio ≤ 1 := by
   unfold strehlRatio
   rw [← exp_zero]
   exact exp_le_exp.mpr (neg_nonpos.mpr (sq_nonneg _))
+
+/-- The exponential Maréchal Strehl is bounded below by its first-order approximation. -/
+theorem marechal_first_order_lower_bound :
+    1 - (2 * π * ps.W_rms / ps.lambda) ^ 2 ≤ ps.strehlRatio := by
+  unfold strehlRatio
+  have h := add_one_le_exp (-(2 * π * ps.W_rms / ps.lambda) ^ 2)
+  nlinarith
 
 /-- Strehl = 1 iff wavefront is perfect -/
 theorem strehlRatio_one_iff_perfect : ps.strehlRatio = 1 ↔ ps.W_rms = 0 := by
@@ -180,6 +228,15 @@ def maskNA (demag : ℝ) : ℝ := ps.NA / demag
 theorem maskNA_pos {demag : ℝ} (hd : 0 < demag) : 0 < ps.maskNA demag :=
   div_pos ps.NA_pos hd
 
+/-- Larger demagnification lowers mask-side NA for a fixed wafer-side NA. -/
+theorem maskNA_decreases_with_demag {d₁ d₂ : ℝ} (hd₁ : 0 < d₁) (hd : d₁ < d₂) :
+    ps.maskNA d₂ < ps.maskNA d₁ := by
+  unfold maskNA
+  exact div_lt_div_of_pos_left ps.NA_pos hd₁ hd
+
+/-- Four-times reduction optics place mask-side NA at one quarter of wafer-side NA. -/
+theorem maskNA_fourX : ps.maskNA 4 = ps.NA / 4 := rfl
+
 end ProjectionSystem
 
 /-- Numerical aperture in a medium: `NA = n sin θ`. -/
@@ -208,5 +265,39 @@ theorem coherentIntensity_eq_zero_iff (field : ℂ) :
     coherentIntensity field = 0 ↔ field = 0 := by
   unfold coherentIntensity
   rw [sq_eq_zero_iff, norm_eq_zero]
+
+/-- Finite-mode Zernike wavefront expansion `W = Σ c_nm Z_nm`. -/
+def zernikeWavefront {ι : Type*} [Fintype ι] (coeff zernikeMode : ι → ℝ) : ℝ :=
+  ∑ i, coeff i * zernikeMode i
+
+theorem zernikeWavefront_zero_coeff {ι : Type*} [Fintype ι] (zernikeMode : ι → ℝ) :
+    zernikeWavefront (fun _ : ι => 0) zernikeMode = 0 := by
+  simp [zernikeWavefront]
+
+theorem zernikeWavefront_add_coeff {ι : Type*} [Fintype ι]
+    (c₁ c₂ zernikeMode : ι → ℝ) :
+    zernikeWavefront (fun i => c₁ i + c₂ i) zernikeMode =
+      zernikeWavefront c₁ zernikeMode + zernikeWavefront c₂ zernikeMode := by
+  simp [zernikeWavefront, add_mul, Finset.sum_add_distrib]
+
+/-- Finite-pupil coherent amplitude: a Riemann-sum analogue of `∫ U(f) e^{iφ(f)} df`. -/
+def coherentPupilAmplitude {ι : Type*} [Fintype ι]
+    (field phase weight : ι → ℂ) : ℂ :=
+  ∑ f, weight f * field f * phase f
+
+/-- Coherent aerial intensity from a finite pupil discretization. -/
+def coherentPupilIntensity {ι : Type*} [Fintype ι]
+    (field phase weight : ι → ℂ) : ℝ :=
+  coherentIntensity (coherentPupilAmplitude field phase weight)
+
+theorem coherentPupilIntensity_nonneg {ι : Type*} [Fintype ι]
+    (field phase weight : ι → ℂ) :
+    0 ≤ coherentPupilIntensity field phase weight :=
+  coherentIntensity_nonneg _
+
+theorem coherentPupilIntensity_zero_field {ι : Type*} [Fintype ι]
+    (phase weight : ι → ℂ) :
+    coherentPupilIntensity (fun _ : ι => 0) phase weight = 0 := by
+  simp [coherentPupilIntensity, coherentPupilAmplitude, coherentIntensity]
 
 end

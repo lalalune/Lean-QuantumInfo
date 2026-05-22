@@ -78,11 +78,69 @@ theorem quantumConcentration_pos : 0 < p.quantumConcentration := by
 def sahaFactor (g_ratio : ℝ) (chi_z : ℝ) : ℝ :=
   2 / p.n_e * p.quantumConcentration * g_ratio * exp (-chi_z / p.kT)
 
+/-- Report-form Saha right-hand side for `(n_{z+1} n_e) / n_z`.
+    Here `g_ratio = g_{z+1}/g_z`, so the prefactor is `2 g_ratio`. -/
+def sahaEquationRHS (g_ratio : ℝ) (chi_z : ℝ) : ℝ :=
+  2 * g_ratio * p.quantumConcentration * exp (-chi_z / p.kT)
+
+/-- Saha equation left-hand side for one ionization step:
+    `(n_{z+1} n_e) / n_z`. -/
+def sahaSuccessiveRatio (n_z n_zplus1 : ℝ) : ℝ :=
+  n_zplus1 * p.n_e / n_z
+
 theorem sahaFactor_pos {g_ratio chi_z : ℝ} (hg : 0 < g_ratio) :
     0 < p.sahaFactor g_ratio chi_z := by
   unfold sahaFactor
   apply mul_pos (mul_pos (mul_pos _ p.quantumConcentration_pos) hg) (exp_pos _)
   exact div_pos two_pos p.n_e_pos
+
+/-- The report-form Saha right-hand side is positive for positive degeneracy ratio. -/
+theorem sahaEquationRHS_pos {g_ratio chi_z : ℝ} (hg : 0 < g_ratio) :
+    0 < p.sahaEquationRHS g_ratio chi_z := by
+  unfold sahaEquationRHS
+  exact mul_pos (mul_pos (mul_pos two_pos hg) p.quantumConcentration_pos) (exp_pos _)
+
+/-- The Saha left-hand side is positive when both neighboring charge-state densities are positive. -/
+theorem sahaSuccessiveRatio_pos {n_z n_zplus1 : ℝ}
+    (hz : 0 < n_z) (hzp : 0 < n_zplus1) :
+    0 < p.sahaSuccessiveRatio n_z n_zplus1 := by
+  unfold sahaSuccessiveRatio
+  exact div_pos (mul_pos hzp p.n_e_pos) hz
+
+/-- Solving the report-form Saha equation for the next charge-state density. -/
+theorem n_zplus1_from_sahaEquationRHS {n_z g_ratio chi_z : ℝ} (hz : n_z ≠ 0) :
+    p.sahaSuccessiveRatio n_z (n_z * p.sahaEquationRHS g_ratio chi_z / p.n_e) =
+      p.sahaEquationRHS g_ratio chi_z := by
+  unfold sahaSuccessiveRatio
+  field_simp [hz, ne_of_gt p.n_e_pos]
+
+/-- The density-normalized helper equals the report-form RHS divided by electron density. -/
+theorem sahaFactor_eq_rhs_div_ne (g_ratio chi_z : ℝ) :
+    p.sahaFactor g_ratio chi_z = p.sahaEquationRHS g_ratio chi_z / p.n_e := by
+  unfold sahaFactor sahaEquationRHS
+  field_simp [ne_of_gt p.n_e_pos]
+
+/-- Solving the Saha ratio for the next charge-state density. -/
+theorem n_zplus1_from_sahaFactor {n_z g_ratio chi_z : ℝ} (hz : n_z ≠ 0) :
+    p.sahaSuccessiveRatio n_z (n_z * p.sahaFactor g_ratio chi_z / p.n_e) =
+      p.sahaFactor g_ratio chi_z := by
+  unfold sahaSuccessiveRatio
+  field_simp [hz, ne_of_gt p.n_e_pos]
+
+/-- At fixed `n_z`, a larger Saha factor gives a larger next charge-state density. -/
+theorem n_zplus1_increases_with_sahaFactor {n_z S₁ S₂ : ℝ}
+    (hz : 0 < n_z) (hS : S₁ < S₂) :
+    n_z * S₁ / p.n_e < n_z * S₂ / p.n_e := by
+  exact div_lt_div_of_pos_right (mul_lt_mul_of_pos_left hS hz) p.n_e_pos
+
+/-- Larger statistical-weight ratio raises the Saha ionization ratio. -/
+theorem sahaFactor_increases_with_degeneracy_ratio {g₁ g₂ chi_z : ℝ}
+    (hg : g₁ < g₂) :
+    p.sahaFactor g₁ chi_z < p.sahaFactor g₂ chi_z := by
+  unfold sahaFactor
+  apply mul_lt_mul_of_pos_right _ (exp_pos _)
+  exact mul_lt_mul_of_pos_left hg
+    (mul_pos (div_pos two_pos p.n_e_pos) p.quantumConcentration_pos)
 
 /-- Higher ionization potential χ → lower Saha ratio (exponential suppression) -/
 theorem sahaFactor_decreases_with_chi (g_ratio : ℝ) (hg : 0 < g_ratio)
